@@ -32,6 +32,44 @@ favicon em `static/favicon.svg`. As plantas sao um unico SVG em camadas (`templa
 que cresce ao vivo ao marcar presenca. No celular a navegacao vira uma barra inferior e cada
 membro vira um cartao compacto.
 
+## Como testar a branch de redesign (`redesign/visual`)
+
+Use sempre uma **cópia** do banco para não alterar os dados reais do grupo.
+
+1. Traga a branch e troque para ela (a partir da pasta do projeto):
+   ```bash
+   git fetch origin
+   git switch redesign/visual
+   ```
+2. Se ainda não instalou as dependências:
+   ```bash
+   python -m venv venv
+   venv\Scripts\activate
+   pip install -r requirements.txt
+   ```
+3. Aponte o app para uma cópia do banco e rode:
+   - PowerShell:
+     ```powershell
+     Copy-Item data\strikes.db $env:TEMP\strikes-teste.db
+     $env:STRIKES_DB = "$env:TEMP\strikes-teste.db"
+     python app.py
+     ```
+   - cmd:
+     ```bash
+     copy data\strikes.db %TEMP%\strikes-teste.db
+     set STRIKES_DB=%TEMP%\strikes-teste.db
+     python app.py
+     ```
+4. Abra [http://localhost:5000](http://localhost:5000) e confira: tela Hoje (marque Presente, Avisou e
+   Faltou e veja a planta crescer), Painel, Histórico, Membros e Calendário. No celular, use o IP do
+   notebook (`ipconfig`) com a porta 5000, ou o modo celular do navegador (F12).
+5. Para rodar os testes automatizados: `python -m unittest discover tests`.
+6. Para voltar ao normal: pare o servidor (Ctrl+C) e rode `git switch main`. A cópia em `%TEMP%` pode
+   ser apagada.
+
+Se você rodar o app **sem** `STRIKES_DB`, ele usa `data/strikes.db` (o banco real versionado) e pode
+alterá-lo. Nesse caso, desfaça com `git checkout -- data/strikes.db`.
+
 ## Variavel de ambiente STRIKES_DB
 
 Para rodar contra um banco diferente do real (recomendado para testes):
