@@ -1,43 +1,46 @@
 {% extends "base.html" %}
-{% block title %}Historico{% endblock %}
+{% block title %}Histórico · Jardim da Equipe{% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <h1>Historico por dia</h1>
-</div>
-
-<form class="inline-form" id="ir-para-dia">
-  <label for="data-alvo">Ir para uma data:</label>
-  <input type="date" id="data-alvo" value="{{ hoje }}">
-  <button type="submit" class="btn btn-primary">Abrir</button>
-</form>
+<header class="pagina-cab">
+  <div>
+    <h1>Histórico</h1>
+    <p class="sub">Cada dia registrado, com o que aconteceu. Abra um dia para corrigir qualquer marcação.</p>
+  </div>
+  <form class="date-nav" id="ir-para-dia">
+    <input type="date" id="data-alvo" value="{{ hoje }}" aria-label="Ir para uma data">
+    <button type="submit" class="btn btn-primary">Abrir dia</button>
+  </form>
+</header>
 
 {% if not dias %}
-  <p class="empty-state">Ainda nao ha nenhum registro de presenca.</p>
+  <p class="vazio">Ainda não há nenhum registro de presença.</p>
 {% else %}
-<div class="table-wrap">
-  <table class="grid-table">
-    <thead>
-      <tr>
-        <th>Data</th>
-        <th>Faltas</th>
-        <th>Justificadas</th>
-        <th>Membros com registro</th>
-        <th>Acao</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for d in dias %}
-      <tr>
-        <td>{{ d.event_date }}</td>
-        <td>{{ d.faltas }}</td>
-        <td>{{ d.justificadas }}</td>
-        <td>{{ d.membros_registrados }}</td>
-        <td><a class="btn btn-ghost" href="{{ url_for('dia', data_str=d.event_date) }}">Ver / editar</a></td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+<div class="historico-lista">
+  {% for d in dias %}
+  {% set total = d.presentes + d.justificadas + d.faltas %}
+  <a class="dia-item" href="{{ url_for('dia', data_str=d.event_date) }}">
+    <div class="dia-item-data">
+      <span class="dia-item-rotulo">{{ d.rotulo }}</span>
+      <span class="dia-item-iso">{{ d.event_date[8:10] }}/{{ d.event_date[5:7] }}/{{ d.event_date[0:4] }}</span>
+    </div>
+    <div class="dia-item-meio">
+      <div class="empilhada" role="img" aria-label="{{ d.presentes }} presentes, {{ d.justificadas }} avisaram, {{ d.faltas }} faltas">
+        {% if total %}
+        <span class="seg seg-ok" style="flex: {{ d.presentes }}"></span>
+        <span class="seg seg-aviso" style="flex: {{ d.justificadas }}"></span>
+        <span class="seg seg-falta" style="flex: {{ d.faltas }}"></span>
+        {% endif %}
+      </div>
+      <span class="dia-item-nums">
+        {{ d.presentes }} presentes · {{ d.justificadas }} avisaram · {{ d.faltas }} faltas · {{ d.membros_registrados }} {{ 'pessoa' if d.membros_registrados == 1 else 'pessoas' }}
+      </span>
+    </div>
+    <span class="dia-item-ir">Abrir
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 6l6 6-6 6"/></svg>
+    </span>
+  </a>
+  {% endfor %}
 </div>
 {% endif %}
 {% endblock %}

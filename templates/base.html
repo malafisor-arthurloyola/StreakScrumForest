@@ -2,23 +2,75 @@
 <html lang="pt-br">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1511">
   <title>{% block title %}Jardim da Equipe{% endblock %}</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+  <link rel="preload" href="{{ url_for('static', filename='fonts/bricolage-latin.woff2') }}" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <defs>
+      <path id="p-folha" d="M0 0C6-8 18-8 27 0C18 8 6 8 0 0Z"/>
+      <g id="p-flor">
+        <ellipse class="petala" cx="0" cy="-5.2" rx="3.3" ry="5.2"/>
+        <ellipse class="petala" cx="0" cy="-5.2" rx="3.3" ry="5.2" transform="rotate(72)"/>
+        <ellipse class="petala" cx="0" cy="-5.2" rx="3.3" ry="5.2" transform="rotate(144)"/>
+        <ellipse class="petala" cx="0" cy="-5.2" rx="3.3" ry="5.2" transform="rotate(216)"/>
+        <ellipse class="petala" cx="0" cy="-5.2" rx="3.3" ry="5.2" transform="rotate(288)"/>
+        <circle class="centro" r="2.8"/>
+      </g>
+      <g id="p-flor-ouro">
+        <ellipse class="petala-ouro" cx="0" cy="-5.2" rx="3.3" ry="5.2"/>
+        <ellipse class="petala-ouro" cx="0" cy="-5.2" rx="3.3" ry="5.2" transform="rotate(45)"/>
+        <ellipse class="petala-ouro" cx="0" cy="-5.2" rx="3.3" ry="5.2" transform="rotate(90)"/>
+        <ellipse class="petala-ouro" cx="0" cy="-5.2" rx="3.3" ry="5.2" transform="rotate(135)"/>
+        <ellipse class="petala-ouro" cx="0" cy="-5.2" rx="3.3" ry="5.2" transform="rotate(180)"/>
+        <ellipse class="petala-ouro" cx="0" cy="-5.2" rx="3.3" ry="5.2" transform="rotate(225)"/>
+        <ellipse class="petala-ouro" cx="0" cy="-5.2" rx="3.3" ry="5.2" transform="rotate(270)"/>
+        <ellipse class="petala-ouro" cx="0" cy="-5.2" rx="3.3" ry="5.2" transform="rotate(315)"/>
+        <circle class="centro-ouro" r="3.2"/>
+      </g>
+      <path id="p-brilho" d="M0-5L1.4-1.4L5 0L1.4 1.4L0 5L-1.4 1.4L-5 0L-1.4-1.4Z"/>
+    </defs>
+  </svg>
+
+  {% set ep = request.endpoint %}
   <header class="topbar">
-    <div class="topbar-inner">
-      <span class="brand">Jardim da Equipe</span>
-      <nav class="nav">
-        <a href="{{ url_for('home') }}" class="nav-link">Hoje</a>
-        <a href="{{ url_for('historico') }}" class="nav-link">Historico</a>
-        <a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a>
-        <a href="{{ url_for('membros_page') }}" class="nav-link">Membros</a>
-        <a href="{{ url_for('calendario_page') }}" class="nav-link">Calendario</a>
-      </nav>
-    </div>
+    <a class="brand" href="{{ url_for('home') }}" aria-label="Jardim da Equipe, página inicial">
+      <svg class="brand-mark" viewBox="0 0 48 48" aria-hidden="true">
+        <rect width="48" height="48" rx="14" fill="currentColor"/>
+        <path d="M24 39V24" fill="none" stroke="var(--acc-ink)" stroke-width="3.4" stroke-linecap="round"/>
+        <path d="M24 27C15.5 27 11.5 22 11.5 14.5C19.5 14.5 24 19 24 27Z" fill="var(--acc-ink)"/>
+        <path d="M24 23C24 13.5 30 8 38.5 8C38.5 17.5 33.5 23 24 23Z" fill="var(--acc-ink)"/>
+      </svg>
+      <span class="brand-name"><b>Jardim</b> da Equipe</span>
+    </a>
+    <nav class="nav" aria-label="Principal">
+      <a href="{{ url_for('home') }}" class="nav-link{% if ep in ('home', 'dia') %} ativo{% endif %}">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.6l2.7 2.7L16 9.6"/></svg>
+        <span>Hoje</span>
+      </a>
+      <a href="{{ url_for('dashboard') }}" class="nav-link{% if ep == 'dashboard' %} ativo{% endif %}">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20v-8M12 20V5M19 20v-5"/></svg>
+        <span>Painel</span>
+      </a>
+      <a href="{{ url_for('historico') }}" class="nav-link{% if ep == 'historico' %} ativo{% endif %}">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5.2l3.2 1.8"/></svg>
+        <span>Histórico</span>
+      </a>
+      <a href="{{ url_for('membros_page') }}" class="nav-link{% if ep == 'membros_page' %} ativo{% endif %}">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8.2" r="3.2"/><path d="M3.5 19c.6-3.3 3-5 5.5-5s4.9 1.7 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M16 14.3c2.4 0 4 1.5 4.5 4.2"/></svg>
+        <span>Membros</span>
+      </a>
+      <a href="{{ url_for('calendario_page') }}" class="nav-link{% if ep == 'calendario_page' %} ativo{% endif %}">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5.5" width="16" height="14" rx="3.2"/><path d="M4 10.2h16M9 3.6v3.8M15 3.6v3.8"/></svg>
+        <span>Calendário</span>
+      </a>
+    </nav>
   </header>
+
   <main class="container">
     {% block content %}{% endblock %}
   </main>

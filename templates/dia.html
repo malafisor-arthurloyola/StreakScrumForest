@@ -1,89 +1,85 @@
 {% extends "base.html" %}
-{% from "_planta.html" import planta %}
-{% block title %}Presenca — {{ data_str }}{% endblock %}
+{% from "_cena.html" import cena %}
+{% set cores = ['#c6f24e', '#6db9ff', '#ff9ec4', '#ffd35c', '#35d0c0', '#ff8d76', '#9be37f'] %}
+{% block title %}Hoje, {{ data_extenso }} · Jardim da Equipe{% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <h1>Registro do dia</h1>
-  <div class="date-nav">
-    <a class="btn btn-ghost" href="{{ url_for('dia', data_str=dia_anterior) }}">&larr; anterior</a>
-    <input type="date" id="date-picker" value="{{ data_str }}">
-    {% if data_str != hoje %}
-      <a class="btn btn-ghost" href="{{ url_for('dia', data_str=hoje) }}">Hoje</a>
-    {% endif %}
-    <a class="btn btn-ghost" href="{{ url_for('dia', data_str=dia_seguinte) }}">seguinte &rarr;</a>
+<header class="pagina-cab">
+  <div>
+    <h1 class="titulo-dia">{{ data_extenso }}</h1>
+    <p class="sub">
+      {% if e_letivo %}Dia {{ dia_n }} de {{ dias_total }} do projeto{% else %}Fora do calendário letivo{% endif %}
+    </p>
   </div>
-</div>
+  <div class="date-nav">
+    <a class="btn-icone" href="{{ url_for('dia', data_str=dia_anterior) }}" aria-label="Dia anterior">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg>
+    </a>
+    <input type="date" id="date-picker" value="{{ data_str }}" aria-label="Escolher data">
+    <a class="btn-icone" href="{{ url_for('dia', data_str=dia_seguinte) }}" aria-label="Próximo dia">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 6l6 6-6 6"/></svg>
+    </a>
+    {% if data_str != hoje %}
+      <a class="btn btn-ghost" href="{{ url_for('dia', data_str=hoje) }}">Ir para hoje</a>
+    {% endif %}
+  </div>
+</header>
 
 {% if not e_letivo %}
-<div class="aviso-dia-nao-letivo">
-  {{ motivo_nao_letivo }} &mdash; registros neste dia nao contam para o jardim.
+<div class="aviso">
+  <strong>{{ motivo_nao_letivo }}.</strong> Os registros deste dia não contam para o jardim.
 </div>
 {% endif %}
 
-{% if jardim %}
-<section class="jardim-faixa" aria-label="Jardim da equipe">
-  <div class="jardim-plantas">
-    {% for m in jardim %}
-    <div class="planta-card" data-member-id="{{ m.id }}">
-      {{ planta(m, tamanho=100) }}
-      <div class="planta-info">
-        <span class="planta-nome">{{ m.name }}</span>
-        <span class="planta-estagio">{{ m.estagio_nome }}</span>
-        <span class="planta-streak" title="Sequencia atual">{{ m.streak }}d</span>
-      </div>
-    </div>
-    {% endfor %}
-  </div>
-</section>
-{% endif %}
+{% if jardim %}{{ cena(jardim) }}{% endif %}
 
 {% if not linhas %}
-  <p class="empty-state">Nenhum membro ativo cadastrado ainda. Va em <a href="{{ url_for('membros_page') }}">Membros</a> para cadastrar o grupo.</p>
+  <p class="vazio">Nenhum membro ativo ainda. Cadastre o grupo em <a href="{{ url_for('membros_page') }}">Membros</a>.</p>
 {% else %}
-<div class="table-wrap">
-  <table class="grid-table">
-    <thead>
-      <tr>
-        <th class="col-member">Membro</th>
-        {% for chave, label in events %}
-          <th>
-            <div class="th-event">
-              <span>{{ label }}</span>
-              <button type="button" class="btn-mini btn-marcar-todos" data-event-type="{{ chave }}">marcar todos presentes</button>
-            </div>
-          </th>
-        {% endfor %}
-        <th>Sequencia</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for linha in linhas %}
-      <tr data-member-row="{{ linha.member.id }}">
-        <td class="col-member">{{ linha.member.name }}</td>
-        {% for chave, label in events %}
-        <td>
-          <div class="status-toggle" data-member-id="{{ linha.member.id }}" data-event-date="{{ data_str }}" data-event-type="{{ chave }}">
-            <button type="button" class="btn-status btn-presente {% if linha.cells[chave] == 'presente' %}active{% endif %}" data-status="presente">Presente</button>
-            <button type="button" class="btn-status btn-avisou {% if linha.cells[chave] == 'justificada' %}active{% endif %}" data-status="justificada">Avisou</button>
-            <button type="button" class="btn-status btn-faltou {% if linha.cells[chave] == 'faltou' %}active{% endif %}" data-status="faltou">Faltou</button>
-          </div>
-        </td>
-        {% endfor %}
-        <td>
-          <span class="badge badge-streak" data-streak-for="{{ linha.member.id }}">
-            {{ linha.stats.streak if linha.stats else 0 }}d
-          </span>
-          <div class="estagio-label" data-estagio-for="{{ linha.member.id }}">
-            {% if linha.stats %}{{ linha.stats.estagio_nome }}{% endif %}
-          </div>
-        </td>
-      </tr>
+<section class="registro" aria-label="Registro de presença">
+  <div class="registro-topo">
+    <h2>Quem veio?</h2>
+    <div class="todos">
+      <span class="todos-rotulo">Todos presentes em</span>
+      {% for chave, label in events %}
+        <button type="button" class="btn btn-ghost btn-marcar-todos" data-event-type="{{ chave }}">{{ label }}</button>
       {% endfor %}
-    </tbody>
-  </table>
-</div>
-<p class="hint">Clique em Presente, Avisou ou Faltou para marcar. Clique de novo no mesmo botao para voltar ao pendente.</p>
+    </div>
+  </div>
+
+  <div class="linhas-cab" aria-hidden="true">
+    <span>Membro</span>
+    {% for chave, label in events %}<span>{{ label }}</span>{% endfor %}
+  </div>
+
+  <div class="linhas">
+    {% for linha in linhas %}
+    <article class="linha" data-member-row="{{ linha.member.id }}">
+      <div class="linha-quem">
+        <span class="avatar" style="--c: {{ cores[loop.index0 % cores | length] }}">{{ linha.member.name[0] }}</span>
+        <div>
+          <div class="linha-nome">{{ linha.member.name }}</div>
+          <span class="chip chip-streak" data-streak-for="{{ linha.member.id }}">
+            {% set st = linha.stats.streak if linha.stats else 0 %}{{ st }} {{ 'dia' if st == 1 else 'dias' }}
+          </span>
+        </div>
+      </div>
+      {% for chave, label in events %}
+      <div class="celula">
+        <span class="celula-rotulo">{{ label }}</span>
+        <div class="status-toggle" role="group" aria-label="{{ label }} de {{ linha.member.name }}"
+             data-member-id="{{ linha.member.id }}" data-event-date="{{ data_str }}" data-event-type="{{ chave }}">
+          <button type="button" class="btn-status btn-presente {% if linha.cells[chave] == 'presente' %}active{% endif %}" data-status="presente">Presente</button>
+          <button type="button" class="btn-status btn-avisou {% if linha.cells[chave] == 'justificada' %}active{% endif %}" data-status="justificada">Avisou</button>
+          <button type="button" class="btn-status btn-faltou {% if linha.cells[chave] == 'faltou' %}active{% endif %}" data-status="faltou">Faltou</button>
+        </div>
+      </div>
+      {% endfor %}
+    </article>
+    {% endfor %}
+  </div>
+  <p class="dica">Toque de novo no botão marcado para voltar a pendente. "Avisou" não conta como falta e não quebra a sequência.</p>
+</section>
 {% endif %}
 {% endblock %}
 
@@ -96,7 +92,7 @@
   document.querySelectorAll('.btn-marcar-todos').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var eventType = this.dataset.eventType;
-      if (!confirm('Marcar todos os membros ativos como presentes nesse evento? Isso sobrescreve marcacoes ja feitas.')) return;
+      if (!confirm('Marcar todos os membros ativos como presentes em "' + this.textContent.trim() + '"? Isso sobrescreve marcações já feitas.')) return;
       fetch('/api/attendance/marcar_todos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -104,7 +100,7 @@
       })
         .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
         .then(function () { window.location.reload(); })
-        .catch(function () { alert('Nao foi possivel marcar todos.'); });
+        .catch(function () { alert('Não foi possível marcar todos.'); });
     });
   });
 </script>

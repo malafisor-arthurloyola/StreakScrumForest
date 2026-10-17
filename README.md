@@ -24,6 +24,14 @@ Pre-requisito: Python 3.9+ instalado.
    ```
 5. Abra no navegador: [http://localhost:5000](http://localhost:5000)
 
+## Visual
+
+Jardim noturno em ilustracao plana: paleta verde-floresta com acento lima, tipografia
+Bricolage Grotesque (licenca OFL, hospedada em `static/fonts/`, entao funciona offline), logo e
+favicon em `static/favicon.svg`. As plantas sao um unico SVG em camadas (`templates/_planta.html`)
+que cresce ao vivo ao marcar presenca. No celular a navegacao vira uma barra inferior e cada
+membro vira um cartao compacto.
+
 ## Variavel de ambiente STRIKES_DB
 
 Para rodar contra um banco diferente do real (recomendado para testes):

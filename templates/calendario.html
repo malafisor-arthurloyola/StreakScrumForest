@@ -1,70 +1,71 @@
 {% extends "base.html" %}
-{% block title %}Calendario{% endblock %}
+{% block title %}Calendário · Jardim da Equipe{% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <h1>Calendario do projeto</h1>
-</div>
-
-<div class="card">
-  <h2>Configuracao do periodo</h2>
-  <p class="hint">Alterar aqui recalcula automaticamente metas, estagios e sequencias de todos os membros.</p>
-  <form id="form-config" class="config-form">
-    <div class="config-row">
-      <label for="semana1_inicio">Inicio da semana 1</label>
-      <input type="date" id="semana1_inicio" name="semana1_inicio" value="{{ cfg.semana1_inicio }}">
-    </div>
-    <div class="config-row">
-      <label for="num_semanas">Numero de semanas</label>
-      <input type="number" id="num_semanas" name="num_semanas" value="{{ cfg.num_semanas }}" min="1" max="52">
-    </div>
-    <div class="config-row">
-      <label for="sprint_semanas">Duracao da sprint (semanas)</label>
-      <input type="number" id="sprint_semanas" name="sprint_semanas" value="{{ cfg.sprint_semanas }}" min="1" max="4">
-    </div>
-    <div class="config-row">
-      <label for="contar_a_partir_de">Contar presencas a partir de</label>
-      <input type="date" id="contar_a_partir_de" name="contar_a_partir_de" value="{{ cfg.contar_a_partir_de }}">
-    </div>
-    <div class="config-info">
-      <strong>{{ total_dias }} dias letivos</strong> no periodo &mdash; meta de floracao: <strong>{{ meta }} presenças</strong>
-    </div>
-    <button type="submit" class="btn btn-primary">Salvar configuracao</button>
-  </form>
-</div>
-
-<div class="card">
-  <h2>Feriados</h2>
-  <p class="hint">Dias marcados como feriado nao contam como dias letivos.</p>
-  <div class="table-wrap" style="margin-bottom:12px">
-    <table class="grid-table">
-      <thead>
-        <tr>
-          <th>Data</th>
-          <th>Nome</th>
-          <th>Acao</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for f in feriados %}
-        <tr>
-          <td>{{ f.data }}</td>
-          <td>{{ f.nome }}</td>
-          <td>
-            <button type="button" class="btn btn-ghost btn-remover-feriado" data-data="{{ f.data }}">Remover</button>
-          </td>
-        </tr>
-        {% else %}
-        <tr><td colspan="3" class="empty-state">Nenhum feriado cadastrado.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+<header class="pagina-cab">
+  <div>
+    <h1>Calendário do projeto</h1>
+    <p class="sub">Quantos dias contam e quando. Mudar aqui recalcula metas, estágios e sequências de todo mundo.</p>
   </div>
-  <form id="form-feriado" class="inline-form">
-    <input type="date" id="data-feriado" required>
-    <input type="text" id="nome-feriado" placeholder="Nome do feriado" required>
-    <button type="submit" class="btn btn-primary">Adicionar feriado</button>
-  </form>
+</header>
+
+<section class="resumo-cal">
+  <div class="kpi kpi-destaque">
+    <span class="kpi-rotulo">Dias letivos</span>
+    <span class="kpi-valor">{{ total_dias }}</span>
+    <span class="kpi-nota">no período contado</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-rotulo">Meta de floração</span>
+    <span class="kpi-valor">{{ meta }}</span>
+    <span class="kpi-nota">presenças para a planta florescer</span>
+  </div>
+</section>
+
+<div class="duas-colunas">
+  <section class="card">
+    <h2>Período</h2>
+    <form id="form-config" class="config-form">
+      <div class="campo">
+        <label for="semana1_inicio">Início da semana 1</label>
+        <input type="date" id="semana1_inicio" name="semana1_inicio" value="{{ cfg.semana1_inicio }}">
+      </div>
+      <div class="campo">
+        <label for="num_semanas">Número de semanas</label>
+        <input type="number" id="num_semanas" name="num_semanas" value="{{ cfg.num_semanas }}" min="1" max="52">
+      </div>
+      <div class="campo">
+        <label for="sprint_semanas">Duração da sprint (semanas)</label>
+        <input type="number" id="sprint_semanas" name="sprint_semanas" value="{{ cfg.sprint_semanas }}" min="1" max="4">
+      </div>
+      <div class="campo">
+        <label for="contar_a_partir_de">Contar presenças a partir de</label>
+        <input type="date" id="contar_a_partir_de" name="contar_a_partir_de" value="{{ cfg.contar_a_partir_de }}">
+      </div>
+      <button type="submit" class="btn btn-primary">Salvar período</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Feriados</h2>
+    <p class="dica">Feriados não contam como dias letivos.</p>
+    <ul class="feriados">
+      {% for f in feriados %}
+      <li>
+        <span class="feriado-data">{{ f.data[8:10] }}/{{ f.data[5:7] }}</span>
+        <span class="feriado-nome">{{ f.nome }}</span>
+        <button type="button" class="btn btn-ghost btn-remover-feriado" data-data="{{ f.data }}">Remover</button>
+      </li>
+      {% else %}
+      <li class="vazio">Nenhum feriado cadastrado.</li>
+      {% endfor %}
+    </ul>
+    <form id="form-feriado" class="feriado-form">
+      <input type="date" id="data-feriado" required aria-label="Data do feriado">
+      <input type="text" id="nome-feriado" placeholder="Nome do feriado" required aria-label="Nome do feriado">
+      <button type="submit" class="btn btn-primary">Adicionar</button>
+    </form>
+  </section>
 </div>
 {% endblock %}
 
@@ -82,7 +83,7 @@ document.getElementById('form-config').addEventListener('submit', function (e) {
     body: JSON.stringify(payload),
   }).then(function (r) { return r.json(); })
     .then(function () { window.location.reload(); })
-    .catch(function () { alert('Erro ao salvar configuracao.'); });
+    .catch(function () { alert('Erro ao salvar o período.'); });
 });
 
 document.getElementById('form-feriado').addEventListener('submit', function (e) {
@@ -101,7 +102,7 @@ document.getElementById('form-feriado').addEventListener('submit', function (e) 
 document.querySelectorAll('.btn-remover-feriado').forEach(function (btn) {
   btn.addEventListener('click', function () {
     var data = this.dataset.data;
-    if (!confirm('Remover feriado de ' + data + '?')) return;
+    if (!confirm('Remover o feriado de ' + data + '?')) return;
     fetch('/api/feriados', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

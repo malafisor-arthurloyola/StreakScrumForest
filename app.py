@@ -15,7 +15,7 @@ BACKUP_DIR = DB_PATH.parent / "backups"
 
 EVENTS = [
     ("daily", "Daily"),
-    ("dev", "Presenca no Dev"),
+    ("dev", "Presença no Dev"),
     ("encerramento", "Encerramento"),
 ]
 EVENT_KEYS = [chave for chave, _ in EVENTS]
@@ -35,7 +35,7 @@ DEFAULT_CONFIG = {
 DEFAULT_FERIADOS = [
     ("2026-10-12", "N. Sra. Aparecida"),
     ("2026-11-02", "Finados"),
-    ("2026-11-20", "Consciencia Negra"),
+    ("2026-11-20", "Consciência Negra"),
 ]
 
 app = Flask(__name__)
@@ -359,6 +359,15 @@ def _e_dia_letivo(data_str, db):
     return data_str in dias
 
 
+SEMANA = ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"]
+MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho",
+         "agosto", "setembro", "outubro", "novembro", "dezembro"]
+
+
+def _data_extenso(d):
+    return f"{SEMANA[d.weekday()]}, {d.day} de {MESES[d.month - 1]}"
+
+
 @app.route("/")
 def home():
     return redirect(url_for("dia", data_str=date.today().isoformat()))
@@ -419,6 +428,9 @@ def dia(data_str):
         e_letivo=e_letivo,
         motivo_nao_letivo=motivo_nao_letivo,
         jardim=jardim,
+        data_extenso=_data_extenso(data_atual),
+        dia_n=dias_letivos_lista.index(data_str) + 1 if e_letivo else None,
+        dias_total=len(dias_letivos_lista),
     )
 
 
@@ -481,6 +493,7 @@ def historico():
         """
         SELECT
             event_date,
+            COUNT(*) FILTER (WHERE status = 'presente') AS presentes,
             COUNT(*) FILTER (WHERE status = 'faltou') AS faltas,
             COUNT(*) FILTER (WHERE status = 'justificada') AS justificadas,
             COUNT(DISTINCT member_id) AS membros_registrados
@@ -489,6 +502,10 @@ def historico():
         ORDER BY event_date DESC
         """
     ).fetchall()
+    dias = [
+        {**dict(d), "rotulo": _data_extenso(date.fromisoformat(d["event_date"]))}
+        for d in dias
+    ]
     return render_template("historico.html", dias=dias, hoje=date.today().isoformat())
 
 
