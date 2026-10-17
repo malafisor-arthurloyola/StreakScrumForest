@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Jardim da Equipe{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <span class="brand">Jardim da Equipe</span>
+      <nav class="nav">
+        <a href="{{ url_for('home') }}" class="nav-link">Hoje</a>
+        <a href="{{ url_for('historico') }}" class="nav-link">Historico</a>
+        <a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a>
+        <a href="{{ url_for('membros_page') }}" class="nav-link">Membros</a>
+        <a href="{{ url_for('calendario_page') }}" class="nav-link">Calendario</a>
+      </nav>
+    </div>
+  </header>
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+  <div id="toast-container" aria-live="polite"></div>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Historico{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Historico por dia</h1>
+</div>
+
+<form class="inline-form" id="ir-para-dia">
+  <label for="data-alvo">Ir para uma data:</label>
+  <input type="date" id="data-alvo" value="{{ hoje }}">
+  <button type="submit" class="btn btn-primary">Abrir</button>
+</form>
+
+{% if not dias %}
+  <p class="empty-state">Ainda nao ha nenhum registro de presenca.</p>
+{% else %}
+<div class="table-wrap">
+  <table class="grid-table">
+    <thead>
+      <tr>
+        <th>Data</th>
+        <th>Faltas</th>
+        <th>Justificadas</th>
+        <th>Membros com registro</th>
+        <th>Acao</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in dias %}
+      <tr>
+        <td>{{ d.event_date }}</td>
+        <td>{{ d.faltas }}</td>
+        <td>{{ d.justificadas }}</td>
+        <td>{{ d.membros_registrados }}</td>
+        <td><a class="btn btn-ghost" href="{{ url_for('dia', data_str=d.event_date) }}">Ver / editar</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('ir-para-dia').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var data = document.getElementById('data-alvo').value;
+  if (data) window.location.href = '/dia/' + data;
+});
+</script>
+{% endblock %}

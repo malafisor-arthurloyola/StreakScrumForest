@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% from "_planta.html" import planta %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Dashboard</h1>
+  <span class="sprint-badge">Sprint {{ sprint_atual }}</span>
+</div>
+
+<div class="card progresso-card">
+  <div class="progresso-header">
+    <span class="progresso-label">Progresso coletivo do jardim</span>
+    <span class="progresso-pct">{{ progresso_coletivo }}%</span>
+  </div>
+  <div class="progresso-bar-track">
+    <div class="progresso-bar-fill" style="width: {{ progresso_coletivo }}%"></div>
+  </div>
+  {% if dias_cheios_seq > 0 %}
+  <p class="progresso-hint">{{ dias_cheios_seq }} dia{{ 's' if dias_cheios_seq != 1 else '' }} seguido{{ 's' if dias_cheios_seq != 1 else '' }} com toda a equipe presente</p>
+  {% endif %}
+</div>
+
+<section class="jardim-grande" aria-label="Jardim da equipe">
+  <h2>Jardim</h2>
+  <div class="jardim-grid">
+    {% for m in membros if m.active %}
+    <div class="jardim-card" data-member-id="{{ m.id }}">
+      {{ planta(m, tamanho=130) }}
+      <div class="jardim-card-info">
+        <div class="jardim-card-nome">{{ m.name }}</div>
+        <div class="jardim-card-estagio">
+          <span class="estagio-dot estagio-{{ m.estagio }}"></span>
+          {{ m.estagio_nome }}
+        </div>
+        <div class="jardim-card-meta">
+          <span class="badge badge-streak">{{ m.streak }}d seguidos</span>
+          {% if m.melhor_streak > m.streak %}
+          <span class="streak-record">recorde: {{ m.melhor_streak }}d</span>
+          {% endif %}
+        </div>
+        {% if 'floresceu' in m.conquistas %}
+        <div class="conquista-floresceu">Floresceu!</div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="estagio-legenda">
+    {% for i in range(11) %}
+    <span class="legenda-item">
+      <span class="estagio-dot estagio-{{ i }}"></span>
+      <span>{{ stage_names[i] }}</span>
+    </span>
+    {% endfor %}
+  </div>
+</section>
+
+<div class="cards-row">
+  <div class="card">
+    <h2>Tendencia de presenca (ultimos dias com registro)</h2>
+    {% if tem_tendencia %}
+    <svg viewBox="0 0 {{ grafico_linha.width }} {{ grafico_linha.height }}" class="line-chart">
+      <line x1="24" y1="20" x2="24" y2="140" class="chart-axis"></line>
+      <line x1="24" y1="80" x2="576" y2="80" class="chart-axis chart-axis-mid"></line>
+      <line x1="24" y1="140" x2="576" y2="140" class="chart-axis"></line>
+      <polyline points="{{ grafico_linha.points }}" class="chart-line"></polyline>
+      {% for d in grafico_linha.dots %}
+        <circle cx="{{ d.x }}" cy="{{ d.y }}" r="4" class="chart-dot">
+          <title>{{ d.data }}: {{ d.taxa }}% de presenca</title>
+        </circle>
+      {% endfor %}
+    </svg>
+    <div class="chart-labels">
+      <span>{{ grafico_linha.dots[0].data }}</span>
+      <span class="chart-labels-mid">50%</span>
+      <span>{{ grafico_linha.dots[-1].data }}</span>
+    </div>
+    {% else %}
+    <p class="empty-state">Registre pelo menos 2 dias diferentes para ver a tendencia.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Dias presentes por membro</h2>
+    {% if presencas %}
+      {% for m in presencas %}
+      <div class="bar-row">
+        <div class="bar-label">{{ m.name }}</div>
+        <div class="bar-track">
+          <div class="bar-seg bar-presente" style="width: {{ m.pct }}%"></div>
+        </div>
+        <div class="bar-meta">
+          {{ m.presentes }} presente{{ 's' if m.presentes != 1 else '' }}
+          {% if m.justificadas > 0 %} &middot; {{ m.justificadas }} avisou{% endif %}
+          {% if m.taxa_presenca is not none %} &middot; {{ m.taxa_presenca }}%{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+    <p class="empty-state">Nenhum membro ativo para exibir.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <h2>Destaques</h2>
+  {% set maior_streak = membros | selectattr('active') | sort(attribute='melhor_streak', reverse=True) | first %}
+  {% set mais_constante = membros | selectattr('active') | sort(attribute='dias_presentes', reverse=True) | first %}
+  <div class="destaques-grid">
+    {% if maior_streak %}
+    <div class="destaque-item">
+      <div class="destaque-titulo">Maior sequencia</div>
+      <div class="destaque-valor">{{ maior_streak.name }} &mdash; {{ maior_streak.melhor_streak }} dias</div>
+    </div>
+    {% endif %}
+    {% if mais_constante %}
+    <div class="destaque-item">
+      <div class="destaque-titulo">Mais dias presentes</div>
+      <div class="destaque-valor">{{ mais_constante.name }} &mdash; {{ mais_constante.dias_presentes }} dias</div>
+    </div>
+    {% endif %}
+    {% set florescidos = membros | selectattr('floresceu') | list %}
+    {% if florescidos %}
+    <div class="destaque-item">
+      <div class="destaque-titulo">Floresceram</div>
+      <div class="destaque-valor">{{ florescidos | map(attribute='name') | join(', ') }}</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

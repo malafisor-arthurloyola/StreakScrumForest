@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% from "_planta.html" import planta %}
+{% block title %}Presenca — {{ data_str }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Registro do dia</h1>
+  <div class="date-nav">
+    <a class="btn btn-ghost" href="{{ url_for('dia', data_str=dia_anterior) }}">&larr; anterior</a>
+    <input type="date" id="date-picker" value="{{ data_str }}">
+    {% if data_str != hoje %}
+      <a class="btn btn-ghost" href="{{ url_for('dia', data_str=hoje) }}">Hoje</a>
+    {% endif %}
+    <a class="btn btn-ghost" href="{{ url_for('dia', data_str=dia_seguinte) }}">seguinte &rarr;</a>
+  </div>
+</div>
+
+{% if not e_letivo %}
+<div class="aviso-dia-nao-letivo">
+  {{ motivo_nao_letivo }} &mdash; registros neste dia nao contam para o jardim.
+</div>
+{% endif %}
+
+{% if jardim %}
+<section class="jardim-faixa" aria-label="Jardim da equipe">
+  <div class="jardim-plantas">
+    {% for m in jardim %}
+    <div class="planta-card" data-member-id="{{ m.id }}">
+      {{ planta(m, tamanho=100) }}
+      <div class="planta-info">
+        <span class="planta-nome">{{ m.name }}</span>
+        <span class="planta-estagio">{{ m.estagio_nome }}</span>
+        <span class="planta-streak" title="Sequencia atual">{{ m.streak }}d</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% if not linhas %}
+  <p class="empty-state">Nenhum membro ativo cadastrado ainda. Va em <a href="{{ url_for('membros_page') }}">Membros</a> para cadastrar o grupo.</p>
+{% else %}
+<div class="table-wrap">
+  <table class="grid-table">
+    <thead>
+      <tr>
+        <th class="col-member">Membro</th>
+        {% for chave, label in events %}
+          <th>
+            <div class="th-event">
+              <span>{{ label }}</span>
+              <button type="button" class="btn-mini btn-marcar-todos" data-event-type="{{ chave }}">marcar todos presentes</button>
+            </div>
+          </th>
+        {% endfor %}
+        <th>Sequencia</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for linha in linhas %}
+      <tr data-member-row="{{ linha.member.id }}">
+        <td class="col-member">{{ linha.member.name }}</td>
+        {% for chave, label in events %}
+        <td>
+          <div class="status-toggle" data-member-id="{{ linha.member.id }}" data-event-date="{{ data_str }}" data-event-type="{{ chave }}">
+            <button type="button" class="btn-status btn-presente {% if linha.cells[chave] == 'presente' %}active{% endif %}" data-status="presente">Presente</button>
+            <button type="button" class="btn-status btn-avisou {% if linha.cells[chave] == 'justificada' %}active{% endif %}" data-status="justificada">Avisou</button>
+            <button type="button" class="btn-status btn-faltou {% if linha.cells[chave] == 'faltou' %}active{% endif %}" data-status="faltou">Faltou</button>
+          </div>
+        </td>
+        {% endfor %}
+        <td>
+          <span class="badge badge-streak" data-streak-for="{{ linha.member.id }}">
+            {{ linha.stats.streak if linha.stats else 0 }}d
+          </span>
+          <div class="estagio-label" data-estagio-for="{{ linha.member.id }}">
+            {% if linha.stats %}{{ linha.stats.estagio_nome }}{% endif %}
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="hint">Clique em Presente, Avisou ou Faltou para marcar. Clique de novo no mesmo botao para voltar ao pendente.</p>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.getElementById('date-picker').addEventListener('change', function () {
+    if (this.value) window.location.href = '/dia/' + this.value;
+  });
+
+  document.querySelectorAll('.btn-marcar-todos').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var eventType = this.dataset.eventType;
+      if (!confirm('Marcar todos os membros ativos como presentes nesse evento? Isso sobrescreve marcacoes ja feitas.')) return;
+      fetch('/api/attendance/marcar_todos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event_date: '{{ data_str }}', event_type: eventType, status: 'presente' }),
+      })
+        .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
+        .then(function () { window.location.reload(); })
+        .catch(function () { alert('Nao foi possivel marcar todos.'); });
+    });
+  });
+</script>
+{% endblock %}
