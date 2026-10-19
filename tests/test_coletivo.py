@@ -215,10 +215,10 @@ class TestPanorama(ColetivoBase):
                     return d
         return None
 
-    def test_projeto_tem_as_10_semanas_de_5_dias(self):
+    def test_projeto_tem_as_10_semanas_de_7_dias(self):
         p = self.panorama("projeto")
         self.assertEqual(len(p["semanas"]), 10)
-        self.assertTrue(all(len(s["dias"]) == 5 for s in p["semanas"]))
+        self.assertTrue(all(len(s["dias"]) == 7 for s in p["semanas"]))
 
     def test_sprint_tem_duas_semanas(self):
         p = self.panorama("sprint")
@@ -241,7 +241,8 @@ class TestPanorama(ColetivoBase):
 
     def test_estados_especiais(self):
         p = self.panorama("projeto", hoje="2026-10-21")
-        self.assertEqual(self.celula(p, "2026-10-12")["estado"], "folga")   # feriado
+        self.assertEqual(self.celula(p, "2026-10-12")["estado"], "feriado")
+        self.assertEqual(self.celula(p, "2026-10-17")["estado"], "fds")
         self.assertEqual(self.celula(p, "2026-10-30")["estado"], "futuro")
         self.assertEqual(self.celula(p, "2026-10-21")["estado"], "hoje")
         self.assertEqual(self.celula(p, "2026-10-20")["estado"], "vazio")

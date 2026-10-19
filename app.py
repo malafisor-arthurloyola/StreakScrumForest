@@ -479,7 +479,7 @@ def get_member_stats(db, dias_letivos_lista=None):
     return resultado
 
 
-NOMES_SEMANA = ["seg", "ter", "qua", "qui", "sex"]
+NOMES_SEMANA = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"]
 
 
 def _estado_dia(reg_dia, data_str, hoje_str, dias_set):
@@ -844,6 +844,7 @@ def _panorama(db, ctx, periodo="projeto", hoje=None):
     if periodo not in PERIODOS_PANORAMA:
         periodo = "projeto"
     cfg = _get_config(db)
+    nomes_feriado = {f["data"]: f["nome"] for f in _get_feriados_lista(db)}
     s1 = date.fromisoformat(cfg.get("semana1_inicio", "2026-10-12"))
     n_sem = int(cfg.get("num_semanas", "10"))
     sprint_n = game.sprint_da_data(hoje, ctx["sprints"])
@@ -867,10 +868,12 @@ def _panorama(db, ctx, periodo="projeto", hoje=None):
         seg = s1 + timedelta(weeks=i)
         dias_time = []
         por_pessoa = {m["id"]: [] for m in ativos}
-        for j in range(5):
+        for j in range(7):
             dd = seg + timedelta(days=j)
             ds = dd.isoformat()
             rotulo = f"{NOMES_SEMANA[j]} {dd.day:02d}/{dd.month:02d}"
+            if ds in nomes_feriado:
+                rotulo += f" ({nomes_feriado[ds]})"
             letivo = ds in ctx["dias_set"]
             presentes = sum(
                 1 for m in ativos if ctx["glob"].get(ds, {}).get(m["id"], {}).get("presente")
@@ -878,7 +881,7 @@ def _panorama(db, ctx, periodo="projeto", hoje=None):
             if letivo and ds <= hoje:
                 dias_do_periodo.append(ds)
             if not letivo:
-                estado = "folga"
+                estado = "feriado" if ds in nomes_feriado else ("fds" if j >= 5 else "folga")
             elif ds > hoje:
                 estado = "futuro"
             elif presentes == 0:
@@ -893,7 +896,8 @@ def _panorama(db, ctx, periodo="projeto", hoje=None):
             for m in ativos:
                 por_pessoa[m["id"]].append({
                     "data": ds, "rotulo": rotulo,
-                    "estado": _estado_dia(regs[m["id"]].get(ds, {}), ds, hoje, ctx["dias_set"]),
+                    "estado": (_estado_dia(regs[m["id"]].get(ds, {}), ds, hoje, ctx["dias_set"])
+                               if letivo else dias_time[-1]["estado"]),
                 })
         semanas.append({"n": i + 1, "dias": dias_time,
                         "sprint": game.sprint_da_data(seg.isoformat(), ctx["sprints"])})

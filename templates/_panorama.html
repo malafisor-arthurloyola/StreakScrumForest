@@ -1,4 +1,4 @@
-{% set textos_pessoa = {'presente': 'presente', 'justificada': 'avisou', 'faltou': 'faltou', 'hoje': 'hoje', 'vazio': 'sem registro', 'futuro': 'ainda não chegou', 'folga': 'sem aula'} %}
+{% set textos_pessoa = {'presente': 'presente', 'justificada': 'avisou', 'faltou': 'faltou', 'hoje': 'hoje', 'vazio': 'sem registro', 'futuro': 'ainda não chegou', 'folga': 'antes do início', 'feriado': 'feriado', 'fds': 'fim de semana'} %}
 {#
   Panorama do grupo, no estilo do mapa de contribuicoes do GitHub: o time dia a dia
   (intensidade = quantos vieram) e cada pessoa em uma linha. Periodo: projeto, sprint ou semana.
@@ -24,7 +24,7 @@
   <div class="card">
     <h3>O time dia a dia</h3>
     <div class="gh-quadro">
-      <div class="gh-eixo" aria-hidden="true"><span class="gh-n">&nbsp;</span><span>seg</span><span>ter</span><span>qua</span><span>qui</span><span>sex</span></div>
+      <div class="gh-eixo" aria-hidden="true"><span class="gh-n">&nbsp;</span><span>seg</span><span>ter</span><span>qua</span><span>qui</span><span>sex</span><span>sáb</span><span>dom</span></div>
       {% for g in p.grupos %}
       <div class="gh-sprint">
         <span class="gh-sprint-nome">Sprint {{ g.sprint }}</span>
@@ -33,8 +33,8 @@
           <div class="gh-sem">
             <span class="gh-n">S{{ sem.n }}</span>
             {% for d in sem.dias %}
-            {% if d.estado == 'folga' %}
-            <span class="gh-dia" data-estado="folga" title="{{ d.rotulo }}: sem aula"></span>
+            {% if d.estado in ('folga', 'feriado', 'fds') %}
+            <span class="gh-dia" data-estado="{{ d.estado }}" title="{{ d.rotulo }}: {{ textos_pessoa[d.estado] }}"></span>
             {% else %}
             <a class="gh-dia" data-estado="{{ d.estado }}" data-n="{{ d.nivel }}"{% if d.e_hoje %} data-hoje="1"{% endif %}
                href="{{ url_for('dia', data_str=d.data) }}"
@@ -82,7 +82,9 @@
       <span><i class="pdia" data-estado="presente"></i> presente</span>
       <span><i class="pdia" data-estado="justificada"></i> avisou</span>
       <span><i class="pdia" data-estado="vazio"></i> sem registro</span>
-      <span><i class="pdia" data-estado="folga"></i> sem aula</span>
+      <span><i class="pdia" data-estado="feriado"></i> feriado</span>
+      <span><i class="pdia" data-estado="fds"></i> fim de semana</span>
+      <span><i class="pdia" data-estado="folga"></i> antes do início</span>
     </div>
     <p class="dica">Toque no nome para ver o perfil, ou em um dia do mapa do time para abri-lo.</p>
   </div>

@@ -995,6 +995,8 @@ body.entrar { display: grid; grid-template-columns: minmax(0, 1fr); place-items:
 .gh-dia[data-estado="vazio"] { background: #2b4238; }
 .gh-dia[data-estado="futuro"] { background: #22352c; border-color: #2f453a; }
 .gh-dia[data-estado="folga"] { background: transparent; border: 1px dashed #4a6558; }
+.gh-dia[data-estado="fds"], .pdia[data-estado="fds"] { background: #1a1f2e; border: 1px solid #2b3550; }
+.gh-dia[data-estado="feriado"], .pdia[data-estado="feriado"] { background: repeating-linear-gradient(135deg, #8a5a1f 0 4px, #6b4416 4px 8px); border: 1px solid #c58a3a; }
 .gh-dia[data-hoje] { outline: 2px solid var(--acc); outline-offset: 1px; }
 a.gh-dia:hover { filter: brightness(1.25); }
 .gh-legenda { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 14px; color: var(--ink2); font-size: 0.82rem; }
