@@ -23,19 +23,27 @@
 
   <div class="card">
     <h3>O time dia a dia</h3>
-    <div class="gh" style="--semanas: {{ p.semanas | length }}">
-      {% for sem in p.semanas %}
-      <div class="gh-sem">
-        <span class="gh-n">S{{ sem.n }}</span>
-        {% for d in sem.dias %}
-        {% if d.estado == 'folga' %}
-        <span class="gh-dia" data-estado="folga" title="{{ d.rotulo }}: sem aula"></span>
-        {% else %}
-        <a class="gh-dia" data-estado="{{ d.estado }}" data-n="{{ d.nivel }}"{% if d.e_hoje %} data-hoje="1"{% endif %}
-           href="{{ url_for('dia', data_str=d.data) }}"
-           title="{{ d.rotulo }}: {% if d.estado == 'futuro' %}ainda não chegou{% else %}{{ d.presentes }} de {{ d.total }} presentes{% endif %}"></a>
-        {% endif %}
-        {% endfor %}
+    <div class="gh-quadro">
+      <div class="gh-eixo" aria-hidden="true"><span class="gh-n">&nbsp;</span><span>seg</span><span>ter</span><span>qua</span><span>qui</span><span>sex</span></div>
+      {% for g in p.grupos %}
+      <div class="gh-sprint">
+        <span class="gh-sprint-nome">Sprint {{ g.sprint }}</span>
+        <div class="gh-sems">
+          {% for k in g.idx %}{% set sem = p.semanas[k] %}
+          <div class="gh-sem">
+            <span class="gh-n">S{{ sem.n }}</span>
+            {% for d in sem.dias %}
+            {% if d.estado == 'folga' %}
+            <span class="gh-dia" data-estado="folga" title="{{ d.rotulo }}: sem aula"></span>
+            {% else %}
+            <a class="gh-dia" data-estado="{{ d.estado }}" data-n="{{ d.nivel }}"{% if d.e_hoje %} data-hoje="1"{% endif %}
+               href="{{ url_for('dia', data_str=d.data) }}"
+               title="{{ d.rotulo }}: {% if d.estado == 'futuro' %}ainda não chegou{% else %}{{ d.presentes }} de {{ d.total }} presentes{% endif %}"></a>
+            {% endif %}
+            {% endfor %}
+          </div>
+          {% endfor %}
+        </div>
       </div>
       {% endfor %}
     </div>
@@ -49,13 +57,19 @@
   <div class="card">
     <h3>Cada pessoa</h3>
     <div class="pessoas">
+      <div class="pessoa pessoa-cab" aria-hidden="true">
+        <span class="pessoa-nome"></span>
+        <div class="pessoa-semanas">{% for g in p.grupos %}<span class="pessoa-sprint"><span class="pessoa-sprint-nome">Sprint {{ g.sprint }}</span></span>{% endfor %}</div>
+      </div>
       {% for l in p.linhas %}
       <div class="pessoa">
         <a class="pessoa-nome" href="{{ url_for('membro_page', member_id=l.id) }}">{{ l.name }}</a>
         <div class="pessoa-semanas">
-          {% for sem in l.semanas %}
-          <span class="pessoa-sem">
-            {% for c in sem %}<span class="pdia" data-estado="{{ c.estado }}" title="{{ c.rotulo }}: {{ textos_pessoa[c.estado] }}"></span>{% endfor %}
+          {% for g in p.grupos %}
+          <span class="pessoa-sprint">
+            {% for k in g.idx %}<span class="pessoa-sem">
+              {% for c in l.semanas[k] %}<span class="pdia" data-estado="{{ c.estado }}" title="{{ c.rotulo }}: {{ textos_pessoa[c.estado] }}"></span>{% endfor %}
+            </span>{% endfor %}
           </span>
           {% endfor %}
         </div>

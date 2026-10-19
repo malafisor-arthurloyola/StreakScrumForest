@@ -978,35 +978,44 @@ body.entrar { display: grid; grid-template-columns: minmax(0, 1fr); place-items:
 .panorama .card h3 { margin-bottom: 14px; font-size: 1.1rem; }
 .panorama .card + .card { margin-top: 12px; }
 
-.gh { display: grid; grid-template-columns: repeat(var(--semanas), minmax(0, 1fr)); gap: 6px; }
-.gh-sem { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.gh-quadro { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 6px; align-items: flex-start; }
+.gh-eixo { display: flex; flex-direction: column; gap: 6px; flex: none; padding-top: 30px; }
+.gh-eixo span { height: 40px; display: flex; align-items: center; color: var(--ink2); font-size: 0.74rem; }
+.gh-eixo span.gh-n { display: none; }
+.gh-sprint { flex: 1 0 auto; padding: 8px 12px 12px; border-radius: 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--s3); }
+.gh-sprint-nome { display: block; margin-bottom: 8px; color: var(--ink); font-size: 0.8rem; font-weight: 800; letter-spacing: 0.02em; }
+.gh-sems { display: flex; gap: 8px; justify-content: center; }
+.gh-sem { display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .gh-n { color: var(--ink2); font-size: 0.72rem; font-weight: 700; }
-.gh-dia { display: block; width: 100%; max-width: 46px; aspect-ratio: 1; border-radius: 8px; background: var(--s2); }
-.gh-dia[data-n="1"] { background: #1f5240; }
-.gh-dia[data-n="2"] { background: #2a7a58; }
-.gh-dia[data-n="3"] { background: #39ad78; }
-.gh-dia[data-n="4"] { background: #66ea9f; }
-.gh-dia[data-estado="vazio"] { background: #26382f; }
-.gh-dia[data-estado="futuro"] { opacity: 0.45; }
-.gh-dia[data-estado="folga"] { background: transparent; border: 1px dashed var(--s4); }
-.gh-dia[data-hoje] { outline: 2px solid var(--acc); outline-offset: -2px; }
+.gh-dia { display: block; width: 40px; height: 40px; border-radius: 9px; background: #2b4238; border: 1px solid #3a5649; box-sizing: border-box; }
+.gh-dia[data-n="1"] { background: #1f5240; border-color: #2b6b53; }
+.gh-dia[data-n="2"] { background: #2a7a58; border-color: #36956b; }
+.gh-dia[data-n="3"] { background: #39ad78; border-color: #4fcc92; }
+.gh-dia[data-n="4"] { background: #66ea9f; border-color: #8ff5bd; }
+.gh-dia[data-estado="vazio"] { background: #2b4238; }
+.gh-dia[data-estado="futuro"] { background: #22352c; border-color: #2f453a; }
+.gh-dia[data-estado="folga"] { background: transparent; border: 1px dashed #4a6558; }
+.gh-dia[data-hoje] { outline: 2px solid var(--acc); outline-offset: 1px; }
 a.gh-dia:hover { filter: brightness(1.25); }
 .gh-legenda { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 14px; color: var(--ink2); font-size: 0.82rem; }
-.gh-legenda .gh-dia { display: inline-block; width: 14px; height: 14px; max-width: none; border-radius: 4px; }
+.gh-legenda .gh-dia { display: inline-block; width: 16px; height: 16px; border-radius: 5px; }
 
 .pessoas { display: grid; gap: 4px; overflow-x: auto; padding-bottom: 4px; }
 .pessoa { display: flex; align-items: center; gap: 12px; padding: 5px 0; min-width: max-content; }
 .pessoa-nome { flex: none; width: 108px; color: var(--ink); font-weight: 700; text-decoration: none; }
 .pessoa-nome:hover { text-decoration: underline; }
-.pessoa-semanas { display: flex; gap: 9px; }
-.pessoa-sem { display: flex; gap: 2px; }
-.pdia { display: block; width: 11px; height: 11px; border-radius: 3px; background: var(--s2); }
-.pdia[data-estado="presente"] { background: var(--ok); }
-.pdia[data-estado="justificada"] { background: var(--aviso); }
-.pdia[data-estado="hoje"] { outline: 2px solid var(--acc); outline-offset: -2px; }
-.pdia[data-estado="vazio"], .pdia[data-estado="faltou"] { background: #26382f; }
-.pdia[data-estado="futuro"] { opacity: 0.4; }
-.pdia[data-estado="folga"] { background: transparent; border: 1px dashed var(--s4); }
+.pessoa-semanas { display: flex; gap: 14px; }
+.pessoa-sprint { display: flex; gap: 8px; padding: 0 8px; }
+.pessoa-cab .pessoa-sprint { padding: 0 8px; }
+.pessoa-sprint-nome { color: var(--ink2); font-size: 0.74rem; font-weight: 800; }
+.pessoa-sem { display: flex; gap: 3px; }
+.pdia { display: block; width: 16px; height: 16px; border-radius: 4px; background: #2b4238; border: 1px solid #3a5649; box-sizing: border-box; }
+.pdia[data-estado="presente"] { background: var(--ok); border-color: transparent; }
+.pdia[data-estado="justificada"] { background: var(--aviso); border-color: transparent; }
+.pdia[data-estado="hoje"] { outline: 2px solid var(--acc); outline-offset: 1px; }
+.pdia[data-estado="vazio"], .pdia[data-estado="faltou"] { background: #2b4238; }
+.pdia[data-estado="futuro"] { background: #22352c; border-color: #2f453a; }
+.pdia[data-estado="folga"] { background: transparent; border: 1px dashed #4a6558; }
 .panorama-semana .pdia { width: 30px; height: 30px; border-radius: 8px; }
 .panorama-semana .pessoa-nome { width: 108px; }
 .cal-legenda .pdia { display: inline-block; vertical-align: -2px; margin-right: 4px; }

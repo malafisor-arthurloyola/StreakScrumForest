@@ -895,9 +895,18 @@ def _panorama(db, ctx, periodo="projeto", hoje=None):
                     "data": ds, "rotulo": rotulo,
                     "estado": _estado_dia(regs[m["id"]].get(ds, {}), ds, hoje, ctx["dias_set"]),
                 })
-        semanas.append({"n": i + 1, "dias": dias_time})
+        semanas.append({"n": i + 1, "dias": dias_time,
+                        "sprint": game.sprint_da_data(seg.isoformat(), ctx["sprints"])})
         for m in ativos:
             linhas[m["id"]].append(por_pessoa[m["id"]])
+
+    grupos = []
+    for k, sem in enumerate(semanas):
+        if grupos and semanas[grupos[-1][0]]["sprint"] == sem["sprint"]:
+            grupos[-1].append(k)
+        else:
+            grupos.append([k])
+    grupos = [{"sprint": semanas[g[0]]["sprint"], "idx": g} for g in grupos]
 
     possiveis = len(dias_do_periodo) * total
     presentes_total = sum(
@@ -920,6 +929,7 @@ def _panorama(db, ctx, periodo="projeto", hoje=None):
             {"id": "semana", "nome": "Esta semana"},
         ],
         "semanas": semanas,
+        "grupos": grupos,
         "linhas": [{"id": m["id"], "name": m["name"], "semanas": linhas[m["id"]]} for m in ativos],
         "resumo": resumo,
         "total": total,
