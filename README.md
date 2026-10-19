@@ -14,6 +14,10 @@ Pre-requisito: Python 3.9+ instalado.
    python -m venv venv
    venv\Scripts\activate
    ```
+   No PowerShell, o comando de ativar é `venv\Scripts\Activate.ps1` (a partir da pasta do projeto).
+   Se você estiver dentro de `venv\Scripts`, use `.\Activate.ps1` (o `cd Activate.ps1` não funciona,
+   porque é um script, não uma pasta). Se aparecer erro de permissão de scripts, rode uma vez
+   `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`. Para sair do venv: `deactivate`.
 3. Instale a dependencia (Flask):
    ```bash
    pip install -r requirements.txt
