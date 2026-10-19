@@ -1,0 +1,187 @@
+"""Catalogo da loja do jardim e regras de compra/uso (funcoes puras, sem banco).
+
+Tudo aqui e cosmetico: nada muda o crescimento real da planta. O visual de cada item
+(paleta, forma da folha, desenho do companheiro) fica em static/style.css e em
+templates/_planta.html, ligado pelo id do item.
+"""
+
+TIPOS = ("especie", "vaso", "companheiro", "acessorio", "slot")
+RARIDADES = ("comum", "rara", "epica", "lendaria")
+
+# onde cada tipo de item pode ser usado
+SLOTS_POR_TIPO = {
+    "especie": ("especie", "especie_2", "especie_3"),
+    "vaso": ("vaso",),
+    "companheiro": ("companheiro",),
+    "acessorio": ("acessorio",),
+}
+# slots de planta extra exigem ter comprado o item de slot correspondente
+EXIGE_SLOT = {"especie_2": "slot_2", "especie_3": "slot_3"}
+
+ITENS = [
+    # plantas (especies)
+    {"id": "muda", "tipo": "especie", "nome": "Muda comum", "preco": 0, "raridade": "comum",
+     "desc": "A plantinha de sempre, verde e honesta.", "padrao": True},
+    {"id": "girassol", "tipo": "especie", "nome": "Girassol", "preco": 20, "raridade": "comum",
+     "desc": "Pétalas amarelas e miolo escuro, sempre virado para a luz."},
+    {"id": "samambaia", "tipo": "especie", "nome": "Samambaia", "preco": 20, "raridade": "comum",
+     "desc": "Folhas finas e fundas, de quem gosta de sombra.", "folha": "p-folha-fina"},
+    {"id": "lavanda", "tipo": "especie", "nome": "Lavanda", "preco": 25, "raridade": "comum",
+     "desc": "Florzinhas roxas e um cheirinho que você quase sente.", "folha": "p-folha-fina"},
+    {"id": "cerejeira", "tipo": "especie", "nome": "Cerejeira", "preco": 35, "raridade": "rara",
+     "desc": "Flores rosadas que parecem confete."},
+    {"id": "bambu", "tipo": "especie", "nome": "Bambu", "preco": 35, "raridade": "rara",
+     "desc": "Caule grosso e folhas compridas, crescimento firme.", "folha": "p-folha-fina"},
+    {"id": "bonsai", "tipo": "especie", "nome": "Bonsai", "preco": 45, "raridade": "rara",
+     "desc": "Folhas pequenas e redondas, paciência em forma de planta.", "folha": "p-folha-redonda"},
+    {"id": "jabuticabeira", "tipo": "especie", "nome": "Jabuticabeira", "preco": 45, "raridade": "rara",
+     "desc": "Flores brancas e frutos escuros que nascem no tronco.", "folha": "p-folha-redonda"},
+    {"id": "ipe", "tipo": "especie", "nome": "Ipê amarelo", "preco": 60, "raridade": "epica",
+     "desc": "A cara do Brasil: uma chuva de flores douradas."},
+    {"id": "baoba", "tipo": "especie", "nome": "Baobá", "preco": 60, "raridade": "lendaria",
+     "desc": "Só quem já viu uma planta florescer pode plantar esta.",
+     "req": {"floresceu": True}},
+
+    # vasos
+    {"id": "terracota", "tipo": "vaso", "nome": "Terracota", "preco": 0, "raridade": "comum",
+     "desc": "O clássico.", "padrao": True},
+    {"id": "lata", "tipo": "vaso", "nome": "Lata reaproveitada", "preco": 6, "raridade": "comum",
+     "desc": "Sustentável e cheia de personalidade."},
+    {"id": "azul", "tipo": "vaso", "nome": "Cerâmica azul", "preco": 8, "raridade": "comum",
+     "desc": "Azul de azulejo português."},
+    {"id": "xicara", "tipo": "vaso", "nome": "Xícara de café", "preco": 10, "raridade": "comum",
+     "desc": "Porque dev também planta no que tem à mão."},
+    {"id": "pixel", "tipo": "vaso", "nome": "Vaso roxo", "preco": 12, "raridade": "rara",
+     "desc": "Um respiro de cor no meio do verde."},
+    {"id": "dourado", "tipo": "vaso", "nome": "Vaso dourado", "preco": 15, "raridade": "rara",
+     "desc": "Para plantas que já se sentem estrelas."},
+
+    # companheiros do vaso
+    {"id": "joaninha", "tipo": "companheiro", "nome": "Joaninha", "preco": 10, "raridade": "comum",
+     "desc": "Passeia pela borda do vaso."},
+    {"id": "borboleta", "tipo": "companheiro", "nome": "Borboleta", "preco": 12, "raridade": "comum",
+     "desc": "Voa em volta da planta o dia todo."},
+    {"id": "vagalume", "tipo": "companheiro", "nome": "Vagalume", "preco": 15, "raridade": "rara",
+     "desc": "Uma luzinha que rodeia a planta."},
+    {"id": "passarinho", "tipo": "companheiro", "nome": "Passarinho", "preco": 20, "raridade": "rara",
+     "desc": "Pousa ao lado do vaso e fica de vigia."},
+    {"id": "gato", "tipo": "companheiro", "nome": "Gato dorminhoco", "preco": 25, "raridade": "epica",
+     "desc": "Dorme enroladinho junto ao vaso."},
+
+    # acessorios do vaso
+    {"id": "laco", "tipo": "acessorio", "nome": "Laço", "preco": 8, "raridade": "comum",
+     "desc": "Um laço rosa na borda do vaso."},
+    {"id": "oculos", "tipo": "acessorio", "nome": "Óculos", "preco": 10, "raridade": "comum",
+     "desc": "O vaso fica com cara de quem leu a documentação."},
+    {"id": "chapeu", "tipo": "acessorio", "nome": "Chapéu de palha", "preco": 12, "raridade": "comum",
+     "desc": "Proteção solar para o vaso."},
+
+    # plantas extras no canteiro
+    {"id": "slot_2", "tipo": "slot", "nome": "Segunda plantinha", "preco": 30, "raridade": "rara",
+     "desc": "Uma plantinha companheira ao lado da principal. Ela cresce junto, um pouco menor."},
+    {"id": "slot_3", "tipo": "slot", "nome": "Terceira plantinha", "preco": 55, "raridade": "epica",
+     "desc": "Mais uma para o canteiro.", "req": {"item": "slot_2"}},
+]
+
+_POR_ID = {i["id"]: i for i in ITENS}
+
+
+def item(item_id):
+    return _POR_ID.get(item_id)
+
+
+def itens_por_tipo(tipo):
+    return [i for i in ITENS if i["tipo"] == tipo]
+
+
+def padrao(tipo):
+    for i in ITENS:
+        if i["tipo"] == tipo and i.get("padrao"):
+            return i
+    return None
+
+
+def _e_padrao(item_id):
+    i = item(item_id)
+    return bool(i and i.get("padrao"))
+
+
+def pode_comprar(item_id, saldo, possui, floresceu):
+    """Retorna (ok, motivo). possui = conjunto de ids ja comprados (ativos)."""
+    i = item(item_id)
+    if i is None:
+        return False, "Item desconhecido."
+    if i.get("padrao") or i["preco"] == 0:
+        return False, "Este item já é seu."
+    if item_id in possui:
+        return False, "Você já tem este item."
+    req = i.get("req", {})
+    if req.get("floresceu") and not floresceu:
+        return False, "Só desbloqueia depois de uma planta florescer."
+    exigido = req.get("item")
+    if exigido and exigido not in possui:
+        return False, f"Antes, compre: {item(exigido)['nome']}."
+    if saldo < i["preco"]:
+        falta = i["preco"] - saldo
+        return False, f"Faltam {falta} sementes."
+    return True, ""
+
+
+def pode_equipar(item_id, slot, possui):
+    """Retorna (ok, motivo). Itens padrao podem ser usados sempre."""
+    i = item(item_id)
+    if i is None:
+        return False, "Item desconhecido."
+    slots_validos = SLOTS_POR_TIPO.get(i["tipo"])
+    if not slots_validos:
+        return False, "Este item não é para usar no canteiro."
+    if slot not in slots_validos:
+        return False, "Este item não cabe nesse lugar."
+    exigido = EXIGE_SLOT.get(slot)
+    if exigido and exigido not in possui:
+        return False, f"Antes, compre: {item(exigido)['nome']}."
+    if not _e_padrao(item_id) and item_id not in possui:
+        return False, "Você ainda não tem este item."
+    return True, ""
+
+
+def _folha(especie_id):
+    return (item(especie_id) or {}).get("folha", "p-folha")
+
+
+def _valido(item_id, slot, possui):
+    return bool(item_id) and pode_equipar(item_id, slot, possui)[0]
+
+
+def montar_visual(possui, equipados):
+    """Resolve o que aparece no canteiro de um membro.
+
+    Item equipado que nao e mais valido (compra desfeita, por exemplo) e ignorado,
+    voltando ao padrao do tipo.
+    """
+    esp = equipados.get("especie")
+    if not _valido(esp, "especie", possui):
+        esp = padrao("especie")["id"]
+    vaso = equipados.get("vaso")
+    if not _valido(vaso, "vaso", possui):
+        vaso = padrao("vaso")["id"]
+    comp = equipados.get("companheiro")
+    if not _valido(comp, "companheiro", possui):
+        comp = None
+    acess = equipados.get("acessorio")
+    if not _valido(acess, "acessorio", possui):
+        acess = None
+
+    extras = []
+    for n in (2, 3):
+        if f"slot_{n}" not in possui:
+            continue
+        e = equipados.get(f"especie_{n}")
+        if not _valido(e, f"especie_{n}", possui):
+            e = padrao("especie")["id"]
+        extras.append({"slot": n, "especie": e, "folha": _folha(e)})
+
+    return {
+        "especie": esp, "folha": _folha(esp), "vaso": vaso,
+        "companheiro": comp, "acessorio": acess, "extras": extras,
+    }

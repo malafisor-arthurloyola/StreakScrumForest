@@ -60,7 +60,12 @@
         <span class="avatar" style="--c: {{ cores[loop.index0 % cores | length] }}">{{ linha.member.name[0] }}</span>
         <div>
           <div class="linha-nome">{{ linha.member.name }}</div>
-          {{ chama(linha.stats.streak, linha.stats.chama, linha.stats.aceso, linha.member.id) }}
+          <div class="linha-chips">
+            {{ chama(linha.stats.streak, linha.stats.chama, linha.stats.aceso, linha.member.id) }}
+            <span class="chip chip-sementes" data-sementes-for="{{ linha.member.id }}" title="Sementes para gastar na loja">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#p-semente" class="sem-corpo"/><use href="#p-semente-brilho" class="sem-brilho"/></svg><b>{{ linha.stats.sementes }}</b>
+            </span>
+          </div>
         </div>
       </div>
       {% for chave, label in events %}

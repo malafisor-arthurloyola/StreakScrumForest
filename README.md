@@ -47,14 +47,32 @@ membro vira um cartao compacto.
 - **Semana em chamas**: embaixo de cada planta, cinco marcas (seg a sex) com um foguinho por dia de
   presença, ponto azul para "avisou" e anel pulsando para hoje.
 
-## Como testar uma branch (`feature/jardim-vivo` ou `redesign/visual`)
+## Sementes e Loja (branch `feature/loja-sementes`)
+
+- **Sementes** (derivadas do histórico, nunca perdem por falta): +1 por dia de presença, +3 por
+  semana fechada, +1 em "dia cheio" do time (todos presentes), +3/+5/+10/+20 nos marcos de
+  sequência de 5/10/20/40 dias e +20 ao florescer. Um membro dedicado junta ~175 no projeto e um
+  típico ~130. O saldo só diminui com compras e nunca fica negativo.
+- **Loja** (`/loja`): escolha quem você é (fica salvo no navegador) e gaste as sementes em
+  espécies de planta (girassol, samambaia, lavanda, cerejeira, bambu, bonsai, jabuticabeira, ipê e
+  baobá, que só desbloqueia depois de florescer), vasos, companheiros (joaninha, borboleta,
+  vagalume, passarinho, gato), acessórios e plantinhas extras no canteiro (a segunda custa 30 e a
+  terceira 55; elas crescem junto da principal, um pouco menores). É só enfeite: não muda o
+  crescimento real. Sem login, no esquema de confiança: toda compra aparece em "Minhas compras" e
+  pode ser desfeita, devolvendo as sementes.
+- **Coleção** (`/album`): todos os itens, com os que faltam em silhueta.
+- O catálogo e as regras de compra ficam em `catalog.py` (funções puras, com testes). O banco
+  ganhou as tabelas `compras` e `equipados` (criadas sem mexer nos dados existentes).
+- O Calendário agora é acessado pela tela **Membros**.
+
+## Como testar uma branch (`feature/loja-sementes`, `feature/jardim-vivo` ou `redesign/visual`)
 
 Use sempre uma **cópia** do banco para não alterar os dados reais do grupo.
 
 1. Traga a branch e troque para ela (a partir da pasta do projeto):
    ```bash
    git fetch origin
-   git switch feature/jardim-vivo
+   git switch feature/loja-sementes
    ```
 2. Se ainda não instalou as dependências:
    ```bash

@@ -7,6 +7,7 @@ from pathlib import Path
 
 from flask import Flask, abort, g, jsonify, redirect, render_template, request, url_for
 
+import catalog
 import game
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -152,6 +153,24 @@ def init_db():
             data TEXT PRIMARY KEY,
             nome TEXT NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS compras (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            member_id INTEGER NOT NULL REFERENCES members(id),
+            item_id TEXT NOT NULL,
+            custo INTEGER NOT NULL,
+            comprado_em TEXT NOT NULL DEFAULT (datetime('now')),
+            desfeita_em TEXT
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_compras_ativa
+            ON compras (member_id, item_id) WHERE desfeita_em IS NULL;
+
+        CREATE TABLE IF NOT EXISTS equipados (
+            member_id INTEGER NOT NULL REFERENCES members(id),
+            slot TEXT NOT NULL,
+            item_id TEXT NOT NULL,
+            PRIMARY KEY (member_id, slot)
+        );
     """)
     db.commit()
 
@@ -239,21 +258,64 @@ def _estado_jogo_membro(db, member_id, dias_letivos_lista):
     return game.calcular_membro(dias_letivos_lista, reg, meta)
 
 
+def _registros_globais(db):
+    """{data: {member_id: {'presente': True, ...}}} em uma unica consulta."""
+    glob = {}
+    for r in db.execute("SELECT member_id, event_date, status FROM attendance").fetchall():
+        glob.setdefault(r["event_date"], {}).setdefault(r["member_id"], {})[r["status"]] = True
+    return glob
+
+
+def _gastos_por_membro(db):
+    rows = db.execute(
+        "SELECT member_id, SUM(custo) AS total FROM compras "
+        "WHERE desfeita_em IS NULL GROUP BY member_id"
+    ).fetchall()
+    return {r["member_id"]: r["total"] or 0 for r in rows}
+
+
+def _posses_e_equipados(db):
+    posses, equip = {}, {}
+    for r in db.execute(
+        "SELECT member_id, item_id FROM compras WHERE desfeita_em IS NULL"
+    ).fetchall():
+        posses.setdefault(r["member_id"], set()).add(r["item_id"])
+    for r in db.execute("SELECT member_id, slot, item_id FROM equipados").fetchall():
+        equip.setdefault(r["member_id"], {})[r["slot"]] = r["item_id"]
+    return posses, equip
+
+
 def get_member_stats(db, dias_letivos_lista=None):
     if dias_letivos_lista is None:
         dias_letivos_lista = _dias_letivos(db)
     meta = game.meta_floracao(len(dias_letivos_lista))
+    semanas = _semanas_projeto(db)
+    dias_set = set(dias_letivos_lista)
     membros = db.execute(
         "SELECT * FROM members ORDER BY active DESC, name COLLATE NOCASE"
     ).fetchall()
+    glob = _registros_globais(db)
+    ativos_ids = [m["id"] for m in membros if m["active"]]
+    cheios = game.dia_cheio(ativos_ids, {d: v for d, v in glob.items() if d in dias_set})
+    gastos = _gastos_por_membro(db)
+    posses, equip = _posses_e_equipados(db)
+
     resultado = []
     for m in membros:
-        reg = _registros_membro(db, m["id"])
+        reg = {d: v[m["id"]] for d, v in glob.items() if m["id"] in v}
         estado = game.calcular_membro(dias_letivos_lista, reg, meta)
         progresso, dias_ate_proximo = game.progresso_estagio(
             estado["g"], meta, estado["estagio"]
         )
+        ganho = game.calcular_sementes(
+            dias_letivos_lista, semanas, reg, estado["floresceu"], dias_cheios=cheios
+        )
+        gasto = gastos.get(m["id"], 0)
         resultado.append({
+            "sementes": max(ganho["total"] - gasto, 0),
+            "sementes_ganhas": ganho["total"],
+            "sementes_gastas": gasto,
+            "visual": catalog.montar_visual(posses.get(m["id"], set()), equip.get(m["id"], {})),
             "progresso": progresso,
             "dias_ate_proximo": dias_ate_proximo,
             "chama": game.nivel_chama(estado["streak"]),
@@ -716,11 +778,13 @@ def api_attendance():
         estado["g"], meta, estado["estagio"]
     )
     extras = _extras_dia(db, [member_id], event_date, set(dias_letivos_lista))[member_id]
+    stats = _stats_membro(db, member_id, dias_letivos_lista)
 
     return jsonify({
         "ok": True,
         "jogo": {
             "id": member_id,
+            "sementes": stats["sementes"],
             "g": estado["g"],
             "meta": meta,
             "estagio": estado["estagio"],
@@ -824,10 +888,215 @@ def api_excluir_membro(member_id):
 
     db.execute("DELETE FROM attendance WHERE member_id = ?", (member_id,))
     db.execute("DELETE FROM prenda_payments WHERE member_id = ?", (member_id,))
+    db.execute("DELETE FROM compras WHERE member_id = ?", (member_id,))
+    db.execute("DELETE FROM equipados WHERE member_id = ?", (member_id,))
     db.execute("DELETE FROM members WHERE id = ?", (member_id,))
     db.commit()
 
     return jsonify({"ok": True})
+
+
+# ---------------------------------------------------------------- loja e album
+
+SLOTS_EQUIPAVEIS = ("especie", "especie_2", "especie_3", "vaso", "companheiro", "acessorio")
+GRUPOS_LOJA = [
+    ("especie", "Plantas"),
+    ("slot", "Canteiro"),
+    ("vaso", "Vasos"),
+    ("companheiro", "Companheiros"),
+    ("acessorio", "Acessórios"),
+]
+PREVIEW_BASE = {
+    "id": 0, "name": "", "estagio": 8, "estagio_nome": "Florindo", "vigor": "florida",
+    "floresceu": False, "frutos": 0, "progresso": 0.5, "dia_status": "folga",
+}
+
+
+def _stats_membro(db, member_id, dias_letivos_lista=None):
+    return next(
+        (s for s in get_member_stats(db, dias_letivos_lista) if s["id"] == member_id), None
+    )
+
+
+def _posses_membro(db, member_id):
+    rows = db.execute(
+        "SELECT item_id FROM compras WHERE member_id = ? AND desfeita_em IS NULL", (member_id,)
+    ).fetchall()
+    return {r["item_id"] for r in rows}
+
+
+def _membro_ou_404(db, member_id):
+    if db.execute("SELECT 1 FROM members WHERE id = ?", (member_id,)).fetchone() is None:
+        abort(404)
+
+
+def _preview(item_id):
+    it = catalog.item(item_id)
+    v = catalog.montar_visual(set(), {})
+    tipo = it["tipo"]
+    if tipo == "especie":
+        v["especie"], v["folha"] = item_id, it.get("folha", "p-folha")
+    elif tipo in ("vaso", "companheiro", "acessorio"):
+        v[tipo] = item_id
+    elif tipo == "slot":
+        n = 2 if item_id == "slot_2" else 3
+        v["extras"] = [
+            {"slot": k, "especie": "muda", "folha": "p-folha"} for k in range(2, n + 1)
+        ]
+    return {**PREVIEW_BASE, "visual": v}
+
+
+def _contexto_loja(db, member_id):
+    stats = _stats_membro(db, member_id) if member_id else None
+    possui = _posses_membro(db, member_id) if stats else set()
+
+    usados = {}
+    if stats:
+        v = stats["visual"]
+        usados = {"especie": v["especie"], "vaso": v["vaso"],
+                  "companheiro": v["companheiro"], "acessorio": v["acessorio"]}
+        for e in v["extras"]:
+            usados[f"especie_{e['slot']}"] = e["especie"]
+
+    itens = []
+    for it in catalog.ITENS:
+        e = {**it, "preview": _preview(it["id"])}
+        e["possui"] = bool(it.get("padrao")) or it["id"] in possui
+        e["equipado_em"] = [s for s, iid in usados.items() if iid == it["id"]]
+        if stats:
+            ok, motivo = catalog.pode_comprar(it["id"], stats["sementes"], possui, stats["floresceu"])
+            e["pode_comprar"], e["motivo"] = ok, motivo
+        itens.append(e)
+
+    compras = []
+    if stats:
+        for r in db.execute(
+            "SELECT id, item_id, custo, comprado_em, desfeita_em FROM compras "
+            "WHERE member_id = ? ORDER BY id DESC LIMIT 30", (member_id,)
+        ).fetchall():
+            it = catalog.item(r["item_id"]) or {"nome": r["item_id"]}
+            compras.append({**dict(r), "nome": it["nome"]})
+
+    membros = db.execute(
+        "SELECT id, name FROM members WHERE active = 1 ORDER BY name COLLATE NOCASE"
+    ).fetchall()
+    compra_ativa = {}
+    if stats:
+        for r in db.execute(
+            "SELECT id, item_id FROM compras WHERE member_id = ? AND desfeita_em IS NULL", (member_id,)
+        ).fetchall():
+            compra_ativa[r["item_id"]] = r["id"]
+    return {
+        "membros": [dict(m) for m in membros],
+        "atual": stats,
+        "compra_ativa": compra_ativa,
+        "total_itens": len(catalog.ITENS),
+        "itens": itens,
+        "grupos": GRUPOS_LOJA,
+        "plantas_liberadas": [1] + [n for n in (2, 3) if f"slot_{n}" in possui],
+        "compras": compras,
+    }
+
+
+@app.route("/loja")
+def loja_page():
+    db = get_db()
+    return render_template("loja.html", **_contexto_loja(db, request.args.get("m", type=int)))
+
+
+@app.route("/album")
+def album_page():
+    db = get_db()
+    return render_template("album.html", **_contexto_loja(db, request.args.get("m", type=int)))
+
+
+def _ler_pedido():
+    payload = request.get_json(force=True, silent=True) or {}
+    try:
+        member_id = int(payload.get("member_id"))
+    except (TypeError, ValueError):
+        abort(400)
+    return payload, member_id
+
+
+def _erro(msg, status=400):
+    return jsonify({"ok": False, "erro": msg}), status
+
+
+@app.route("/api/loja/comprar", methods=["POST"])
+def api_loja_comprar():
+    payload, member_id = _ler_pedido()
+    item_id = payload.get("item_id")
+    db = get_db()
+    _membro_ou_404(db, member_id)
+
+    stats = _stats_membro(db, member_id)
+    ok, motivo = catalog.pode_comprar(
+        item_id, stats["sementes"], _posses_membro(db, member_id), stats["floresceu"]
+    )
+    if not ok:
+        return _erro(motivo)
+
+    db.execute(
+        "INSERT INTO compras (member_id, item_id, custo) VALUES (?, ?, ?)",
+        (member_id, item_id, catalog.item(item_id)["preco"]),
+    )
+    db.commit()
+    return jsonify({"ok": True, "sementes": _stats_membro(db, member_id)["sementes"]})
+
+
+@app.route("/api/loja/equipar", methods=["POST"])
+def api_loja_equipar():
+    payload, member_id = _ler_pedido()
+    slot = payload.get("slot")
+    item_id = payload.get("item_id")
+    db = get_db()
+    _membro_ou_404(db, member_id)
+
+    if slot not in SLOTS_EQUIPAVEIS:
+        return _erro("Lugar inválido.")
+    if item_id is None:
+        db.execute("DELETE FROM equipados WHERE member_id = ? AND slot = ?", (member_id, slot))
+    else:
+        ok, motivo = catalog.pode_equipar(item_id, slot, _posses_membro(db, member_id))
+        if not ok:
+            return _erro(motivo)
+        db.execute(
+            "INSERT OR REPLACE INTO equipados (member_id, slot, item_id) VALUES (?, ?, ?)",
+            (member_id, slot, item_id),
+        )
+    db.commit()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/loja/desfazer", methods=["POST"])
+def api_loja_desfazer():
+    payload, member_id = _ler_pedido()
+    try:
+        compra_id = int(payload.get("compra_id"))
+    except (TypeError, ValueError):
+        abort(400)
+    db = get_db()
+    compra = db.execute(
+        "SELECT * FROM compras WHERE id = ? AND member_id = ? AND desfeita_em IS NULL",
+        (compra_id, member_id),
+    ).fetchone()
+    if compra is None:
+        abort(404)
+
+    item_id = compra["item_id"]
+    if item_id == "slot_2" and "slot_3" in _posses_membro(db, member_id):
+        return _erro("Desfaça a terceira plantinha antes.")
+
+    db.execute("UPDATE compras SET desfeita_em = datetime('now') WHERE id = ?", (compra_id,))
+    db.execute("DELETE FROM equipados WHERE member_id = ? AND item_id = ?", (member_id, item_id))
+    if item_id in ("slot_2", "slot_3"):
+        db.execute(
+            "DELETE FROM equipados WHERE member_id = ? AND slot = ?",
+            (member_id, "especie_" + item_id[-1]),
+        )
+    db.commit()
+    return jsonify({"ok": True, "sementes": _stats_membro(db, member_id)["sementes"]})
 
 
 if __name__ == "__main__":

@@ -74,7 +74,7 @@ function atualizarCena() {
 atualizarCena();
 setInterval(atualizarCena, 60000);
 
-function aplicarEstagio(jogo) {
+function aplicarEstagioPrincipal(jogo) {
   var anterior = { estagio: 0, dia: null };
   document.querySelectorAll('.planta[data-member-id="' + jogo.id + '"]').forEach(function (svg) {
     anterior.estagio = parseInt(svg.dataset.stage, 10) || 0;
@@ -98,6 +98,37 @@ function aplicarEstagio(jogo) {
     });
   });
   return anterior;
+}
+
+/* Plantinhas extras (compradas na loja) acompanham a principal, um pouco menores. */
+function aplicarEstagio(jogo) {
+  var anterior = aplicarEstagioPrincipal(jogo);
+  var estExtra = Math.floor(jogo.estagio * 7 / 10);
+  document.querySelectorAll('.planta[data-extra-de="' + jogo.id + '"]').forEach(function (svg) {
+    svg.dataset.stage = estExtra;
+    svg.dataset.vigor = jogo.vigor;
+    svg.querySelectorAll('[data-min]').forEach(function (g) {
+      var min = parseInt(g.dataset.min, 10);
+      var max = g.dataset.max ? parseInt(g.dataset.max, 10) : 99;
+      g.classList.toggle('on', estExtra >= min && estExtra <= max);
+    });
+  });
+  return anterior;
+}
+
+function atualizarSementes(jogo) {
+  if (jogo.sementes === undefined) return;
+  document.querySelectorAll('[data-sementes-for="' + jogo.id + '"] b').forEach(function (b) {
+    var antes = parseInt(b.textContent, 10) || 0;
+    b.textContent = jogo.sementes;
+    if (jogo.sementes > antes) {
+      var mais = document.createElement('span');
+      mais.className = 'sementes-mais';
+      mais.textContent = '+' + (jogo.sementes - antes);
+      b.parentElement.appendChild(mais);
+      setTimeout(function () { mais.remove(); }, 1300);
+    }
+  });
 }
 
 function regar(memberId) {
@@ -176,6 +207,7 @@ document.querySelectorAll('.status-toggle').forEach(function (wrapper) {
           var streakAntes = atualizarChama(j);
           atualizarProximo(j);
           atualizarSemana(j);
+          atualizarSementes(j);
 
           var nome = '';
           var linha = wrapper.closest('[data-member-row]');

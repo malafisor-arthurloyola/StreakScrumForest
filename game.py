@@ -238,7 +238,7 @@ def calcular_semanas_fechadas(semanas_projeto, registros_por_data):
     return fechadas
 
 
-def calcular_sementes(dias_letivos_lista, semanas_projeto, registros_por_data, floresceu):
+def calcular_sementes(dias_letivos_lista, semanas_projeto, registros_por_data, floresceu, dias_cheios=None):
     """
     Calcula sementes ganhas (nunca perde por falta).
     Retorna dict com total e detalhes.
@@ -264,13 +264,20 @@ def calcular_sementes(dias_letivos_lista, semanas_projeto, registros_por_data, f
 
     bonus_floresceu = 20 if floresceu else 0
 
-    total = dias_presentes + semenas_fechadas * 3 + marcos + bonus_floresceu
+    # dia cheio do time: +1 para quem veio nesse dia
+    por_dia_cheio = sum(
+        1 for d in (dias_cheios or ())
+        if registros_por_data.get(d, {}).get("presente", False)
+    )
+
+    total = dias_presentes + semenas_fechadas * 3 + marcos + bonus_floresceu + por_dia_cheio
     return {
         "total": total,
         "por_presenca": dias_presentes,
         "por_semanas_fechadas": semenas_fechadas * 3,
         "por_marcos": marcos,
         "por_floresceu": bonus_floresceu,
+        "por_dia_cheio": por_dia_cheio,
         "semanas_fechadas": semenas_fechadas,
     }
 

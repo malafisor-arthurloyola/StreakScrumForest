@@ -9,6 +9,7 @@
     <h1>Membros</h1>
     <p class="sub">Quem está no jardim. Mudar o nome não afeta o histórico.</p>
   </div>
+  <a class="btn btn-ghost" href="{{ url_for('calendario_page') }}">Calendário do projeto</a>
 </header>
 
 <form class="form-linha" id="novo-membro">
@@ -26,6 +27,7 @@
       <div class="chips">
         <span class="chip chip-estagio">{{ m.estagio_nome }}</span>
         {{ chama(m.streak, m.chama, true) }}
+        <span class="chip chip-sementes"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#p-semente" class="sem-corpo"/><use href="#p-semente-brilho" class="sem-brilho"/></svg><b>{{ m.sementes }}</b></span>
         <span class="chip">{{ m.dias_presentes }} {{ 'presença' if m.dias_presentes == 1 else 'presenças' }}</span>
         {% if not m.active %}<span class="chip chip-inativo">inativo</span>{% endif %}
       </div>

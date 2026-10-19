@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% from "_planta.html" import conjunto %}
+{% block title %}Coleção · Jardim da Equipe{% endblock %}
+
+{% block content %}
+{% set tenho = itens | selectattr('possui') | list | length %}
+<header class="pagina-cab">
+  <div>
+    <h1>Coleção</h1>
+    <p class="sub">
+      {% if atual %}{{ atual.name }} tem {{ tenho }} de {{ total_itens }} itens. Os que ainda faltam aparecem como silhueta.{% else %}Escolha seu nome na Loja para ver a sua coleção.{% endif %}
+    </p>
+  </div>
+  <a class="btn btn-primary" href="{{ url_for('loja_page', m=atual.id if atual else None) }}">Ir à loja</a>
+</header>
+
+{% if atual %}
+{% for tipo, titulo in grupos %}
+<section class="loja-grupo">
+  <h2 class="secao-titulo">{{ titulo }}</h2>
+  <div class="album-grade">
+    {% for it in itens if it.tipo == tipo %}
+    <article class="album-item{{ '' if it.possui else ' silhueta' }}">
+      <div class="item-vitrine">{{ conjunto(it.preview, 92) }}</div>
+      {% if it.possui %}
+        <h3>{{ it.nome }}</h3>
+        <span class="raridade r-{{ it.raridade }}">{{ it.raridade }}</span>
+      {% else %}
+        <h3>???</h3>
+        <span class="preco"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#p-semente" class="sem-corpo"/><use href="#p-semente-brilho" class="sem-brilho"/></svg>{{ it.preco }}</span>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endfor %}
+{% else %}
+  <p class="vazio">Sem nome escolhido ainda. Vá à <a href="{{ url_for('loja_page') }}">Loja</a> e escolha quem você é.</p>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  try {
+    var KEY = 'jardim.quemSou';
+    var tem = location.search.indexOf('m=') !== -1;
+    var salvo = localStorage.getItem(KEY);
+    if (!tem && salvo) location.replace('/album?m=' + encodeURIComponent(salvo));
+  } catch (e) {}
+})();
+</script>
+{% endblock %}

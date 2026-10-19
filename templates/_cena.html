@@ -1,4 +1,4 @@
-{% from "_planta.html" import planta %}
+{% from "_planta.html" import planta, conjunto %}
 {% from "_chama.html" import chama %}
 {% set textos_dia = {'presente': 'presente', 'justificada': 'avisou', 'faltou': 'faltou', 'hoje': 'hoje', 'vazio': 'sem registro', 'futuro': 'ainda não chegou', 'folga': 'sem aula'} %}
 {#
@@ -35,8 +35,11 @@
   <span class="cena-dica" aria-hidden="true">Arraste para ver o jardim todo</span>
   <div class="cena-plantas" role="list">
     {% for m in membros %}
-    <div class="canteiro-item" role="listitem" data-member-id="{{ m.id }}">
-      {{ planta(m, tamanho=170 if grande else 132) }}
+    {% set n_extras = m.visual.extras | length if m.visual else 0 %}
+    {% set fator = 1 + 0.62 * n_extras %}
+    <div class="canteiro-item" role="listitem" data-member-id="{{ m.id }}"
+         style="flex-grow: {{ fator }}; min-width: {{ (108 * fator) | round | int }}px; max-width: {{ ((grande and 230 or 200) * fator) | round | int }}px">
+      {{ conjunto(m, tamanho=170 if grande else 132) }}
       <div class="placa">
         <span class="placa-nome">{{ m.name }}</span>
         {{ chama(m.streak, m.chama, m.aceso, m.id) }}

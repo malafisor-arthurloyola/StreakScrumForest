@@ -388,5 +388,48 @@ class TestCenaDoDia(unittest.TestCase):
         self.assertAlmostEqual(y, 10, delta=1)
 
 
+class TestSementesDiaCheio(unittest.TestCase):
+    def setUp(self):
+        self.dias = dias_letivos("2026-10-15", SEMANA1, NUM_SEMANAS, FERIADOS)
+        self.semanas = semanas_do_projeto(SEMANA1, NUM_SEMANAS, FERIADOS)
+
+    def test_bonus_de_dia_cheio_so_conta_se_o_membro_veio(self):
+        d = self.dias
+        regs = {d[0]: {"presente": True}, d[1]: {"presente": True}}
+        base = calcular_sementes(d, self.semanas, regs, False)["total"]
+        com = calcular_sementes(d, self.semanas, regs, False, dias_cheios={d[0], d[5]})
+        self.assertEqual(com["total"], base + 1)
+        self.assertEqual(com["por_dia_cheio"], 1)
+
+    def test_sem_dias_cheios_nada_muda(self):
+        d = self.dias
+        regs = {d[0]: {"presente": True}}
+        a = calcular_sementes(d, self.semanas, regs, False)
+        b = calcular_sementes(d, self.semanas, regs, False, dias_cheios=set())
+        self.assertEqual(a["total"], b["total"])
+
+    def test_total_dedicado_em_time_perfeito(self):
+        regs = {dia: {"presente": True} for dia in self.dias}
+        r = calcular_sementes(self.dias, self.semanas, regs, True, dias_cheios=set(self.dias))
+        self.assertGreaterEqual(r["total"], 150)
+        self.assertLessEqual(r["total"], 190)
+
+    def test_total_tipico(self):
+        # ~88%: uma ausencia a cada 8 dias (2 faltas e 3 avisos), faltas espalhadas
+        d = self.dias
+        regs = {}
+        for i, dia in enumerate(d):
+            if i % 8 == 7:
+                regs[dia] = {"faltou": True} if i < 20 else {"justificada": True}
+            else:
+                regs[dia] = {"presente": True}
+        meta = meta_floracao(len(d))
+        floresceu = calcular_membro(d, regs, meta)["floresceu"]
+        cheios = {dia for i, dia in enumerate(d) if "presente" in regs[dia] and i % 5 < 3}
+        r = calcular_sementes(d, self.semanas, regs, floresceu, dias_cheios=cheios)
+        self.assertGreaterEqual(r["total"], 100)
+        self.assertLessEqual(r["total"], 150)
+
+
 if __name__ == "__main__":
     unittest.main()

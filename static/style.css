@@ -797,6 +797,130 @@ input.input-nome:hover, input.input-nome:focus { background: var(--s2); }
 .dia-pt[data-estado="folga"]::after { width: 7px; height: 2px; border-radius: 2px; background: rgba(255, 255, 255, 0.2); }
 @keyframes pulsa { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.25); opacity: 0.6; } }
 
+/* ===== Especies, vasos e companheiros (loja) ===== */
+.planta .caule { stroke-width: var(--caule-w, 3.4); }
+.planta[data-especie="girassol"] { --petal: #ffd23f; --centro: #6b3f1d; --broto: #ffe28a; --ouro: #ffb81c; --ouro-2: #6b3f1d; }
+.planta[data-especie="samambaia"] { --f1: #2f9f6a; --f2: #1f7f58; --f3: #62d29c; --caule: #1f7f58; --petal: #c8f0d8; --centro: #7fc7a0; --broto: #a9e6c3; --fruto: #c8a46a; }
+.planta[data-especie="lavanda"] { --f1: #7fb59b; --f2: #5e9a82; --f3: #a3d1bb; --caule: #5e9a82; --petal: #a98cff; --centro: #6f4bd6; --broto: #c4b0ff; --ouro: #b79cff; --ouro-2: #6f4bd6; }
+.planta[data-especie="cerejeira"] { --f1: #7bc79a; --f2: #5aae80; --f3: #a1ddb8; --caule: #8a5a4a; --petal: #ffb7cf; --centro: #ff7aa5; --broto: #ffd3e1; --ouro: #ffc2d8; --ouro-2: #ff7aa5; }
+.planta[data-especie="bambu"] { --f1: #9be37f; --f2: #6fc95a; --f3: #c3f08a; --caule: #7fcf63; --caule-w: 4.8; --petal: #fff3b0; --centro: #c3d96a; --broto: #e8f5a0; }
+.planta[data-especie="bonsai"] { --f1: #2f8f5a; --f2: #1f6f46; --f3: #4fb078; --caule: #6b4a2f; --caule-w: 4; --petal: #ffd0e0; --centro: #ff9ab8; }
+.planta[data-especie="jabuticabeira"] { --f1: #3f9f5f; --f2: #2d8049; --f3: #6ac282; --caule: #6b4a2f; --petal: #ffffff; --centro: #ffe27a; --broto: #f3f3f3; --fruto: #3b1f4a; --fruto-verde: #7d5a8c; }
+.planta[data-especie="ipe"] { --f1: #86d77d; --f2: #62bf68; --f3: #b4ec9a; --caule: #7a5a3a; --petal: #ffd21f; --centro: #ff9f1c; --broto: #ffe680; --ouro: #ffd21f; --ouro-2: #ff9f1c; }
+.planta[data-especie="baoba"] { --f1: #5fcf9a; --f2: #3fae7e; --f3: #8fe6bd; --caule: #b9835a; --caule-w: 5.4; --petal: #ffb347; --centro: #fff3b0; --broto: #ffcf8a; --ouro: #5ee6d0; --ouro-2: #2bbfa8; }
+
+.planta[data-vaso="azul"] { --vaso: #4a7fd0; --vaso-2: #3a66ad; --borda: #6a9ae6; }
+.planta[data-vaso="lata"] { --vaso: #9aa7ad; --vaso-2: #7d8a90; --borda: #b5c0c5; }
+.planta[data-vaso="xicara"] { --vaso: #f2efe6; --vaso-2: #d9d4c6; --borda: #fffdf5; }
+.planta[data-vaso="pixel"] { --vaso: #8a5cf5; --vaso-2: #6f46d6; --borda: #a883ff; }
+.planta[data-vaso="dourado"] { --vaso: #e8b94a; --vaso-2: #c99a2e; --borda: #f5d27a; }
+
+.vasos { display: flex; align-items: flex-end; justify-content: center; width: 100%; }
+.vaso-principal { flex: 1 1 0; min-width: 0; }
+.vaso-extra { flex: 0.62 1 0; min-width: 0; }
+.vasos .planta { width: 100%; }
+
+.mov-joaninha { animation: anda 6s ease-in-out infinite alternate; }
+@keyframes anda { from { transform: translateX(-7px); } to { transform: translateX(8px); } }
+.mov-borboleta { animation: voa 8s ease-in-out infinite; }
+@keyframes voa {
+  0%, 100% { transform: translate(0, 0) rotate(0); }
+  25% { transform: translate(-9px, -6px) rotate(-8deg); }
+  50% { transform: translate(-3px, 5px) rotate(5deg); }
+  75% { transform: translate(8px, -3px) rotate(-3deg); }
+}
+.mov-borboleta .asa { transform-box: fill-box; transform-origin: center; animation: bate 0.45s ease-in-out infinite alternate; }
+@keyframes bate { from { transform: scaleX(1); } to { transform: scaleX(0.45); } }
+.mov-orbita { transform-origin: 0 0; animation: gira 9s linear infinite; }
+@keyframes gira { to { transform: rotate(360deg); } }
+.mov-orbita circle { animation: pisca 2.4s ease-in-out infinite; }
+@keyframes pisca { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
+.mov-passaro { animation: pula 4s ease-in-out infinite; }
+@keyframes pula { 0%, 86%, 100% { transform: translateY(0); } 90% { transform: translateY(-4px); } 95% { transform: translateY(0); } }
+.mov-gato { transform-box: fill-box; transform-origin: center bottom; animation: respira 4.2s ease-in-out infinite; }
+@keyframes respira { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.04, 1.07); } }
+
+/* ===== Sementes ===== */
+.sem-corpo { fill: #e8c46a; }
+.sem-brilho { fill: #fff4c9; opacity: 0.9; }
+.chip-sementes { position: relative; gap: 4px; background: rgba(232, 196, 106, 0.16); color: #f2d27c; }
+.chip-sementes svg { width: 15px; height: 15px; }
+.chip-sementes b { font-weight: 800; }
+.sementes-mais {
+  position: absolute; right: -4px; top: -14px;
+  color: var(--ouro); font-size: 0.8rem; font-weight: 800;
+  animation: sobe 1.2s ease-out forwards; pointer-events: none;
+}
+@keyframes sobe { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-16px); } }
+.linha-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 2px; }
+
+/* ===== Loja e colecao ===== */
+.quem { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 18px 0 6px; }
+.quem-rotulo { color: var(--ink2); font-weight: 700; }
+.quem-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.quem-chip {
+  padding: 0.45rem 1rem; border-radius: 999px; background: var(--s2);
+  color: var(--ink); font-weight: 600; text-decoration: none; transition: background 0.15s;
+}
+.quem-chip:hover { background: var(--s3); }
+.quem-chip.ativo { background: var(--acc); color: var(--acc-ink); }
+
+.loja-kpis { grid-template-columns: 1fr 1.2fr 1fr; margin-top: 14px; }
+.kpi-sementes { display: flex; align-items: center; gap: 10px; }
+.kpi-sementes svg { width: 0.8em; height: 0.8em; }
+.kpi-sementes .sem-corpo { fill: var(--acc-ink); }
+.kpi-sementes .sem-brilho { fill: rgba(198, 242, 78, 0.8); }
+.kpi-canteiro { align-items: center; }
+.canteiro-previa { width: 150px; margin: 0 auto; }
+.como-ganhar { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; color: var(--ink2); }
+.como-ganhar b { color: var(--acc); }
+
+.loja-abas { position: sticky; top: 62px; z-index: 5; display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; padding: 8px 0; background: var(--bg); }
+.loja-abas a { padding: 0.4rem 0.9rem; border-radius: 999px; background: var(--s2); color: var(--ink); font-size: 0.92rem; font-weight: 600; text-decoration: none; }
+.loja-abas a:hover { background: var(--s3); }
+
+.itens { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.item { display: grid; grid-template-columns: 128px 1fr; gap: 14px; padding: 14px; border-radius: var(--r-lg); background: var(--s1); }
+.item-meu { background: var(--s2); }
+.item-vitrine { display: grid; place-items: end center; padding: 10px 6px 0; border-radius: 18px; background: #123127; overflow: hidden; }
+.item-vitrine .vasos { max-width: 124px; }
+.item-corpo { display: flex; flex-direction: column; min-width: 0; }
+.item-topo { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.item-topo h3 { font-size: 1.1rem; letter-spacing: -0.01em; }
+.item-desc { margin: 4px 0 10px; color: var(--ink2); font-size: 0.92rem; }
+.item-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: auto; }
+.item-motivo { color: var(--ink2); font-size: 0.85rem; }
+.preco { display: inline-flex; align-items: center; gap: 5px; color: #f2d27c; font-weight: 800; }
+.preco svg { width: 18px; height: 18px; }
+.selo-comprado, .selo-desfeita { padding: 0.2rem 0.7rem; border-radius: 999px; background: rgba(79, 219, 155, 0.15); color: var(--ok); font-size: 0.85rem; font-weight: 700; }
+.selo-desfeita { background: var(--s3); color: var(--ink2); }
+.raridade { padding: 0.12rem 0.6rem; border-radius: 999px; background: var(--s3); color: var(--ink2); font-size: 0.75rem; font-weight: 700; white-space: nowrap; }
+.raridade.r-rara { background: rgba(109, 185, 255, 0.18); color: var(--aviso); }
+.raridade.r-epica { background: rgba(255, 158, 196, 0.18); color: #ff9ec4; }
+.raridade.r-lendaria { background: rgba(255, 211, 92, 0.2); color: var(--ouro); }
+
+.compras { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.compras li { display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 14px; background: var(--s1); }
+.compras li.desfeita { opacity: 0.55; }
+.compra-nome { font-weight: 700; }
+.compra-quando { color: var(--ink2); font-size: 0.88rem; }
+
+.album-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.album-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px; border-radius: var(--r-md); background: var(--s1); text-align: center; }
+.album-item h3 { font-size: 1rem; }
+.album-item .item-vitrine { width: 100%; }
+.album-item.silhueta .item-vitrine { filter: brightness(0) opacity(0.5); }
+.album-item.silhueta h3 { color: var(--ink2); }
+
+@media (max-width: 900px) {
+  .loja-kpis { grid-template-columns: 1fr; }
+  .compras li { grid-template-columns: 1fr auto; }
+}
+@media (max-width: 480px) {
+  .itens { grid-template-columns: 1fr; }
+  .item { grid-template-columns: 104px 1fr; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
   .vagalume { opacity: 0.6; }

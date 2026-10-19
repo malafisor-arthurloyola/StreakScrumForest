@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% from "_planta.html" import conjunto %}
+{% block title %}Loja · Jardim da Equipe{% endblock %}
+
+{% block content %}
+<header class="pagina-cab">
+  <div>
+    <h1>Loja do jardim</h1>
+    <p class="sub">Troque suas sementes por plantas, vasos e companheiros. É só enfeite: nada aqui muda o quanto a planta cresce.</p>
+  </div>
+  <a class="btn btn-ghost" href="{{ url_for('album_page', m=atual.id if atual else None) }}">Ver coleção</a>
+</header>
+
+<section class="quem" aria-label="Quem é você">
+  <span class="quem-rotulo">Quem é você?</span>
+  <div class="quem-chips">
+    {% for m in membros %}
+    <a class="quem-chip{{ ' ativo' if atual and atual.id == m.id }}" href="{{ url_for('loja_page', m=m.id) }}">{{ m.name }}</a>
+    {% endfor %}
+  </div>
+</section>
+
+{% if not atual %}
+  <p class="vazio">Escolha o seu nome para ver suas sementes e comprar. Fica salvo neste aparelho.</p>
+{% else %}
+<section class="kpis loja-kpis" aria-label="Suas sementes">
+  <div class="kpi kpi-destaque">
+    <span class="kpi-rotulo">Suas sementes</span>
+    <span class="kpi-valor kpi-sementes">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#p-semente" class="sem-corpo"/><use href="#p-semente-brilho" class="sem-brilho"/></svg>{{ atual.sementes }}
+    </span>
+    <span class="kpi-nota">{{ atual.sementes_ganhas }} ganhas · {{ atual.sementes_gastas }} gastas</span>
+  </div>
+  <div class="kpi kpi-canteiro">
+    <span class="kpi-rotulo">Seu canteiro agora</span>
+    <div class="canteiro-previa">{{ conjunto(atual, 120) }}</div>
+  </div>
+  <div class="kpi">
+    <span class="kpi-rotulo">Como ganhar mais</span>
+    <ul class="como-ganhar">
+      <li><b>+1</b> por dia de presença</li>
+      <li><b>+3</b> por semana fechada</li>
+      <li><b>+1</b> em dia cheio do time</li>
+      <li><b>+3 a +20</b> em marcos de sequência</li>
+    </ul>
+  </div>
+</section>
+
+<nav class="loja-abas" aria-label="Seções da loja">
+  {% for tipo, titulo in grupos %}<a href="#g-{{ tipo }}">{{ titulo }}</a>{% endfor %}
+  <a href="#minhas-compras">Minhas compras</a>
+</nav>
+
+{% for tipo, titulo in grupos %}
+<section class="loja-grupo" id="g-{{ tipo }}">
+  <h2 class="secao-titulo">{{ titulo }}</h2>
+  <div class="itens">
+    {% for it in itens if it.tipo == tipo %}
+    <article class="item{{ ' item-meu' if it.possui }}" data-item="{{ it.id }}">
+      <div class="item-vitrine">{{ conjunto(it.preview, 104) }}</div>
+      <div class="item-corpo">
+        <div class="item-topo">
+          <h3>{{ it.nome }}</h3>
+          <span class="raridade r-{{ it.raridade }}">{{ it.raridade }}</span>
+        </div>
+        <p class="item-desc">{{ it.desc }}</p>
+
+        <div class="item-acoes">
+          {% if it.possui %}
+            {% if it.tipo == 'especie' %}
+              {% for n in plantas_liberadas %}
+                {% set slot = 'especie' if n == 1 else 'especie_' ~ n %}
+                {% set em_uso = slot in it.equipado_em %}
+                <button type="button" class="btn {{ 'btn-primary' if em_uso else 'btn-ghost' }}" data-acao="equipar" data-slot="{{ slot }}" data-item="{{ it.id }}" {{ 'disabled' if em_uso }}>
+                  {{ 'Na planta ' ~ n if em_uso else 'Usar na planta ' ~ n }}
+                </button>
+              {% endfor %}
+            {% elif it.tipo == 'slot' %}
+              <span class="selo-comprado">Comprado</span>
+            {% else %}
+              {% if it.equipado_em %}
+                <button type="button" class="btn btn-primary" data-acao="equipar" data-slot="{{ it.tipo }}" data-item="" data-tirar="1">Em uso · tirar</button>
+              {% else %}
+                <button type="button" class="btn btn-ghost" data-acao="equipar" data-slot="{{ it.tipo }}" data-item="{{ it.id }}">Usar</button>
+              {% endif %}
+            {% endif %}
+          {% else %}
+            <span class="preco"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#p-semente" class="sem-corpo"/><use href="#p-semente-brilho" class="sem-brilho"/></svg>{{ it.preco }}</span>
+            {% if it.pode_comprar %}
+              <button type="button" class="btn btn-primary" data-acao="comprar" data-item="{{ it.id }}">Comprar</button>
+            {% else %}
+              <span class="item-motivo">{{ it.motivo }}</span>
+            {% endif %}
+          {% endif %}
+        </div>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endfor %}
+
+<section class="loja-grupo" id="minhas-compras">
+  <h2 class="secao-titulo">Minhas compras</h2>
+  {% if compras %}
+  <ul class="compras">
+    {% for c in compras %}
+    <li class="{{ 'desfeita' if c.desfeita_em }}">
+      <span class="compra-nome">{{ c.nome }}</span>
+      <span class="compra-quando">{{ c.comprado_em[8:10] }}/{{ c.comprado_em[5:7] }}</span>
+      <span class="preco">{{ c.custo }}</span>
+      {% if c.desfeita_em %}
+        <span class="selo-desfeita">desfeita</span>
+      {% else %}
+        <button type="button" class="btn btn-ghost" data-acao="desfazer" data-compra="{{ c.id }}">Desfazer e recuperar sementes</button>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="vazio">Você ainda não comprou nada. Seu primeiro vaso custa poucas sementes.</p>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var KEY = 'jardim.quemSou';
+  var atual = {{ atual.id if atual else 'null' }};
+  var temParametro = location.search.indexOf('m=') !== -1;
+
+  try {
+    if (atual) {
+      localStorage.setItem(KEY, atual);
+    } else if (!temParametro) {
+      var salvo = localStorage.getItem(KEY);
+      if (salvo) { location.replace('/loja?m=' + encodeURIComponent(salvo)); return; }
+    }
+    var msg = sessionStorage.getItem('jardim.msg');
+    if (msg) { sessionStorage.removeItem('jardim.msg'); mostrarToast(msg, 'sucesso'); }
+  } catch (e) {}
+
+  function enviar(url, dados, mensagem) {
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dados),
+    })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (!res.ok) { mostrarToast(res.j.erro || 'Não deu certo.', 'info'); return; }
+        try { sessionStorage.setItem('jardim.msg', mensagem); } catch (e) {}
+        location.reload();
+      })
+      .catch(function () { mostrarToast('Sem conexão com o servidor.', 'info'); });
+  }
+
+  document.querySelectorAll('[data-acao]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var acao = btn.dataset.acao;
+      var base = { member_id: atual };
+      if (acao === 'comprar') {
+        enviar('/api/loja/comprar', Object.assign(base, { item_id: btn.dataset.item }), 'Compra feita!');
+      } else if (acao === 'equipar') {
+        var item = btn.dataset.tirar ? null : btn.dataset.item;
+        enviar('/api/loja/equipar', Object.assign(base, { slot: btn.dataset.slot, item_id: item }), 'Canteiro atualizado.');
+      } else if (acao === 'desfazer') {
+        if (!confirm('Desfazer esta compra e recuperar as sementes?')) return;
+        enviar('/api/loja/desfazer', Object.assign(base, { compra_id: parseInt(btn.dataset.compra, 10) }), 'Compra desfeita, sementes devolvidas.');
+      }
+    });
+  });
+})();
+</script>
+{% endblock %}
