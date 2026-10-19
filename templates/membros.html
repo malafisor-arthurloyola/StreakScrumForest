@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_chama.html" import chama %}
 {% set cores = ['#c6f24e', '#6db9ff', '#ff9ec4', '#ffd35c', '#35d0c0', '#ff8d76', '#9be37f'] %}
 {% block title %}Membros · Jardim da Equipe{% endblock %}
 
@@ -24,7 +25,7 @@
       <input type="text" class="input-nome" value="{{ m.name }}" data-member-id="{{ m.id }}" aria-label="Nome de {{ m.name }}">
       <div class="chips">
         <span class="chip chip-estagio">{{ m.estagio_nome }}</span>
-        <span class="chip chip-streak">{{ m.streak }} {{ 'dia' if m.streak == 1 else 'dias' }} seguidos</span>
+        {{ chama(m.streak, m.chama, true) }}
         <span class="chip">{{ m.dias_presentes }} {{ 'presença' if m.dias_presentes == 1 else 'presenças' }}</span>
         {% if not m.active %}<span class="chip chip-inativo">inativo</span>{% endif %}
       </div>

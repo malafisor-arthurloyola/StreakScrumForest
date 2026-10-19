@@ -16,6 +16,10 @@ from game import (
     estagio_para_g,
     limiar_estagio,
     meta_floracao,
+    nivel_chama,
+    periodo_do_dia,
+    posicao_astro,
+    progresso_estagio,
     semanas_do_projeto,
     vigor_para_streak,
 )
@@ -84,6 +88,18 @@ class TestMetaEEstagios(unittest.TestCase):
 
     def test_estagio_10_com_meta(self):
         self.assertEqual(estagio_para_g(36, 36), 10)
+
+    def test_limiares_uniformes_meta_36(self):
+        lims = [limiar_estagio(k, 36) for k in range(1, 11)]
+        self.assertEqual(lims, [1, 5, 9, 13, 17, 21, 25, 29, 33, 36])
+
+    def test_nenhum_estagio_dura_mais_que_5_dias(self):
+        for meta in (36, 40, 44):
+            prev = limiar_estagio(1, meta)
+            for k in range(2, 11):
+                lim = limiar_estagio(k, meta)
+                self.assertLessEqual(lim - prev, 5, (meta, k))
+                prev = lim
 
     def test_limiares_crescentes(self):
         meta = 36
@@ -296,6 +312,80 @@ class TestDiaCheio(unittest.TestCase):
     def test_sem_ativos(self):
         result = dia_cheio([], {})
         self.assertEqual(result, set())
+
+
+class TestProgressoEstagio(unittest.TestCase):
+    META = 36
+
+    def test_inicio_do_estagio(self):
+        # estagio 2 comeca com 5 presencas; o 3 comeca com 9
+        p, falta = progresso_estagio(5, self.META, 2)
+        self.assertEqual(p, 0.0)
+        self.assertEqual(falta, 4)
+
+    def test_um_dia_dentro_do_estagio(self):
+        p, falta = progresso_estagio(6, self.META, 2)
+        self.assertAlmostEqual(p, 0.25, places=2)
+        self.assertEqual(falta, 3)
+
+    def test_ultimo_dia_antes_de_subir(self):
+        p, falta = progresso_estagio(8, self.META, 2)
+        self.assertAlmostEqual(p, 0.75, places=2)
+        self.assertEqual(falta, 1)
+
+    def test_semente(self):
+        self.assertEqual(progresso_estagio(0, self.META, 0), (0.0, 1))
+
+    def test_floresceu_fica_cheio(self):
+        self.assertEqual(progresso_estagio(36, self.META, 10), (1.0, 0))
+
+    def test_sempre_entre_zero_e_um(self):
+        for g in range(0, self.META + 1):
+            est = estagio_para_g(g, self.META)
+            p, falta = progresso_estagio(g, self.META, est)
+            self.assertTrue(0.0 <= p <= 1.0, (g, p))
+            self.assertGreaterEqual(falta, 0)
+
+    def test_cada_presenca_aumenta_o_progresso_ou_sobe_de_estagio(self):
+        for g in range(0, self.META):
+            e1 = estagio_para_g(g, self.META)
+            e2 = estagio_para_g(g + 1, self.META)
+            p1, _ = progresso_estagio(g, self.META, e1)
+            p2, _ = progresso_estagio(g + 1, self.META, e2)
+            self.assertTrue(e2 > e1 or p2 > p1, (g, e1, e2, p1, p2))
+
+
+class TestNivelChama(unittest.TestCase):
+    def test_faixas(self):
+        casos = {0: 0, 1: 1, 2: 1, 3: 2, 6: 2, 7: 3, 13: 3, 14: 4, 40: 4}
+        for streak, esperado in casos.items():
+            self.assertEqual(nivel_chama(streak), esperado, streak)
+
+
+class TestCenaDoDia(unittest.TestCase):
+    def test_periodos(self):
+        casos = {
+            0: "madrugada", 4.9: "madrugada", 5: "amanhecer", 7.4: "amanhecer",
+            7.5: "manha", 11.9: "manha", 12: "meiodia", 13.9: "meiodia",
+            14: "tarde", 17.4: "tarde", 17.5: "entardecer", 18.9: "entardecer",
+            19: "noite", 23.9: "noite",
+        }
+        for hora, esperado in casos.items():
+            self.assertEqual(periodo_do_dia(hora), esperado, hora)
+
+    def test_sol_no_alto_ao_meio_dia(self):
+        x, y = posicao_astro(12, 5.5, 13)
+        self.assertAlmostEqual(x, 50, delta=1)
+        self.assertAlmostEqual(y, 10, delta=1)
+
+    def test_astro_fora_da_janela_fica_no_horizonte(self):
+        x, y = posicao_astro(23, 5.5, 13)
+        self.assertEqual((x, y), (92.0, 66.0))
+
+    def test_lua_no_alto_a_meia_noite(self):
+        x, y = posicao_astro(0, 18.5, 11)
+        self.assertAlmostEqual(x, 50, delta=1)
+        self.assertAlmostEqual(y, 10, delta=1)
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@ import math
 import os
 import shutil
 import sqlite3
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from flask import Flask, abort, g, jsonify, redirect, render_template, request, url_for
@@ -250,7 +250,13 @@ def get_member_stats(db, dias_letivos_lista=None):
     for m in membros:
         reg = _registros_membro(db, m["id"])
         estado = game.calcular_membro(dias_letivos_lista, reg, meta)
+        progresso, dias_ate_proximo = game.progresso_estagio(
+            estado["g"], meta, estado["estagio"]
+        )
         resultado.append({
+            "progresso": progresso,
+            "dias_ate_proximo": dias_ate_proximo,
+            "chama": game.nivel_chama(estado["streak"]),
             "id": m["id"],
             "name": m["name"],
             "active": bool(m["active"]),
@@ -270,6 +276,87 @@ def get_member_stats(db, dias_letivos_lista=None):
             ),
         })
     return resultado
+
+
+NOMES_SEMANA = ["seg", "ter", "qua", "qui", "sex"]
+
+
+def _estado_dia(reg_dia, data_str, hoje_str, dias_set):
+    """Mesma prioridade do game.calcular_membro: presente > faltou > justificada."""
+    if data_str not in dias_set:
+        return "folga"
+    if reg_dia.get("presente"):
+        return "presente"
+    if reg_dia.get("faltou"):
+        return "faltou"
+    if reg_dia.get("justificada"):
+        return "justificada"
+    if data_str > hoje_str:
+        return "futuro"
+    if data_str == hoje_str:
+        return "hoje"
+    return "vazio"
+
+
+def _extras_dia(db, ids, data_str, dias_set):
+    """Por membro: faixa seg-sex da semana vista, estado do dia, balao da planta e chama."""
+    if not ids:
+        return {}
+    hoje_str = date.today().isoformat()
+    d = date.fromisoformat(data_str)
+    seg = d - timedelta(days=d.weekday())
+    datas = [seg + timedelta(days=i) for i in range(5)]
+    marcadores = ",".join("?" * len(ids))
+    rows = db.execute(
+        f"SELECT member_id, event_date, status FROM attendance "
+        f"WHERE member_id IN ({marcadores}) AND event_date BETWEEN ? AND ?",
+        (*ids, datas[0].isoformat(), datas[-1].isoformat()),
+    ).fetchall()
+    regs = {}
+    for r in rows:
+        regs.setdefault(r["member_id"], {}).setdefault(r["event_date"], {})[r["status"]] = True
+
+    resultado = {}
+    for mid in ids:
+        semana = []
+        for i, dd in enumerate(datas):
+            ds = dd.isoformat()
+            estado = _estado_dia(regs.get(mid, {}).get(ds, {}), ds, hoje_str, dias_set)
+            semana.append({
+                "data": ds,
+                "rotulo": f"{NOMES_SEMANA[i]} {dd.day:02d}/{dd.month:02d}",
+                "estado": estado,
+            })
+        estado_visto = next((x["estado"] for x in semana if x["data"] == data_str), "folga")
+        dia_status = {"presente": "regada", "justificada": "avisou", "folga": "folga"}.get(
+            estado_visto, "sede"
+        )
+        resultado[mid] = {
+            "semana": semana,
+            "dia_estado": estado_visto,
+            "dia_status": dia_status,
+            "aceso": not (data_str == hoje_str and dia_status == "sede"),
+        }
+    return resultado
+
+
+def _enriquecer_jardim(db, itens, data_str, dias_set):
+    extras = _extras_dia(db, [m["id"] for m in itens], data_str, dias_set)
+    for m in itens:
+        m.update(extras[m["id"]])
+    return itens
+
+
+@app.context_processor
+def cena_contexto():
+    agora = datetime.now()
+    hora = agora.hour + agora.minute / 60
+    sx, sy = game.posicao_astro(hora, 5.5, 13)
+    lx, ly = game.posicao_astro(hora, 18.5, 11)
+    return {
+        "cena_periodo": game.periodo_do_dia(hora),
+        "cena_vars": f"--sx:{sx}%;--sy:{sy}%;--lx:{lx}%;--ly:{ly}%",
+    }
 
 
 def get_overall_trend(db, dias=14):
@@ -415,7 +502,9 @@ def dia(data_str):
     dia_anterior = (data_atual - timedelta(days=1)).isoformat()
     dia_seguinte = (data_atual + timedelta(days=1)).isoformat()
 
-    jardim = [s for s in stats_list if s["active"]]
+    jardim = _enriquecer_jardim(
+        db, [s for s in stats_list if s["active"]], data_str, set(dias_letivos_lista)
+    )
 
     return render_template(
         "dia.html",
@@ -444,6 +533,7 @@ def dashboard():
     meta = game.meta_floracao(len(dias_letivos_lista))
 
     ativos = [m for m in membros if m["active"]]
+    _enriquecer_jardim(db, ativos, date.today().isoformat(), set(dias_letivos_lista))
     progresso_coletivo = 0
     if ativos and meta > 0:
         soma_g = sum(m["g"] for m in ativos)
@@ -461,6 +551,7 @@ def dashboard():
         total_dias=len(dias_letivos_lista),
         progresso_coletivo=progresso_coletivo,
         dias_cheios_seq=dias_cheios_seq,
+        chama_time=game.nivel_chama(dias_cheios_seq),
         sprint_atual=_sprint_atual(db),
         stage_names=game.STAGE_NAMES,
     )
@@ -621,6 +712,11 @@ def api_attendance():
     estado = _estado_jogo_membro(db, member_id, dias_letivos_lista)
     meta = game.meta_floracao(len(dias_letivos_lista))
 
+    progresso, dias_ate_proximo = game.progresso_estagio(
+        estado["g"], meta, estado["estagio"]
+    )
+    extras = _extras_dia(db, [member_id], event_date, set(dias_letivos_lista))[member_id]
+
     return jsonify({
         "ok": True,
         "jogo": {
@@ -631,8 +727,15 @@ def api_attendance():
             "estagio_nome": game.STAGE_NAMES[estado["estagio"]],
             "vigor": estado["vigor"],
             "streak": estado["streak"],
+            "chama": game.nivel_chama(estado["streak"]),
             "floresceu": estado["floresceu"],
             "frutos": estado["frutos"],
+            "progresso": progresso,
+            "dias_ate_proximo": dias_ate_proximo,
+            "data": event_date,
+            "dia_estado": extras["dia_estado"],
+            "dia_status": extras["dia_status"],
+            "aceso": extras["aceso"],
         },
     })
 

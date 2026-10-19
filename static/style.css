@@ -629,6 +629,174 @@ input.input-nome:hover, input.input-nome:focus { background: var(--s2); }
   .bar-row { grid-template-columns: 80px 1fr auto; }
 }
 
+/* ===== Ceu que acompanha a hora ===== */
+.cena {
+  --chao-h: 118px;
+  --ceu: #0c1f19; --ceu2: #0f2a22; --colina1: #102c26; --colina2: #143429;
+  --nuvem: #ffffff; --estrelas: 1; --nuvens: 0; --sol-op: 0; --lua-op: 1;
+  --sol: #ffe08a; --chao: #2a1f16; --chao-lip: #3b2c1e;
+  background: var(--ceu);
+  transition: background 1.2s;
+}
+.cena-grande { --chao-h: 150px; }
+
+.cena[data-periodo="madrugada"] { --ceu: #0a1626; --ceu2: #0d2034; --colina1: #0f2a31; --colina2: #133a36; }
+.cena[data-periodo="amanhecer"] {
+  --ceu: #f2b48c; --ceu2: #f8d9a8; --colina1: #6fae8a; --colina2: #4f9a78; --nuvem: #fde6cf;
+  --estrelas: 0.15; --nuvens: 0.9; --sol-op: 1; --lua-op: 0; --sol: #ffcf7a;
+  --chao: #4a3526; --chao-lip: #5e4733;
+}
+.cena[data-periodo="manha"] {
+  --ceu: #86d1f0; --ceu2: #c3ebf6; --colina1: #5cc08a; --colina2: #47a873; --nuvem: #ffffff;
+  --estrelas: 0; --nuvens: 0.95; --sol-op: 1; --lua-op: 0; --sol: #ffe48c;
+  --chao: #54402f; --chao-lip: #6a523d;
+}
+.cena[data-periodo="meiodia"] {
+  --ceu: #4cb4f2; --ceu2: #8ed3f8; --colina1: #4fb97a; --colina2: #3ba368; --nuvem: #ffffff;
+  --estrelas: 0; --nuvens: 0.95; --sol-op: 1; --lua-op: 0; --sol: #fff3b0;
+  --chao: #52392a; --chao-lip: #684d38;
+}
+.cena[data-periodo="tarde"] {
+  --ceu: #6eaee6; --ceu2: #f7d498; --colina1: #5ca66a; --colina2: #49915e; --nuvem: #fff1dc;
+  --estrelas: 0; --nuvens: 0.9; --sol-op: 1; --lua-op: 0; --sol: #ffc765;
+  --chao: #4a3526; --chao-lip: #604630;
+}
+.cena[data-periodo="entardecer"] {
+  --ceu: #3e3a72; --ceu2: #ef8a5e; --colina1: #2e5a55; --colina2: #264b47; --nuvem: #f7b28a;
+  --estrelas: 0.45; --nuvens: 0.7; --sol-op: 1; --lua-op: 0; --sol: #ffb067;
+  --chao: #2e2018; --chao-lip: #403025;
+}
+
+.cena::after { background: var(--chao); transition: background 1.2s; }
+.cena::before { background: var(--chao-lip); transition: background 1.2s; }
+
+.cena-fundo .ceu { fill: var(--ceu); }
+.cena-fundo .ceu2 { fill: var(--ceu2); }
+.cena-fundo .colina1 { fill: var(--colina1); }
+.cena-fundo .colina2 { fill: var(--colina2); }
+.cena-fundo .ceu, .cena-fundo .ceu2, .cena-fundo .colina1, .cena-fundo .colina2 { transition: fill 1.2s; }
+.estrelas { fill: #cfe8d7; opacity: var(--estrelas); transition: opacity 1.2s; }
+.nuvens { fill: var(--nuvem); opacity: var(--nuvens); transition: opacity 1.2s, fill 1.2s; }
+.nuvem { animation: deriva var(--dur) linear var(--atraso) infinite; }
+.nuvem.n1 { --y: 60px; --dur: 150s; --atraso: -40s; }
+.nuvem.n2 { --y: 125px; --dur: 210s; --atraso: -130s; }
+.nuvem.n3 { --y: 36px; --dur: 260s; --atraso: -80s; }
+@keyframes deriva {
+  from { transform: translate(-170px, var(--y)); }
+  to { transform: translate(1370px, var(--y)); }
+}
+
+.astro { position: absolute; border-radius: 50%; pointer-events: none; transform: translate(-50%, -50%); transition: opacity 1.2s, background 1.2s; }
+.astro.sol { width: 60px; height: 60px; left: var(--sx); top: var(--sy); background: var(--sol); opacity: var(--sol-op); }
+.astro.lua {
+  width: 46px; height: 46px; left: var(--lx); top: var(--ly);
+  background: #f0eed0; opacity: var(--lua-op); overflow: hidden;
+}
+.astro.lua::after {
+  content: ""; position: absolute; left: 14px; top: -8px;
+  width: 42px; height: 42px; border-radius: 50%; background: var(--ceu);
+  transition: background 1.2s;
+}
+
+.cena[data-periodo="amanhecer"] .vagalume,
+.cena[data-periodo="manha"] .vagalume,
+.cena[data-periodo="meiodia"] .vagalume,
+.cena[data-periodo="tarde"] .vagalume { display: none; }
+
+.cena-dica { padding: 4px 10px; border-radius: 999px; background: rgba(11, 21, 17, 0.6); color: #d9e6dc; }
+
+/* centraliza quando cabe; quando rola, comeca na primeira planta (sem cortar a esquerda) */
+.cena-plantas { justify-content: flex-start; }
+.canteiro-item:first-child { margin-left: auto; }
+.canteiro-item:last-child { margin-right: auto; }
+
+/* ===== Planta: crescimento diario, sede e rega ===== */
+.cresce {
+  --esc: calc(0.9 + 0.1 * var(--p, 0));
+  transform-origin: 60px 118px;
+  transform: scale(var(--esc));
+  transition: transform 0.9s cubic-bezier(0.2, 1, 0.3, 1);
+}
+.planta.regando .cresce { animation: pulo 0.9s ease-out; }
+@keyframes pulo {
+  0%, 100% { transform: scale(var(--esc)); }
+  40% { transform: scale(calc(var(--esc) * 1.09)); }
+}
+
+.dia-extra {
+  opacity: 0; transform: scale(0.3); transform-origin: 60px 113px;
+  transition: opacity 0.4s, transform 0.6s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+.dia-extra.on { opacity: 1; transform: none; }
+
+.balao { opacity: 0; transition: opacity 0.4s; }
+.balao rect, .balao path { fill: #f4fbf6; }
+.balao .balao-gota { fill: var(--aviso); }
+.planta[data-dia="sede"] .balao { opacity: 1; animation: flutua 2.6s ease-in-out infinite; }
+@keyframes flutua { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+
+.gota { fill: var(--aviso); opacity: 0; }
+.planta.regando .gota { animation: cai 0.9s ease-in var(--g) both; }
+@keyframes cai {
+  0% { opacity: 0; transform: translateY(0); }
+  15% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(86px); }
+}
+
+/* ===== Foguinho da sequencia ===== */
+.chama {
+  --c1: #3b4d44; --c2: #52665b;
+  display: inline-flex; align-items: center; gap: 3px;
+  font-weight: 800; font-size: 0.95rem; color: var(--ink); line-height: 1;
+}
+.chama-svg { width: 20px; height: 20px; flex: none; transform-origin: 50% 90%; }
+.chama-corpo { fill: var(--c1); }
+.chama-miolo { fill: var(--c2); }
+.chama[data-tier="1"] { --c1: #ff7a1a; --c2: #ffd35c; }
+.chama[data-tier="2"] { --c1: #ff6a14; --c2: #ffe27a; }
+.chama[data-tier="2"] .chama-svg { width: 22px; height: 22px; }
+.chama[data-tier="3"] { --c1: #ff4d2e; --c2: #fff0a8; }
+.chama[data-tier="3"] .chama-svg { width: 24px; height: 24px; }
+.chama[data-tier="4"] { --c1: #ffc61a; --c2: #ffffff; }
+.chama[data-tier="4"] .chama-svg { width: 26px; height: 26px; }
+.chama[data-aceso="false"] { opacity: 0.6; }
+.chama[data-aceso="false"] .chama-svg { filter: grayscale(0.75); }
+.chama:not([data-tier="0"]):not([data-aceso="false"]) .chama-svg { animation: tremula 1.8s ease-in-out infinite; }
+@keyframes tremula {
+  0%, 100% { transform: scale(1) rotate(-2deg); }
+  50% { transform: scale(1.08, 1.13) rotate(2deg); }
+}
+.chama-un { font-weight: 600; font-size: 0.84rem; color: #d9cbb8; }
+.linha-quem .chama-un { color: var(--ink2); }
+
+.kpi-valor.kpi-chama .chama { gap: 10px; font-size: inherit; color: inherit; }
+.kpi-valor.kpi-chama .chama-svg, .kpi-valor.kpi-chama .chama[data-tier] .chama-svg { width: 0.85em; height: 0.85em; }
+
+/* ===== Placa: estagio, progresso e semana ===== */
+.placa { padding: 10px 6px 6px; gap: 1px; justify-content: flex-start; }
+.placa-estagio { color: #d9cbb8; font-size: 0.84rem; font-weight: 500; }
+.barra-prox {
+  display: block; width: 72%; max-width: 92px; height: 5px; margin-top: 2px;
+  border-radius: 99px; background: rgba(255, 255, 255, 0.16); overflow: hidden;
+}
+.barra-prox i { display: block; height: 100%; border-radius: 99px; background: var(--acc); transition: width 0.8s ease; }
+.placa-prox { color: #d9cbb8; font-size: 0.78rem; }
+
+.semana { display: flex; gap: 5px; margin-top: 5px; }
+.dia-pt { width: 14px; height: 16px; display: grid; place-items: center; }
+.dia-pt svg { display: none; width: 14px; height: 16px; }
+.dia-pt .chama-corpo { fill: #ff7a1a; }
+.dia-pt .chama-miolo { fill: #ffd35c; }
+.dia-pt[data-estado="presente"] svg { display: block; }
+.dia-pt::after { content: ""; display: block; border-radius: 50%; }
+.dia-pt[data-estado="presente"]::after { display: none; }
+.dia-pt[data-estado="justificada"]::after { width: 8px; height: 8px; background: var(--aviso); }
+.dia-pt[data-estado="faltou"]::after, .dia-pt[data-estado="vazio"]::after { width: 5px; height: 5px; background: rgba(255, 255, 255, 0.3); }
+.dia-pt[data-estado="hoje"]::after { width: 9px; height: 9px; border: 2px solid var(--acc); animation: pulsa 1.6s ease-in-out infinite; }
+.dia-pt[data-estado="futuro"]::after { width: 4px; height: 4px; background: rgba(255, 255, 255, 0.16); }
+.dia-pt[data-estado="folga"]::after { width: 7px; height: 2px; border-radius: 2px; background: rgba(255, 255, 255, 0.2); }
+@keyframes pulsa { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.25); opacity: 0.6; } }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
   .vagalume { opacity: 0.6; }

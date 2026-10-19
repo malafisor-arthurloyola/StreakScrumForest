@@ -32,14 +32,29 @@ favicon em `static/favicon.svg`. As plantas sao um unico SVG em camadas (`templa
 que cresce ao vivo ao marcar presenca. No celular a navegacao vira uma barra inferior e cada
 membro vira um cartao compacto.
 
-## Como testar a branch de redesign (`redesign/visual`)
+## Jardim vivo (branch `feature/jardim-vivo`)
+
+- **Céu por horário**: o cenário muda com a hora do dia (madrugada, amanhecer, manhã, meio-dia,
+  tarde, entardecer e noite), com sol e lua percorrendo o céu. A regra está em `game.periodo_do_dia`
+  e se repete em `periodoPorHora` (`static/app.js`), que usa a hora do navegador.
+- **A planta muda todo dia**: cada presença avança uma barra até o próximo estágio ("faltam N dias"),
+  faz nascer um brotinho no vaso e dá uma leve crescida. Os estágios agora são uniformes (um novo a
+  cada ~4 dias; antes o Brotinho durava 7). Todo dia útil as plantas de quem ainda não veio mostram
+  um balão de "sede"; ao marcar presença elas são regadas (animação) e o balão some.
+- **Foguinho de sequência**: aparece ao lado do nome, com 4 níveis (1-2, 3-6, 7-13 e 14+ dias).
+  Fica fraquinho enquanto a pessoa ainda não veio hoje e acende ao marcar presença. Marcos (3, 5, 7,
+  10, 14, 20, 30 e 40 dias) ganham confete e aviso. No Painel há o foguinho do time (dias cheios).
+- **Semana em chamas**: embaixo de cada planta, cinco marcas (seg a sex) com um foguinho por dia de
+  presença, ponto azul para "avisou" e anel pulsando para hoje.
+
+## Como testar uma branch (`feature/jardim-vivo` ou `redesign/visual`)
 
 Use sempre uma **cópia** do banco para não alterar os dados reais do grupo.
 
 1. Traga a branch e troque para ela (a partir da pasta do projeto):
    ```bash
    git fetch origin
-   git switch redesign/visual
+   git switch feature/jardim-vivo
    ```
 2. Se ainda não instalou as dependências:
    ```bash

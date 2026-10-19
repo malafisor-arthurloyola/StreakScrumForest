@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% from "_cena.html" import cena %}
+{% from "_cena.html" import cena with context %}
+{% from "_chama.html" import chama %}
 {% set cores = ['#c6f24e', '#6db9ff', '#ff9ec4', '#ffd35c', '#35d0c0', '#ff8d76', '#9be37f'] %}
 {% block title %}Hoje, {{ data_extenso }} · Jardim da Equipe{% endblock %}
 
@@ -59,9 +60,7 @@
         <span class="avatar" style="--c: {{ cores[loop.index0 % cores | length] }}">{{ linha.member.name[0] }}</span>
         <div>
           <div class="linha-nome">{{ linha.member.name }}</div>
-          <span class="chip chip-streak" data-streak-for="{{ linha.member.id }}">
-            {% set st = linha.stats.streak if linha.stats else 0 %}{{ st }} {{ 'dia' if st == 1 else 'dias' }}
-          </span>
+          {{ chama(linha.stats.streak, linha.stats.chama, linha.stats.aceso, linha.member.id) }}
         </div>
       </div>
       {% for chave, label in events %}

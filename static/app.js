@@ -1,4 +1,6 @@
 var CORES_CONFETE = ['#c6f24e', '#6db9ff', '#ff9ec4', '#ffd35c', '#4fdb9b', '#ff8d76'];
+var CORES_CHAMA = ['#ff7a1a', '#ffd35c', '#ff4d2e', '#ffe9a8'];
+var MARCOS_SEQUENCIA = [3, 5, 7, 10, 14, 20, 30, 40];
 
 function mostrarToast(msg, tipo) {
   var container = document.getElementById('toast-container');
@@ -15,12 +17,13 @@ function mostrarToast(msg, tipo) {
 }
 
 function rotuloDias(n) {
-  return n + (n === 1 ? ' dia' : ' dias');
+  return n === 1 ? 'dia' : 'dias';
 }
 
-function confete(memberId) {
+function confete(memberId, cores) {
   var item = document.querySelector('.canteiro-item[data-member-id="' + memberId + '"]');
   if (!item) return;
+  var paleta = cores || CORES_CONFETE;
   var caixa = document.createElement('div');
   caixa.className = 'confete';
   caixa.setAttribute('aria-hidden', 'true');
@@ -30,25 +33,65 @@ function confete(memberId) {
     var dist = 46 + Math.random() * 54;
     p.style.setProperty('--dx', Math.cos(ang) * dist + 'px');
     p.style.setProperty('--dy', Math.sin(ang) * dist - 30 + 'px');
-    p.style.background = CORES_CONFETE[i % CORES_CONFETE.length];
+    p.style.background = paleta[i % paleta.length];
     caixa.appendChild(p);
   }
   item.appendChild(caixa);
   setTimeout(function () { caixa.remove(); }, 1100);
 }
 
+/* Ceu que acompanha a hora. Mesma regra de game.periodo_do_dia (Python). */
+function periodoPorHora(h) {
+  if (h < 5) return 'madrugada';
+  if (h < 7.5) return 'amanhecer';
+  if (h < 12) return 'manha';
+  if (h < 14) return 'meiodia';
+  if (h < 17.5) return 'tarde';
+  if (h < 19) return 'entardecer';
+  return 'noite';
+}
+
+function posicaoAstro(h, inicio, duracao) {
+  var t = (((h - inicio) % 24) + 24) % 24 / duracao;
+  t = Math.min(Math.max(t, 0), 1);
+  return [8 + 84 * t, 66 - 56 * Math.sin(Math.PI * t)];
+}
+
+function atualizarCena() {
+  var d = new Date();
+  var h = d.getHours() + d.getMinutes() / 60;
+  var periodo = periodoPorHora(h);
+  var sol = posicaoAstro(h, 5.5, 13);
+  var lua = posicaoAstro(h, 18.5, 11);
+  document.querySelectorAll('.cena').forEach(function (c) {
+    c.dataset.periodo = periodo;
+    c.style.setProperty('--sx', sol[0].toFixed(1) + '%');
+    c.style.setProperty('--sy', sol[1].toFixed(1) + '%');
+    c.style.setProperty('--lx', lua[0].toFixed(1) + '%');
+    c.style.setProperty('--ly', lua[1].toFixed(1) + '%');
+  });
+}
+atualizarCena();
+setInterval(atualizarCena, 60000);
+
 function aplicarEstagio(jogo) {
-  var anterior = 0;
+  var anterior = { estagio: 0, dia: null };
   document.querySelectorAll('.planta[data-member-id="' + jogo.id + '"]').forEach(function (svg) {
-    anterior = parseInt(svg.dataset.stage, 10) || 0;
+    anterior.estagio = parseInt(svg.dataset.stage, 10) || 0;
+    anterior.dia = svg.dataset.dia;
     svg.dataset.stage = jogo.estagio;
     svg.dataset.vigor = jogo.vigor;
     svg.dataset.frutos = jogo.frutos;
     svg.dataset.floresceu = jogo.floresceu ? 'true' : 'false';
+    svg.dataset.dia = jogo.dia_status;
+    svg.style.setProperty('--p', jogo.progresso);
     svg.querySelectorAll('[data-min]').forEach(function (g) {
       var min = parseInt(g.dataset.min, 10);
       var max = g.dataset.max ? parseInt(g.dataset.max, 10) : 99;
       g.classList.toggle('on', jogo.estagio >= min && jogo.estagio <= max);
+    });
+    svg.querySelectorAll('[data-prog]').forEach(function (g) {
+      g.classList.toggle('on', jogo.estagio >= 1 && jogo.progresso >= parseFloat(g.dataset.prog));
     });
     svg.querySelectorAll('[data-fruto]').forEach(function (f) {
       f.classList.toggle('on', (jogo.frutos || 0) >= parseInt(f.dataset.fruto, 10));
@@ -57,12 +100,47 @@ function aplicarEstagio(jogo) {
   return anterior;
 }
 
-function atualizarTextos(jogo) {
-  document.querySelectorAll('[data-streak-for="' + jogo.id + '"]').forEach(function (el) {
-    el.textContent = rotuloDias(jogo.streak);
+function regar(memberId) {
+  document.querySelectorAll('.planta[data-member-id="' + memberId + '"]').forEach(function (svg) {
+    svg.classList.remove('regando');
+    void svg.getBoundingClientRect();
+    svg.classList.add('regando');
+    setTimeout(function () { svg.classList.remove('regando'); }, 1500);
+  });
+}
+
+function atualizarChama(jogo) {
+  var anteriorStreak = 0;
+  document.querySelectorAll('.chama[data-membro="' + jogo.id + '"]').forEach(function (el) {
+    anteriorStreak = parseInt(el.dataset.streak, 10) || 0;
+    el.dataset.tier = jogo.chama;
+    el.dataset.streak = jogo.streak;
+    el.dataset.aceso = jogo.aceso ? 'true' : 'false';
+    var n = el.querySelector('.chama-n');
+    if (n) n.textContent = jogo.streak;
+    var un = el.querySelector('.chama-un');
+    if (un) un.textContent = ' ' + rotuloDias(jogo.streak);
+  });
+  return anteriorStreak;
+}
+
+function atualizarProximo(jogo) {
+  document.querySelectorAll('[data-prox-barra="' + jogo.id + '"]').forEach(function (b) {
+    b.style.width = Math.round(jogo.progresso * 100) + '%';
+  });
+  document.querySelectorAll('[data-prox-for="' + jogo.id + '"]').forEach(function (el) {
+    if (jogo.floresceu) el.textContent = 'Floresceu';
+    else if (jogo.dias_ate_proximo) el.textContent = 'faltam ' + jogo.dias_ate_proximo + ' ' + rotuloDias(jogo.dias_ate_proximo);
+    else el.textContent = '';
   });
   document.querySelectorAll('[data-estagio-for="' + jogo.id + '"]').forEach(function (el) {
     el.textContent = jogo.estagio_nome;
+  });
+}
+
+function atualizarSemana(jogo) {
+  document.querySelectorAll('.semana[data-semana-for="' + jogo.id + '"] .dia-pt[data-data="' + jogo.data + '"]').forEach(function (p) {
+    p.dataset.estado = jogo.dia_estado;
   });
 }
 
@@ -92,20 +170,32 @@ document.querySelectorAll('.status-toggle').forEach(function (wrapper) {
           });
           if (novoStatus) btn.classList.add('active');
 
-          if (data.jogo) {
-            var j = data.jogo;
-            var anterior = aplicarEstagio(j);
-            atualizarTextos(j);
-            if (j.estagio > anterior) {
-              confete(j.id);
-              var nome = '';
-              var linha = wrapper.closest('[data-member-row]');
-              if (linha) {
-                var el = linha.querySelector('.linha-nome');
-                if (el) nome = el.textContent.trim() + ' chegou ao estágio ';
-              }
-              mostrarToast((nome || 'Chegou ao estágio ') + j.estagio + ': ' + j.estagio_nome, 'sucesso');
-            }
+          if (!data.jogo) return;
+          var j = data.jogo;
+          var antes = aplicarEstagio(j);
+          var streakAntes = atualizarChama(j);
+          atualizarProximo(j);
+          atualizarSemana(j);
+
+          var nome = '';
+          var linha = wrapper.closest('[data-member-row]');
+          if (linha) {
+            var el = linha.querySelector('.linha-nome');
+            if (el) nome = el.textContent.trim();
+          }
+
+          if (j.dia_status === 'regada' && antes.dia !== 'regada') {
+            regar(j.id);
+          }
+
+          if (j.estagio > antes.estagio) {
+            confete(j.id);
+            mostrarToast((nome ? nome + ' chegou ao estágio ' : 'Chegou ao estágio ') + j.estagio + ': ' + j.estagio_nome, 'sucesso');
+          }
+
+          if (j.streak > streakAntes && MARCOS_SEQUENCIA.indexOf(j.streak) !== -1) {
+            confete(j.id, CORES_CHAMA);
+            mostrarToast((nome ? nome + ': ' : '') + j.streak + ' dias seguidos!', 'sucesso');
           }
         })
         .catch(function () {

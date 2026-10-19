@@ -71,7 +71,9 @@ def limiar_estagio(k, meta):
         return 0
     if k == 1:
         return 1
-    return math.ceil(k * meta / 10)
+    # espaca os estagios 2 a 10 de forma uniforme entre o primeiro dia e a meta,
+    # para a planta mudar a cada ~4 dias (inclusive na primeira semana)
+    return 1 + math.ceil((k - 1) * (meta - 1) / 9)
 
 
 def estagio_para_g(g, meta):
@@ -82,6 +84,56 @@ def estagio_para_g(g, meta):
             estagio = k
             break
     return estagio
+
+
+def progresso_estagio(g, meta, estagio):
+    """Quanto do caminho ate o proximo estagio ja foi feito (0..1) e quantas
+    presencas faltam. E isso que faz a planta crescer um pouco a cada dia."""
+    if estagio >= 10:
+        return 1.0, 0
+    ini = limiar_estagio(estagio, meta)
+    fim = limiar_estagio(estagio + 1, meta)
+    if fim <= ini:
+        return 1.0, 0
+    p = (g - ini) / (fim - ini)
+    return round(min(max(p, 0.0), 1.0), 2), max(fim - g, 0)
+
+
+def nivel_chama(streak):
+    """Nivel do foguinho: 0 apagado, 1 a 4 conforme a sequencia cresce."""
+    if streak <= 0:
+        return 0
+    if streak < 3:
+        return 1
+    if streak < 7:
+        return 2
+    if streak < 14:
+        return 3
+    return 4
+
+
+def periodo_do_dia(hora):
+    """hora em decimal (ex.: 14.5 = 14h30). Mesma regra de atualizarCena() em app.js."""
+    if hora < 5:
+        return "madrugada"
+    if hora < 7.5:
+        return "amanhecer"
+    if hora < 12:
+        return "manha"
+    if hora < 14:
+        return "meiodia"
+    if hora < 17.5:
+        return "tarde"
+    if hora < 19:
+        return "entardecer"
+    return "noite"
+
+
+def posicao_astro(hora, inicio, duracao):
+    """Posicao (x%, y%) de sol/lua em arco. Fora da janela fica no horizonte."""
+    t = ((hora - inicio) % 24) / duracao
+    t = min(max(t, 0.0), 1.0)
+    return round(8 + 84 * t, 1), round(66 - 56 * math.sin(math.pi * t), 1)
 
 
 def vigor_para_streak(streak):

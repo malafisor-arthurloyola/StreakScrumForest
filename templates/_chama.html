@@ -1,0 +1,13 @@
+{#
+  Foguinho da sequencia. data-tier: 0 apagado, 1 a 4 conforme a sequencia cresce.
+  data-aceso="false" = ainda nao conquistou o dia de hoje (fica fraquinho, sem penalidade).
+#}
+{% macro chama(streak, nivel, aceso=true, membro_id=None, unidade=true) %}
+<span class="chama" data-tier="{{ nivel }}" data-aceso="{{ 'true' if aceso else 'false' }}" data-streak="{{ streak }}"{% if membro_id %} data-membro="{{ membro_id }}"{% endif %}>
+  <svg class="chama-svg" viewBox="0 0 24 24" aria-hidden="true">
+    <use href="#p-chama" class="chama-corpo"/>
+    <use href="#p-chama-miolo" class="chama-miolo"/>
+  </svg>
+  <span class="chama-n">{{ streak }}</span>{% if unidade %}<span class="chama-un"> {{ 'dia' if streak == 1 else 'dias' }}</span>{% endif %}
+</span>
+{% endmacro %}

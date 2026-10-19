@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% from "_cena.html" import cena %}
+{% from "_cena.html" import cena with context %}
+{% from "_chama.html" import chama %}
 {% block title %}Painel · Jardim da Equipe{% endblock %}
 
 {% block content %}
@@ -20,7 +21,7 @@
   </div>
   <div class="kpi">
     <span class="kpi-rotulo">Dias cheios seguidos</span>
-    <span class="kpi-valor">{{ dias_cheios_seq }}</span>
+    <span class="kpi-valor kpi-chama">{{ chama(dias_cheios_seq, chama_time, true, None, false) }}</span>
     <span class="kpi-nota">{% if dias_cheios_seq > 0 %}toda a equipe presente{% else %}ainda sem sequência: um dia com todos presentes começa uma{% endif %}</span>
   </div>
   <div class="kpi">
