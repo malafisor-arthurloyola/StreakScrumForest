@@ -1,15 +1,18 @@
 {% extends "base.html" %}
 {% from "_cena.html" import cena with context %}
 {% from "_chama.html" import chama %}
+{% from "_planta.html" import planta %}
 {% block title %}Painel · Jardim da Equipe{% endblock %}
 
 {% block content %}
 {% set ativos = membros | selectattr('active') | list %}
+{% set rotulo_meta = {'presenca_pct': 'de presença do time', 'dias_cheios': 'dias com todo mundo', 'sequencia_time': 'dias cheios seguidos'} %}
 <header class="pagina-cab">
   <div>
     <h1>O jardim da equipe</h1>
-    <p class="sub">Sprint {{ sprint_atual }} · cada planta floresce com {{ meta }} presenças em {{ total_dias }} dias letivos</p>
+    <p class="sub">Sprint {{ sprint_atual }} de {{ total_sprints }} · cada planta floresce com {{ meta }} presenças em {{ total_dias }} dias letivos</p>
   </div>
+  <a class="btn btn-ghost" href="{{ url_for('sprint_page', n=sprint_atual) }}">Resumo da Sprint {{ sprint_atual }}</a>
 </header>
 
 <section class="kpis" aria-label="Resumo do time">
@@ -27,11 +30,22 @@
   <div class="kpi">
     <span class="kpi-rotulo">Sprint atual</span>
     <span class="kpi-valor">{{ sprint_atual }}</span>
-    <span class="kpi-nota">{{ total_dias }} dias letivos no projeto</span>
+    <span class="kpi-nota">{{ sprint_info.inicio[8:10] }}/{{ sprint_info.inicio[5:7] }} a {{ sprint_info.fim[8:10] }}/{{ sprint_info.fim[5:7] }}</span>
   </div>
 </section>
 
-{{ cena(ativos, grande=True) }}
+{% if resumo_semana %}
+<section class="card resumo-semana" aria-label="Resumo da semana">
+  <h2>Semana {{ resumo_semana.n }} até agora</h2>
+  <p>
+    Presença do time em <b>{{ resumo_semana.presenca_pct }}%</b> nos {{ resumo_semana.dias }} {{ 'dia' if resumo_semana.dias == 1 else 'dias' }} contados,
+    <b>{{ resumo_semana.dias_cheios }}</b> {{ 'dia cheio' if resumo_semana.dias_cheios == 1 else 'dias cheios' }}
+    e <b>{{ resumo_semana.subiram }} de {{ resumo_semana.total }}</b> {{ 'planta subiu' if resumo_semana.subiram == 1 else 'plantas subiram' }} de estágio.
+  </p>
+</section>
+{% endif %}
+
+{{ cena(ativos, True, marcos_ids) }}
 
 <ol class="escada" aria-label="Estágios de crescimento">
   {% for i in range(11) %}
@@ -41,6 +55,93 @@
   </li>
   {% endfor %}
 </ol>
+
+<section aria-label="Marcos do jardim">
+  <h2 class="secao-titulo">Marcos do jardim</h2>
+  <p class="sub sub-secao">Todo mundo ganha, de graça, quando o jardim coletivo cresce. Falta pouco para o próximo.</p>
+  <div class="marcos">
+    {% for mc in marcos %}
+    <div class="marco{{ ' liberado' if mc.liberado }}">
+      <span class="marco-pct">{{ mc.pct }}%</span>
+      <b class="marco-nome">{{ mc.nome }}</b>
+      <span class="marco-desc">{{ mc.desc }}</span>
+      <span class="marco-estado">{{ 'Liberado' if mc.liberado else 'Falta ' ~ (mc.pct - progresso_coletivo) ~ ' pontos' }}</span>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section aria-label="Metas da Sprint" id="metas">
+  <div class="secao-linha">
+    <h2 class="secao-titulo">Metas da Sprint {{ sprint_atual }}</h2>
+    <a href="{{ url_for('sprint_page', n=sprint_atual) }}">Ver resumo para a Review</a>
+  </div>
+  {% if metas %}
+  <div class="metas">
+    {% for mt in metas %}
+    <article class="meta{{ ' meta-cumprida' if mt.cumprida }}">
+      <div class="meta-topo">
+        <b>{{ mt.titulo }}</b>
+        {% if mt.cumprida %}<span class="selo-comprado">Cumprida</span>{% endif %}
+        <button type="button" class="btn-x" data-meta-remover="{{ mt.id }}" aria-label="Remover meta">×</button>
+      </div>
+      <div class="barra barra-meta"><div class="barra-fill" style="width: {{ mt.pct }}%"></div></div>
+      <span class="meta-nums">{{ mt.valor }}{{ '%' if mt.tipo == 'presenca_pct' }} de {{ mt.alvo }}{{ '%' if mt.tipo == 'presenca_pct' }} {{ rotulo_meta[mt.tipo] if mt.tipo != 'presenca_pct' }}</span>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="vazio">Nenhuma meta para esta sprint ainda. Metas simples de engajamento que o time cumpre junto.
+    <button type="button" class="btn btn-primary" id="metas-sugeridas">Usar metas sugeridas</button></p>
+  {% endif %}
+  <form class="form-linha form-meta" id="form-meta">
+    <label for="meta-tipo">Nova meta</label>
+    <select id="meta-tipo">
+      <option value="presenca_pct">% de presença do time</option>
+      <option value="dias_cheios">Dias cheios (todos presentes)</option>
+      <option value="sequencia_time">Dias cheios seguidos</option>
+    </select>
+    <input type="number" id="meta-alvo" min="1" max="100" value="90" aria-label="Valor da meta">
+    <button type="submit" class="btn btn-ghost">Adicionar</button>
+  </form>
+</section>
+
+<section aria-label="Bosque da equipe" id="bosque">
+  <h2 class="secao-titulo">Bosque da equipe</h2>
+  {% if bosque %}
+  <div class="bosque">
+    {% for m in bosque %}
+    <a class="arvore-bosque" href="{{ url_for('membro_page', member_id=m.id) }}">
+      {{ planta(m, 120) }}
+      <b>{{ m.name }}</b>
+      <span>floresceu em {{ m.floresceu_em[8:10] }}/{{ m.floresceu_em[5:7] }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="vazio">Ninguém floresceu ainda: a primeira árvore do bosque será de quem chegar lá.</p>
+  {% endif %}
+</section>
+
+<section aria-label="Trilha das semanas">
+  <h2 class="secao-titulo">Trilha das semanas</h2>
+  <p class="sub sub-secao">Cada semana fechada (4 presenças, ou 1 a menos em semana com feriado) vira uma florzinha.</p>
+  <div class="trilhas">
+    {% for t in trilhas %}
+    <div class="trilha-linha">
+      <a class="trilha-nome" href="{{ url_for('membro_page', member_id=t.id) }}">{{ t.name }}</a>
+      <div class="trilha">
+        {% for s in t.semanas %}
+        <span class="sem" data-estado="{{ s.estado }}" title="Semana {{ s.n }}: {{ s.presencas }} de {{ s.minimo }} presenças necessárias">
+          <svg viewBox="-9 -9 18 18" aria-hidden="true"><use href="#p-flor"/></svg>
+        </span>
+        {% endfor %}
+      </div>
+      <span class="trilha-total">{{ t.fechadas }}</span>
+    </div>
+    {% endfor %}
+  </div>
+</section>
 
 <div class="duas-colunas">
   <section class="card">
@@ -116,4 +217,44 @@
   </div>
 </section>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var SPRINT = {{ sprint_atual }};
+  function chamar(dados) {
+    return fetch('/api/metas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dados),
+    }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); });
+  }
+  function recarregar(res) {
+    if (!res.ok) { mostrarToast(res.j.erro || 'Não deu certo.', 'info'); return; }
+    location.hash = '#metas';
+    location.reload();
+  }
+  var sug = document.getElementById('metas-sugeridas');
+  if (sug) sug.addEventListener('click', function () { chamar({ acao: 'sugerir', sprint: SPRINT }).then(recarregar); });
+
+  var tipo = document.getElementById('meta-tipo');
+  var alvo = document.getElementById('meta-alvo');
+  tipo.addEventListener('change', function () {
+    var pct = tipo.value === 'presenca_pct';
+    alvo.max = pct ? 100 : 60;
+    alvo.value = pct ? 90 : 5;
+  });
+  document.getElementById('form-meta').addEventListener('submit', function (e) {
+    e.preventDefault();
+    chamar({ acao: 'adicionar', sprint: SPRINT, tipo: tipo.value, alvo: parseInt(alvo.value, 10) }).then(recarregar);
+  });
+  document.querySelectorAll('[data-meta-remover]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      if (!confirm('Remover esta meta?')) return;
+      chamar({ acao: 'remover', id: parseInt(b.dataset.metaRemover, 10) }).then(recarregar);
+    });
+  });
+})();
+</script>
 {% endblock %}

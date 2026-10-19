@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Resumo da Sprint {{ n }} · Jardim da Equipe{% endblock %}
+
+{% block content %}
+{% set rotulo_meta = {'presenca_pct': 'de presença do time', 'dias_cheios': 'dias com todo mundo', 'sequencia_time': 'dias cheios seguidos'} %}
+<header class="pagina-cab">
+  <div>
+    <h1>Resumo da Sprint {{ n }}</h1>
+    <p class="sub">
+      {{ sprint.inicio[8:10] }}/{{ sprint.inicio[5:7] }} a {{ sprint.fim[8:10] }}/{{ sprint.fim[5:7] }}
+      · {{ dias_decorridos }} de {{ dias_total }} dias letivos contados
+      {% if not encerrada %}· sprint em andamento{% endif %}
+    </p>
+  </div>
+  <div class="date-nav nao-imprime">
+    {% if n > 1 %}<a class="btn btn-ghost" href="{{ url_for('sprint_page', n=n - 1) }}">Sprint {{ n - 1 }}</a>{% endif %}
+    {% if n < total_sprints %}<a class="btn btn-ghost" href="{{ url_for('sprint_page', n=n + 1) }}">Sprint {{ n + 1 }}</a>{% endif %}
+    <button type="button" class="btn btn-primary" onclick="window.print()">Imprimir ou salvar em PDF</button>
+  </div>
+</header>
+
+<section class="kpis kpis-4" aria-label="Números da sprint">
+  <div class="kpi kpi-destaque">
+    <span class="kpi-rotulo">Presença do time</span>
+    <span class="kpi-valor">{{ presenca_pct }}<small>%</small></span>
+    <span class="kpi-nota">dos encontros possíveis</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-rotulo">Dias cheios</span>
+    <span class="kpi-valor">{{ dias_cheios }}</span>
+    <span class="kpi-nota">com todo mundo presente</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-rotulo">Maior sequência do time</span>
+    <span class="kpi-valor">{{ maior_sequencia_time }}</span>
+    <span class="kpi-nota">{{ 'dia cheio seguido' if maior_sequencia_time == 1 else 'dias cheios seguidos' }}</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-rotulo">Plantas que cresceram</span>
+    <span class="kpi-valor">{{ subiram }}</span>
+    <span class="kpi-nota">subiram de estágio nesta sprint</span>
+  </div>
+</section>
+
+<div class="duas-colunas">
+  <section class="card">
+    <h2>Presença por evento</h2>
+    {% for ev in por_evento %}
+    <div class="bar-row">
+      <div class="bar-label">{{ ev.nome }}</div>
+      <div class="bar-track"><div class="bar-seg" style="width: {{ ev.pct }}%"></div></div>
+      <div class="bar-meta">{{ ev.pct }}%</div>
+    </div>
+    {% endfor %}
+    <p class="dica">Percentual das presenças marcadas em cada evento, sobre o total possível do time.</p>
+  </section>
+
+  <section class="card">
+    <h2>Metas da sprint · {{ metas_cumpridas }} de {{ metas | length }} cumpridas</h2>
+    {% if metas %}
+    <div class="metas metas-resumo">
+      {% for mt in metas %}
+      <article class="meta{{ ' meta-cumprida' if mt.cumprida }}">
+        <div class="meta-topo"><b>{{ mt.titulo }}</b>{% if mt.cumprida %}<span class="selo-comprado">Cumprida</span>{% endif %}</div>
+        <div class="barra barra-meta"><div class="barra-fill" style="width: {{ mt.pct }}%"></div></div>
+        <span class="meta-nums">{{ mt.valor }}{{ '%' if mt.tipo == 'presenca_pct' }} de {{ mt.alvo }}{{ '%' if mt.tipo == 'presenca_pct' }} {{ rotulo_meta[mt.tipo] if mt.tipo != 'presenca_pct' }}</span>
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="vazio">Nenhuma meta definida para esta sprint. No Painel dá para criar.</p>
+    {% endif %}
+  </section>
+</div>
+
+<section class="card">
+  <h2>Evolução das plantas</h2>
+  <div class="evolucao">
+    {% for e in evolucao %}
+    <div class="evo-linha">
+      <b>{{ e.name }}</b>
+      <span class="evo-estagios">{{ e.de }} <span aria-hidden="true">→</span> {{ e.para }}</span>
+      <span class="chip {{ 'chip-estagio' if e.subiu > 0 }}">{{ '+' ~ e.subiu ~ (' estágio' if e.subiu == 1 else ' estágios') if e.subiu > 0 else 'mesmo estágio' }}</span>
+    </div>
+    {% else %}
+    <p class="vazio">Sem membros ativos.</p>
+    {% endfor %}
+  </div>
+</section>
+
+<div class="duas-colunas">
+  <section class="card">
+    <h2>Presença ao longo da sprint</h2>
+    {% if tem_grafico %}
+    <svg viewBox="0 0 {{ grafico.width }} {{ grafico.height }}" class="line-chart" role="img" aria-label="Taxa de presença por dia da sprint">
+      <line x1="24" y1="20" x2="576" y2="20" class="chart-axis"></line>
+      <line x1="24" y1="80" x2="576" y2="80" class="chart-axis chart-axis-mid"></line>
+      <line x1="24" y1="140" x2="576" y2="140" class="chart-axis"></line>
+      <polyline points="{{ grafico.points }}" class="chart-line"></polyline>
+      {% for d in grafico.dots %}
+        <circle cx="{{ d.x }}" cy="{{ d.y }}" r="5" class="chart-dot"><title>{{ d.data[8:10] }}/{{ d.data[5:7] }}: {{ d.taxa }}%</title></circle>
+      {% endfor %}
+    </svg>
+    <div class="chart-labels">
+      <span>{{ grafico.dots[0].data[8:10] }}/{{ grafico.dots[0].data[5:7] }}</span>
+      <span>100% no topo</span>
+      <span>{{ grafico.dots[-1].data[8:10] }}/{{ grafico.dots[-1].data[5:7] }}</span>
+    </div>
+    {% else %}
+    <p class="vazio">Com pelo menos dois dias registrados na sprint, a linha aparece aqui.</p>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2>Destaques</h2>
+    {% if destaques_seq or floresceram %}
+    <ul class="destaques-lista">
+      {% for d in destaques_seq %}
+      <li><b>{{ d.name }}</b> manteve a chama acesa por {{ d.sequencia }} {{ 'dia' if d.sequencia == 1 else 'dias' }} seguidos</li>
+      {% endfor %}
+      {% if floresceram %}<li><b>{{ floresceram | join(', ') }}</b> {{ 'floresceu' if floresceram | length == 1 else 'floresceram' }} nesta sprint</li>{% endif %}
+    </ul>
+    {% else %}
+    <p class="vazio">Os destaques aparecem conforme as presenças são marcadas.</p>
+    {% endif %}
+  </section>
+</div>
+<p class="dica rodape-resumo">Resumo gerado pelo Jardim da Equipe. Mostra o que o time construiu juntos; nada aqui compara pessoas.</p>
+{% endblock %}

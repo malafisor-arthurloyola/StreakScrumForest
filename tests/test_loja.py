@@ -6,13 +6,13 @@ import unittest
 
 # O banco de teste e sempre um arquivo temporario; nunca o banco real.
 _TMP = tempfile.mkdtemp()
-os.environ["STRIKES_DB"] = os.path.join(_TMP, "teste.db")
+os.environ.setdefault("STRIKES_DB", os.path.join(_TMP, "teste.db"))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import app as appmod  # noqa: E402
 import game  # noqa: E402
 
-DB = os.environ["STRIKES_DB"]
+DB = str(appmod.DB_PATH)
 
 
 def _dias():

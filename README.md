@@ -65,14 +65,38 @@ membro vira um cartao compacto.
   ganhou as tabelas `compras` e `equipados` (criadas sem mexer nos dados existentes).
 - O Calendário agora é acessado pela tela **Membros**.
 
-## Como testar uma branch (`feature/loja-sementes`, `feature/jardim-vivo` ou `redesign/visual`)
+## Coletivo (branch `feature/coletivo`)
+
+Pensado para o dia a dia em Scrum, sem prêmios de brincadeira nem comparação entre pessoas.
+
+- **Metas da Sprint** (Painel): o time cria metas de engajamento para a sprint atual (% de presença
+  do time, dias cheios, dias cheios seguidos) ou usa as sugeridas. O progresso é sempre calculado
+  da presença, só com os dias que já passaram. As sprints vêm do Calendário (por padrão 5 sprints
+  de 2 semanas).
+- **Resumo da Sprint** (`/sprint/N`): página pensada para a Sprint Review e a Retro. Mostra
+  presença do time, dias cheios, presença por evento (daily, dev e encerramento), metas cumpridas,
+  evolução de cada planta na sprint e destaques positivos. O botão "Imprimir ou salvar em PDF" usa
+  um estilo próprio para papel.
+- **Marcos do jardim**: quando o jardim coletivo chega a 25%, 50%, 75% e 100%, o cenário ganha de
+  graça uma fonte, vagalumes extras, chuva de pétalas e uma árvore do time.
+- **Bosque da equipe**: quem floresce vira uma árvore fixa no bosque do Painel.
+- **Trilha das semanas**: cada semana fechada vira uma florzinha (a semana de largada e semanas
+  perdidas ficam neutras, sem punição).
+- **Perfil do membro** (`/membro/ID`, clicando no nome): planta, sequência, sementes, trilha das 10
+  semanas, calendário de presença (estilo mapa de calor) e conquistas.
+- **Resumo da semana** no Painel: presença do time, dias cheios e quantas plantas subiram de estágio.
+- A sequência de "dias cheios" do time agora considera só dias com registro (esquecer de marcar um
+  dia não quebra a sequência; um dia em que alguém não veio quebra).
+- O banco ganhou a tabela `metas_sprint` (criada sem mexer nos dados existentes).
+
+## Como testar uma branch (`feature/coletivo`, `feature/loja-sementes`, `feature/jardim-vivo` ou `redesign/visual`)
 
 Use sempre uma **cópia** do banco para não alterar os dados reais do grupo.
 
 1. Traga a branch e troque para ela (a partir da pasta do projeto):
    ```bash
    git fetch origin
-   git switch feature/loja-sementes
+   git switch feature/coletivo
    ```
 2. Se ainda não instalou as dependências:
    ```bash

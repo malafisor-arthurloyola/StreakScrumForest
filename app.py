@@ -171,6 +171,15 @@ def init_db():
             item_id TEXT NOT NULL,
             PRIMARY KEY (member_id, slot)
         );
+
+        CREATE TABLE IF NOT EXISTS metas_sprint (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sprint INTEGER NOT NULL,
+            titulo TEXT NOT NULL,
+            tipo TEXT NOT NULL CHECK (tipo IN ('presenca_pct', 'dias_cheios', 'sequencia_time')),
+            alvo INTEGER NOT NULL,
+            criada_em TEXT NOT NULL DEFAULT (datetime('now'))
+        );
     """)
     db.commit()
 
@@ -325,6 +334,7 @@ def get_member_stats(db, dias_letivos_lista=None):
             "estagio": estado["estagio"],
             "estagio_nome": game.STAGE_NAMES[estado["estagio"]],
             "floresceu": estado["floresceu"],
+            "floresceu_em": estado["floresceu_em"],
             "vigor": estado["vigor"],
             "streak": estado["streak"],
             "melhor_streak": estado["melhor_streak"],
@@ -493,14 +503,17 @@ def get_presencas_por_membro(db):
     return dados
 
 
-def _sprint_atual(db):
+def _cfg_sprints(db):
     cfg = _get_config(db)
-    s1 = date.fromisoformat(cfg.get("semana1_inicio", "2026-10-12"))
-    sprint_semanas = int(cfg.get("sprint_semanas", "2"))
-    hoje = date.today()
-    delta = (hoje - s1).days
-    sprint = max(1, math.ceil((delta / 7 + 1) / sprint_semanas))
-    return sprint
+    return game.sprints_do_projeto(
+        cfg.get("semana1_inicio", "2026-10-12"),
+        int(cfg.get("num_semanas", "10")),
+        int(cfg.get("sprint_semanas", "2")),
+    )
+
+
+def _sprint_atual(db):
+    return game.sprint_da_data(date.today().isoformat(), _cfg_sprints(db))
 
 
 def _e_dia_letivo(data_str, db):
@@ -582,61 +595,360 @@ def dia(data_str):
         data_extenso=_data_extenso(data_atual),
         dia_n=dias_letivos_lista.index(data_str) + 1 if e_letivo else None,
         dias_total=len(dias_letivos_lista),
+        marcos_ids=_marcos_liberados(stats_list, game.meta_floracao(len(dias_letivos_lista))),
     )
+
+
+TIPOS_META = {
+    "presenca_pct": {"max": 100, "titulo": lambda a: f"{a}% de presença do time"},
+    "dias_cheios": {"max": 60, "titulo": lambda a: f"{a} {'dia cheio' if a == 1 else 'dias cheios'}"},
+    "sequencia_time": {
+        "max": 60,
+        "titulo": lambda a: f"Sequência de {a} {'dia cheio' if a == 1 else 'dias cheios'} seguidos",
+    },
+}
+METAS_SUGERIDAS = [("presenca_pct", 90), ("dias_cheios", 5)]
+
+CONQUISTAS = [
+    ("primeiro_dia", "Primeiro dia", "Marcou a primeira presença."),
+    ("streak_5", "5 dias seguidos", "Uma semana inteira de chama acesa."),
+    ("streak_10", "10 dias seguidos", "Duas semanas sem apagar o foguinho."),
+    ("streak_20", "20 dias seguidos", "Um mês de constância."),
+    ("streak_40", "40 dias seguidos", "Constância de campeão."),
+    ("metade_meta", "Metade do caminho", "Chegou à metade da meta de floração."),
+    ("floresceu", "Floresceu", "A planta chegou ao fim do caminho."),
+]
+
+
+def _reg_membro(glob, member_id):
+    return {d: v[member_id] for d, v in glob.items() if member_id in v}
+
+
+def _base_coletivo(db):
+    dias = _dias_letivos(db)
+    dias_set = set(dias)
+    membros = get_member_stats(db, dias)
+    ativos = [m for m in membros if m["active"]]
+    ativos_ids = [m["id"] for m in ativos]
+    glob = _registros_globais(db)
+    cheios = game.dia_cheio(ativos_ids, {d: v for d, v in glob.items() if d in dias_set})
+    return {
+        "dias": dias, "dias_set": dias_set, "meta": game.meta_floracao(len(dias)),
+        "membros": membros, "ativos": ativos, "ativos_ids": ativos_ids,
+        "glob": glob, "cheios": cheios, "sprints": _cfg_sprints(db),
+        "hoje": date.today().isoformat(),
+    }
+
+
+def _progresso_coletivo(ativos, meta):
+    if not ativos or meta <= 0:
+        return 0
+    return round(sum(m["g"] for m in ativos) / (len(ativos) * meta) * 100)
+
+
+def _marcos_liberados(stats_list, meta):
+    ativos = [s for s in stats_list if s["active"]]
+    return [m["id"] for m in game.marcos_coletivos(_progresso_coletivo(ativos, meta)) if m["liberado"]]
+
+
+def _dias_da_sprint(ctx, n):
+    sp = ctx["sprints"][n - 1]
+    return sp, [d for d in ctx["dias"] if sp["inicio"] <= d <= sp["fim"]]
+
+
+def _metas_da_sprint(db, ctx, n):
+    _, dias_sp = _dias_da_sprint(ctx, n)
+    metas = []
+    for r in db.execute("SELECT * FROM metas_sprint WHERE sprint = ? ORDER BY id", (n,)).fetchall():
+        av = game.avaliar_meta(
+            r["tipo"], r["alvo"], dias_sp, ctx["hoje"], ctx["ativos_ids"], ctx["glob"], ctx["cheios"]
+        )
+        metas.append({**dict(r), **av})
+    return metas
+
+
+def _resumo_semana(db, ctx):
+    semanas = _semanas_projeto(db)
+    hoje = ctx["hoje"]
+    idx = None
+    for i, dias_sem in enumerate(semanas):
+        if dias_sem and dias_sem[0] <= hoje:
+            idx = i
+    if idx is None:
+        return None
+    decorridos = [d for d in semanas[idx] if d <= hoje and d in ctx["dias_set"]]
+    if not decorridos or not ctx["ativos_ids"]:
+        return None
+
+    possiveis = len(decorridos) * len(ctx["ativos_ids"])
+    presentes = sum(
+        1 for d in decorridos for mid in ctx["ativos_ids"]
+        if ctx["glob"].get(d, {}).get(mid, {}).get("presente", False)
+    )
+    antes = [d for d in ctx["dias"] if d < decorridos[0]]
+    data_antes = antes[-1] if antes else "0000-00-00"
+    subiram = 0
+    for m in ctx["ativos"]:
+        reg = _reg_membro(ctx["glob"], m["id"])
+        ini = game.estado_ate(ctx["dias"], reg, ctx["meta"], data_antes)["estagio"]
+        fim = game.estado_ate(ctx["dias"], reg, ctx["meta"], decorridos[-1])["estagio"]
+        if fim > ini:
+            subiram += 1
+    return {
+        "n": idx + 1,
+        "dias": len(decorridos),
+        "presenca_pct": round(100 * presentes / possiveis),
+        "dias_cheios": sum(1 for d in decorridos if d in ctx["cheios"]),
+        "subiram": subiram,
+        "total": len(ctx["ativos"]),
+    }
+
+
+def _painel_coletivo(db, ctx):
+    hoje = ctx["hoje"]
+    n = game.sprint_da_data(hoje, ctx["sprints"])
+    progresso = _progresso_coletivo(ctx["ativos"], ctx["meta"])
+    cfg = _get_config(db)
+    semanas = _semanas_projeto(db)
+    trilhas = []
+    for m in ctx["ativos"]:
+        reg = _reg_membro(ctx["glob"], m["id"])
+        trilha = game.semanas_status(semanas, reg, hoje, cfg.get("contar_a_partir_de", "2026-10-15"))
+        trilhas.append({
+            "id": m["id"], "name": m["name"], "semanas": trilha,
+            "fechadas": sum(1 for t in trilha if t["estado"] == "fechada"),
+        })
+    com_registro = {d for d, v in ctx["glob"].items() if v}
+    seq = game.sequencia_dias_cheios(ctx["dias"], ctx["cheios"], com_registro, hoje)
+    return {
+        "progresso_coletivo": progresso,
+        "marcos": game.marcos_coletivos(progresso),
+        "marcos_ids": _marcos_liberados(ctx["membros"], ctx["meta"]),
+        "dias_cheios_seq": seq,
+        "chama_time": game.nivel_chama(seq),
+        "sprint_atual": n,
+        "total_sprints": len(ctx["sprints"]),
+        "sprint_info": ctx["sprints"][n - 1],
+        "metas": _metas_da_sprint(db, ctx, n),
+        "tipos_meta": TIPOS_META,
+        "bosque": sorted(
+            [m for m in ctx["ativos"] if m["floresceu"]], key=lambda m: m["floresceu_em"] or ""
+        ),
+        "trilhas": trilhas,
+        "resumo_semana": _resumo_semana(db, ctx),
+    }
 
 
 @app.route("/dashboard")
 def dashboard():
     db = get_db()
-    dias_letivos_lista = _dias_letivos(db)
-    membros = get_member_stats(db, dias_letivos_lista)
+    ctx = _base_coletivo(db)
+    _enriquecer_jardim(db, ctx["ativos"], ctx["hoje"], ctx["dias_set"])
     tendencia = get_overall_trend(db, dias=14)
-    presencas = get_presencas_por_membro(db)
-    meta = game.meta_floracao(len(dias_letivos_lista))
-
-    ativos = [m for m in membros if m["active"]]
-    _enriquecer_jardim(db, ativos, date.today().isoformat(), set(dias_letivos_lista))
-    progresso_coletivo = 0
-    if ativos and meta > 0:
-        soma_g = sum(m["g"] for m in ativos)
-        progresso_coletivo = round(soma_g / (len(ativos) * meta) * 100)
-
-    dias_cheios_seq = _sequencia_dias_cheios(db, [m["id"] for m in ativos], dias_letivos_lista)
-
     return render_template(
         "dashboard.html",
-        membros=membros,
+        membros=ctx["membros"],
         grafico_linha=build_line_chart(tendencia),
         tem_tendencia=len(tendencia) >= 2,
-        presencas=presencas,
-        meta=meta,
-        total_dias=len(dias_letivos_lista),
-        progresso_coletivo=progresso_coletivo,
-        dias_cheios_seq=dias_cheios_seq,
-        chama_time=game.nivel_chama(dias_cheios_seq),
-        sprint_atual=_sprint_atual(db),
+        presencas=get_presencas_por_membro(db),
+        meta=ctx["meta"],
+        total_dias=len(ctx["dias"]),
         stage_names=game.STAGE_NAMES,
+        **_painel_coletivo(db, ctx),
     )
 
 
-def _sequencia_dias_cheios(db, ativos_ids, dias_letivos_lista):
-    if not ativos_ids:
-        return 0
-    seq = 0
-    maior = 0
-    for data in reversed(dias_letivos_lista):
-        rows = db.execute(
-            "SELECT member_id FROM attendance WHERE event_date = ? AND status = 'presente'",
-            (data,),
-        ).fetchall()
-        presentes = {r["member_id"] for r in rows}
-        if all(mid in presentes for mid in ativos_ids):
-            seq += 1
-            maior = max(maior, seq)
-        else:
-            if seq > 0:
-                break
-    return seq
+def _int_ou_none(valor):
+    try:
+        return int(valor)
+    except (TypeError, ValueError):
+        return None
+
+
+@app.route("/api/metas", methods=["POST"])
+def api_metas():
+    p = request.get_json(force=True, silent=True) or {}
+    acao = p.get("acao")
+    db = get_db()
+    total_sprints = len(_cfg_sprints(db))
+
+    if acao == "remover":
+        mid = _int_ou_none(p.get("id"))
+        if mid is None:
+            abort(400)
+        db.execute("DELETE FROM metas_sprint WHERE id = ?", (mid,))
+        db.commit()
+        return jsonify({"ok": True})
+
+    sprint = _int_ou_none(p.get("sprint"))
+    if sprint is None or not 1 <= sprint <= total_sprints:
+        return _erro("Sprint inválida.")
+
+    if acao == "sugerir":
+        for tipo, alvo in METAS_SUGERIDAS:
+            existe = db.execute(
+                "SELECT 1 FROM metas_sprint WHERE sprint = ? AND tipo = ? AND alvo = ?",
+                (sprint, tipo, alvo),
+            ).fetchone()
+            if not existe:
+                db.execute(
+                    "INSERT INTO metas_sprint (sprint, titulo, tipo, alvo) VALUES (?, ?, ?, ?)",
+                    (sprint, TIPOS_META[tipo]["titulo"](alvo), tipo, alvo),
+                )
+        db.commit()
+        return jsonify({"ok": True})
+
+    if acao == "adicionar":
+        tipo = p.get("tipo")
+        alvo = _int_ou_none(p.get("alvo"))
+        if tipo not in TIPOS_META:
+            return _erro("Tipo de meta inválido.")
+        if alvo is None or not 1 <= alvo <= TIPOS_META[tipo]["max"]:
+            return _erro("Valor da meta inválido.")
+        titulo = (p.get("titulo") or "").strip() or TIPOS_META[tipo]["titulo"](alvo)
+        cur = db.execute(
+            "INSERT INTO metas_sprint (sprint, titulo, tipo, alvo) VALUES (?, ?, ?, ?)",
+            (sprint, titulo[:80], tipo, alvo),
+        )
+        db.commit()
+        return jsonify({"ok": True, "id": cur.lastrowid})
+
+    abort(400)
+
+
+def _presenca_por_evento(db, decorridos, ativos_ids):
+    if not decorridos or not ativos_ids:
+        return [{"chave": k, "nome": nome, "pct": 0} for k, nome in EVENTS]
+    ph_d = ",".join("?" * len(decorridos))
+    ph_m = ",".join("?" * len(ativos_ids))
+    rows = db.execute(
+        f"SELECT event_type, COUNT(*) AS c FROM attendance WHERE status = 'presente' "
+        f"AND event_date IN ({ph_d}) AND member_id IN ({ph_m}) GROUP BY event_type",
+        (*decorridos, *ativos_ids),
+    ).fetchall()
+    cont = {r["event_type"]: r["c"] for r in rows}
+    possiveis = len(decorridos) * len(ativos_ids)
+    return [
+        {"chave": k, "nome": nome, "pct": round(100 * cont.get(k, 0) / possiveis)}
+        for k, nome in EVENTS
+    ]
+
+
+def _resumo_sprint(db, ctx, n):
+    sp, dias_sp = _dias_da_sprint(ctx, n)
+    hoje = ctx["hoje"]
+    decorridos = [d for d in dias_sp if d <= hoje]
+    ativos = ctx["ativos"]
+
+    def meta_valor(tipo):
+        return game.avaliar_meta(
+            tipo, 1, dias_sp, hoje, ctx["ativos_ids"], ctx["glob"], ctx["cheios"]
+        )["valor"]
+
+    antes = [d for d in ctx["dias"] if d < sp["inicio"]]
+    data_antes = antes[-1] if antes else "0000-00-00"
+    data_fim = decorridos[-1] if decorridos else data_antes
+
+    evolucao, destaques = [], []
+    for m in ativos:
+        reg = _reg_membro(ctx["glob"], m["id"])
+        e0 = game.estado_ate(ctx["dias"], reg, ctx["meta"], data_antes)
+        e1 = game.estado_ate(ctx["dias"], reg, ctx["meta"], data_fim)
+        evolucao.append({
+            "name": m["name"], "de": game.STAGE_NAMES[e0["estagio"]],
+            "para": game.STAGE_NAMES[e1["estagio"]], "subiu": e1["estagio"] - e0["estagio"],
+            "visual": m["visual"],
+        })
+        na_sprint = game.calcular_membro(dias_sp, reg, ctx["meta"])
+        destaques.append({"name": m["name"], "sequencia": na_sprint["melhor_streak"],
+                          "presencas": na_sprint["dias_presentes"]})
+
+    serie = []
+    for d in decorridos:
+        por_membro = ctx["glob"].get(d)
+        if not por_membro or not ativos:
+            continue
+        presentes = sum(1 for mid in ctx["ativos_ids"] if por_membro.get(mid, {}).get("presente"))
+        serie.append({"data": d, "taxa": round(100 * presentes / len(ativos)), "total": len(ativos)})
+
+    metas = _metas_da_sprint(db, ctx, n)
+    destaques_seq = sorted((x for x in destaques if x["sequencia"] > 0),
+                           key=lambda x: (-x["sequencia"], x["name"]))[:3]
+    return {
+        "sprint": sp, "n": n, "total_sprints": len(ctx["sprints"]),
+        "dias_total": len(dias_sp), "dias_decorridos": len(decorridos),
+        "encerrada": sp["fim"] < hoje,
+        "presenca_pct": meta_valor("presenca_pct"),
+        "dias_cheios": meta_valor("dias_cheios"),
+        "maior_sequencia_time": meta_valor("sequencia_time"),
+        "por_evento": _presenca_por_evento(db, decorridos, ctx["ativos_ids"]),
+        "evolucao": sorted(evolucao, key=lambda x: (-x["subiu"], x["name"])),
+        "subiram": sum(1 for x in evolucao if x["subiu"] > 0),
+        "destaques_seq": destaques_seq,
+        "floresceram": [m["name"] for m in ativos
+                        if m["floresceu_em"] and sp["inicio"] <= m["floresceu_em"] <= sp["fim"]],
+        "metas": metas,
+        "metas_cumpridas": sum(1 for m in metas if m["cumprida"]),
+        "grafico": build_line_chart(serie), "tem_grafico": len(serie) >= 2,
+        "tipos_meta": TIPOS_META,
+    }
+
+
+@app.route("/sprint/<int:n>")
+def sprint_page(n):
+    db = get_db()
+    ctx = _base_coletivo(db)
+    if not 1 <= n <= len(ctx["sprints"]):
+        abort(404)
+    return render_template("sprint.html", **_resumo_sprint(db, ctx, n))
+
+
+def _calendario_membro(db, ctx, member_id):
+    cfg = _get_config(db)
+    s1 = date.fromisoformat(cfg.get("semana1_inicio", "2026-10-12"))
+    reg = _reg_membro(ctx["glob"], member_id)
+    semanas = []
+    for i in range(int(cfg.get("num_semanas", "10"))):
+        seg = s1 + timedelta(weeks=i)
+        dias = []
+        for j in range(5):
+            dd = seg + timedelta(days=j)
+            ds = dd.isoformat()
+            dias.append({
+                "data": ds, "dia": dd.day,
+                "estado": _estado_dia(reg.get(ds, {}), ds, ctx["hoje"], ctx["dias_set"]),
+                "rotulo": f"{NOMES_SEMANA[j]} {dd.day:02d}/{dd.month:02d}",
+            })
+        semanas.append({"n": i + 1, "dias": dias})
+    return semanas
+
+
+@app.route("/membro/<int:member_id>")
+def membro_page(member_id):
+    db = get_db()
+    ctx = _base_coletivo(db)
+    stats = next((m for m in ctx["membros"] if m["id"] == member_id), None)
+    if stats is None:
+        abort(404)
+    if stats["active"]:
+        _enriquecer_jardim(db, [stats], ctx["hoje"], ctx["dias_set"])
+    cfg = _get_config(db)
+    reg = _reg_membro(ctx["glob"], member_id)
+    trilha = game.semanas_status(
+        _semanas_projeto(db), reg, ctx["hoje"], cfg.get("contar_a_partir_de", "2026-10-15")
+    )
+    ganhas = set(stats["conquistas"])
+    return render_template(
+        "membro.html",
+        m=stats,
+        trilha=trilha,
+        fechadas=sum(1 for t in trilha if t["estado"] == "fechada"),
+        calendario=_calendario_membro(db, ctx, member_id),
+        conquistas=[
+            {"id": cid, "nome": nome, "desc": desc, "ganha": cid in ganhas}
+            for cid, nome, desc in CONQUISTAS
+        ],
+    )
 
 
 @app.route("/historico")

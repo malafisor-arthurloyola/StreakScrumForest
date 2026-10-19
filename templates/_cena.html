@@ -6,7 +6,7 @@
   app.js corrige com a hora do navegador. A regra de horarios existe nos dois lugares:
   game.periodo_do_dia e periodoPorHora (app.js).
 #}
-{% macro cena(membros, grande=False) %}
+{% macro cena(membros, grande=False, marcos=[]) %}
 <section class="cena{{ ' cena-grande' if grande }}" data-periodo="{{ cena_periodo }}" style="{{ cena_vars }}" aria-label="Jardim da equipe">
   <svg class="cena-fundo" viewBox="0 0 1200 420" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
     <rect class="ceu" width="1200" height="420"/>
@@ -32,6 +32,38 @@
   {% for i in range(9) %}
   <i class="vagalume" style="--x:{{ (i * 113) % 100 }}%;--y:{{ 14 + (i * 37) % 46 }}%;--t:{{ 5 + (i % 4) }}s;--l:-{{ i * 0.9 }}s"></i>
   {% endfor %}
+  {# Desbloqueios coletivos: liberam conforme o jardim de todo mundo cresce #}
+  {% if 'arvore_time' in marcos %}
+  <svg class="arvore-time" viewBox="0 0 120 170" aria-hidden="true">
+    <path d="M52 168C54 140 56 118 58 96H66C68 118 70 140 72 168Z" fill="#6b4a2f"/>
+    <path d="M60 110C46 108 36 100 30 88M64 96C78 92 88 84 94 72M62 128C52 128 44 124 38 116" stroke="#6b4a2f" stroke-width="5" stroke-linecap="round" fill="none"/>
+    <circle cx="60" cy="52" r="40" fill="#2fae66"/><circle cx="32" cy="74" r="26" fill="#4fcb7c"/>
+    <circle cx="90" cy="70" r="28" fill="#4fcb7c"/><circle cx="60" cy="32" r="24" fill="#82e29a"/>
+    <circle cx="44" cy="48" r="4" fill="#ffd35c"/><circle cx="74" cy="40" r="4" fill="#ff9ec4"/><circle cx="84" cy="66" r="4" fill="#ffd35c"/><circle cx="52" cy="72" r="4" fill="#ff9ec4"/>
+  </svg>
+  {% endif %}
+  {% if 'fonte' in marcos %}
+  <div class="fonte" aria-hidden="true">
+    <svg viewBox="0 0 80 80">
+      <path d="M8 62H72L66 78H14Z" fill="#9aa7ad"/><path d="M14 56H66L72 62H8Z" fill="#b5c0c5"/>
+      <rect x="37" y="30" width="6" height="28" rx="2" fill="#9aa7ad"/>
+      <path d="M22 30H58L52 38H28Z" fill="#b5c0c5"/>
+      <ellipse cx="40" cy="58" rx="24" ry="4" fill="#6db9ff"/>
+      <circle class="jato j1" cx="40" cy="22" r="2.6" fill="#a8dcff"/><circle class="jato j2" cx="40" cy="22" r="2.2" fill="#a8dcff"/>
+      <circle class="jato j3" cx="40" cy="22" r="2.4" fill="#a8dcff"/>
+    </svg>
+  </div>
+  {% endif %}
+  {% if 'vagalumes' in marcos %}
+  {% for i in range(8) %}
+  <i class="vagalume" style="--x:{{ (i * 71 + 12) % 100 }}%;--y:{{ 22 + (i * 53) % 38 }}%;--t:{{ 6 + (i % 3) }}s;--l:-{{ i * 1.3 }}s"></i>
+  {% endfor %}
+  {% endif %}
+  {% if 'petalas' in marcos %}
+  {% for i in range(14) %}
+  <i class="petala-cai" style="--x:{{ (i * 83 + 6) % 100 }}%;--t:{{ 9 + (i % 5) }}s;--l:-{{ i * 0.9 }}s;--r:{{ (i * 47) % 360 }}deg"></i>
+  {% endfor %}
+  {% endif %}
   <span class="cena-dica" aria-hidden="true">Arraste para ver o jardim todo</span>
   <div class="cena-plantas" role="list">
     {% for m in membros %}
@@ -41,7 +73,7 @@
          style="flex-grow: {{ fator }}; min-width: {{ (108 * fator) | round | int }}px; max-width: {{ ((grande and 230 or 200) * fator) | round | int }}px">
       {{ conjunto(m, tamanho=170 if grande else 132) }}
       <div class="placa">
-        <span class="placa-nome">{{ m.name }}</span>
+        <a class="placa-nome" href="{{ url_for('membro_page', member_id=m.id) }}">{{ m.name }}</a>
         {{ chama(m.streak, m.chama, m.aceso, m.id) }}
         <span class="placa-estagio" data-estagio-for="{{ m.id }}">{{ m.estagio_nome }}</span>
         <span class="barra-prox" aria-hidden="true"><i data-prox-barra="{{ m.id }}" style="width: {{ ((m.progresso or 0) * 100) | round | int }}%"></i></span>

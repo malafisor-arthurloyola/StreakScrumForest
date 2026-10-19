@@ -211,6 +211,7 @@ def calcular_membro(dias_letivos_lista, registros_por_data, meta):
         "dias_presentes": dias_presentes,
         "frutos": frutos,
         "sementes_base": sementes_base,
+        "floresceu_em": floresceu_em,
     }
 
 
@@ -321,3 +322,120 @@ def dia_cheio(membros_ativos_ids, registros_globais_por_data):
         if cheio:
             dias.add(data)
     return dias
+
+
+def estado_ate(dias_letivos_lista, registros_por_data, meta, data):
+    """Estado do membro como estava no fim de `data` (usado em resumos de sprint/semana)."""
+    return calcular_membro([d for d in dias_letivos_lista if d <= data], registros_por_data, meta)
+
+
+# ---------------------------------------------------------------- sprints e metas
+
+def sprints_do_projeto(semana1_inicio, num_semanas, sprint_semanas):
+    """[{'n', 'inicio', 'fim'}]; o fim e a sexta da ultima semana da sprint."""
+    s1 = date.fromisoformat(semana1_inicio)
+    lista = []
+    sem = 0
+    n = 1
+    while sem < num_semanas:
+        na_sprint = min(sprint_semanas, num_semanas - sem)
+        inicio = s1 + timedelta(weeks=sem)
+        fim = inicio + timedelta(weeks=na_sprint) - timedelta(days=3)
+        lista.append({"n": n, "inicio": inicio.isoformat(), "fim": fim.isoformat()})
+        sem += na_sprint
+        n += 1
+    return lista
+
+
+def sprint_da_data(data_str, sprints):
+    """Numero da sprint de uma data (antes do projeto = 1; depois = a ultima)."""
+    atual = sprints[0]["n"]
+    for sp in sprints:
+        if sp["inicio"] <= data_str:
+            atual = sp["n"]
+    return atual
+
+
+def avaliar_meta(tipo, alvo, dias_sprint, hoje_str, ativos_ids, registros_globais, dias_cheios):
+    """Progresso de uma meta da sprint, sempre derivado da presenca.
+
+    Tipos: presenca_pct (% de presencas do time), dias_cheios (quantidade de dias com todo
+    mundo presente) e sequencia_time (maior sequencia de dias cheios seguidos).
+    Considera so os dias da sprint que ja passaram (ate hoje).
+    """
+    decorridos = [d for d in dias_sprint if d <= hoje_str]
+    valor = 0
+    if tipo == "presenca_pct":
+        possiveis = len(decorridos) * len(ativos_ids)
+        if possiveis:
+            presentes = sum(
+                1 for d in decorridos for mid in ativos_ids
+                if registros_globais.get(d, {}).get(mid, {}).get("presente", False)
+            )
+            valor = round(100 * presentes / possiveis)
+    elif tipo == "dias_cheios":
+        valor = sum(1 for d in decorridos if d in dias_cheios)
+    elif tipo == "sequencia_time":
+        atual = 0
+        for d in decorridos:
+            atual = atual + 1 if d in dias_cheios else 0
+            valor = max(valor, atual)
+    pct = min(100, round(100 * valor / alvo)) if alvo > 0 else 0
+    return {"valor": valor, "alvo": alvo, "pct": pct, "cumprida": alvo > 0 and valor >= alvo}
+
+
+MARCOS_COLETIVOS = [
+    (25, "fonte", "Fonte do jardim", "Uma fonte aparece no canteiro."),
+    (50, "vagalumes", "Vagalumes extras", "Mais luzinhas passeiam pelo jardim."),
+    (75, "petalas", "Chuva de pétalas", "Pétalas caem devagar sobre o canteiro."),
+    (100, "arvore_time", "Árvore do time", "Uma árvore grande cresce no fundo do jardim."),
+]
+
+
+def marcos_coletivos(progresso_pct):
+    """Desbloqueios gratuitos para todo mundo conforme o jardim coletivo cresce."""
+    return [
+        {"pct": pct, "id": mid, "nome": nome, "desc": desc, "liberado": progresso_pct >= pct}
+        for pct, mid, nome, desc in MARCOS_COLETIVOS
+    ]
+
+
+def semanas_status(semanas_projeto, registros_por_data, hoje_str, contar_a_partir_de):
+    """Trilha de semanas de um membro.
+
+    Estados: fechada, em_andamento, futura, aberta (passou sem fechar, sem punicao),
+    largada (semana de inicio em que nao da para fechar) e folga (so feriados).
+    """
+    trilha = []
+    for i, dias_sem in enumerate(semanas_projeto, 1):
+        if not dias_sem:
+            trilha.append({"n": i, "estado": "folga", "presencas": 0, "minimo": 0})
+            continue
+        n = len(dias_sem)
+        minimo = n - 1 if n < 5 else 4
+        contaveis = [d for d in dias_sem if d >= contar_a_partir_de]
+        presencas = sum(1 for d in dias_sem if registros_por_data.get(d, {}).get("presente", False))
+        if presencas >= minimo:
+            estado = "fechada"
+        elif len(contaveis) < minimo:
+            estado = "largada"
+        elif dias_sem[-1] < hoje_str:
+            estado = "aberta"
+        elif dias_sem[0] <= hoje_str:
+            estado = "em_andamento"
+        else:
+            estado = "futura"
+        trilha.append({"n": i, "estado": estado, "presencas": presencas, "minimo": minimo})
+    return trilha
+
+
+def sequencia_dias_cheios(dias_letivos_lista, cheios, dias_com_registro, hoje_str):
+    """Dias cheios seguidos ate hoje. Dia sem nenhum registro nao quebra (esquecer de
+    marcar nao pune); dia com registro em que alguem nao veio quebra."""
+    seq = 0
+    for d in reversed([d for d in dias_letivos_lista if d <= hoje_str]):
+        if d in cheios:
+            seq += 1
+        elif d in dias_com_registro:
+            break
+    return seq

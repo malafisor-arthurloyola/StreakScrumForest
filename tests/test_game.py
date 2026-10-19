@@ -15,12 +15,19 @@ from game import (
     dias_letivos,
     estagio_para_g,
     limiar_estagio,
+    avaliar_meta,
+    estado_ate,
+    marcos_coletivos,
     meta_floracao,
     nivel_chama,
     periodo_do_dia,
     posicao_astro,
     progresso_estagio,
     semanas_do_projeto,
+    semanas_status,
+    sequencia_dias_cheios,
+    sprint_da_data,
+    sprints_do_projeto,
     vigor_para_streak,
 )
 
@@ -429,6 +436,175 @@ class TestSementesDiaCheio(unittest.TestCase):
         r = calcular_sementes(d, self.semanas, regs, floresceu, dias_cheios=cheios)
         self.assertGreaterEqual(r["total"], 100)
         self.assertLessEqual(r["total"], 150)
+
+
+class TestSprints(unittest.TestCase):
+    def test_cinco_sprints_de_duas_semanas(self):
+        sp = sprints_do_projeto("2026-10-12", 10, 2)
+        self.assertEqual(len(sp), 5)
+        self.assertEqual(sp[0], {"n": 1, "inicio": "2026-10-12", "fim": "2026-10-23"})
+        self.assertEqual(sp[4]["fim"], "2026-12-18")
+
+    def test_ultima_sprint_pode_ser_mais_curta(self):
+        sp = sprints_do_projeto("2026-10-12", 5, 2)
+        self.assertEqual(len(sp), 3)
+        self.assertEqual(sp[2]["fim"], "2026-11-13")
+
+    def test_sprint_da_data(self):
+        sp = sprints_do_projeto("2026-10-12", 10, 2)
+        self.assertEqual(sprint_da_data("2026-10-19", sp), 1)
+        self.assertEqual(sprint_da_data("2026-10-26", sp), 2)
+        self.assertEqual(sprint_da_data("2026-12-18", sp), 5)
+
+    def test_antes_e_depois_do_projeto_ficam_nas_pontas(self):
+        sp = sprints_do_projeto("2026-10-12", 10, 2)
+        self.assertEqual(sprint_da_data("2026-09-01", sp), 1)
+        self.assertEqual(sprint_da_data("2027-03-01", sp), 5)
+
+
+class TestMetasDaSprint(unittest.TestCase):
+    DIAS = ["2026-10-15", "2026-10-16", "2026-10-19", "2026-10-20"]
+
+    def glob(self, quem_veio):
+        """quem_veio: {data: [ids presentes]}"""
+        return {d: {mid: {"presente": True} for mid in ids} for d, ids in quem_veio.items()}
+
+    def test_presenca_percentual(self):
+        g = self.glob({"2026-10-15": [1, 2], "2026-10-16": [1]})
+        r = avaliar_meta("presenca_pct", 75, self.DIAS, "2026-10-16", [1, 2], g, set())
+        self.assertEqual(r["valor"], 75)  # 3 presencas de 4 possiveis
+        self.assertTrue(r["cumprida"])
+
+    def test_so_conta_dias_que_ja_passaram(self):
+        g = self.glob({"2026-10-15": [1, 2]})
+        r = avaliar_meta("presenca_pct", 90, self.DIAS, "2026-10-15", [1, 2], g, set())
+        self.assertEqual(r["valor"], 100)
+
+    def test_sem_dias_decorridos(self):
+        r = avaliar_meta("presenca_pct", 90, self.DIAS, "2026-10-01", [1], {}, set())
+        self.assertEqual(r["valor"], 0)
+        self.assertFalse(r["cumprida"])
+
+    def test_dias_cheios(self):
+        cheios = {"2026-10-15", "2026-10-19", "2026-11-30"}
+        r = avaliar_meta("dias_cheios", 2, self.DIAS, "2026-10-20", [1], {}, cheios)
+        self.assertEqual(r["valor"], 2)
+        self.assertTrue(r["cumprida"])
+        self.assertEqual(r["pct"], 100)
+
+    def test_sequencia_do_time(self):
+        cheios = {"2026-10-15", "2026-10-16", "2026-10-20"}
+        r = avaliar_meta("sequencia_time", 3, self.DIAS, "2026-10-20", [1], {}, cheios)
+        self.assertEqual(r["valor"], 2)
+        self.assertFalse(r["cumprida"])
+        self.assertEqual(r["pct"], 67)
+
+    def test_pct_nunca_passa_de_100(self):
+        cheios = set(self.DIAS)
+        r = avaliar_meta("dias_cheios", 2, self.DIAS, "2026-10-20", [1], {}, cheios)
+        self.assertEqual(r["valor"], 4)
+        self.assertEqual(r["pct"], 100)
+
+    def test_tipo_desconhecido(self):
+        r = avaliar_meta("xyz", 5, self.DIAS, "2026-10-20", [1], {}, set())
+        self.assertEqual(r["valor"], 0)
+        self.assertFalse(r["cumprida"])
+
+
+class TestMarcosColetivos(unittest.TestCase):
+    def test_nenhum_no_comeco(self):
+        self.assertEqual([m["liberado"] for m in marcos_coletivos(0)], [False] * 4)
+
+    def test_liberam_nos_percentuais(self):
+        self.assertEqual([m["liberado"] for m in marcos_coletivos(25)], [True, False, False, False])
+        self.assertEqual([m["liberado"] for m in marcos_coletivos(74)], [True, True, False, False])
+        self.assertEqual([m["liberado"] for m in marcos_coletivos(100)], [True] * 4)
+
+    def test_ids_estaveis(self):
+        self.assertEqual([m["id"] for m in marcos_coletivos(0)],
+                         ["fonte", "vagalumes", "petalas", "arvore_time"])
+
+
+class TestSemanasStatus(unittest.TestCase):
+    def setUp(self):
+        self.semanas = semanas_do_projeto(SEMANA1, NUM_SEMANAS, FERIADOS)
+        self.dias = dias_letivos("2026-10-15", SEMANA1, NUM_SEMANAS, FERIADOS)
+
+    def estados(self, regs, hoje):
+        return [x["estado"] for x in semanas_status(self.semanas, regs, hoje, "2026-10-15")]
+
+    def test_semana_de_largada_nao_pune(self):
+        e = self.estados({}, "2026-10-17")
+        self.assertEqual(e[0], "largada")
+        self.assertEqual(e[1], "futura")
+
+    def test_semana_em_andamento(self):
+        e = self.estados({}, "2026-10-21")
+        self.assertEqual(e[1], "em_andamento")
+
+    def test_semana_fechada_com_4_presencas(self):
+        regs = {d: {"presente": True} for d in ["2026-10-19", "2026-10-20", "2026-10-21", "2026-10-22"]}
+        e = self.estados(regs, "2026-10-22")
+        self.assertEqual(e[1], "fechada")
+
+    def test_semana_passada_sem_fechar_e_apenas_aberta(self):
+        regs = {"2026-10-19": {"presente": True}}
+        e = self.estados(regs, "2026-10-30")
+        self.assertEqual(e[1], "aberta")
+
+    def test_semana_com_feriado_fecha_com_menos(self):
+        # semana de 02/11 tem 4 dias letivos: minimo 3
+        regs = {d: {"presente": True} for d in ["2026-11-03", "2026-11-04", "2026-11-05"]}
+        e = self.estados(regs, "2026-11-06")
+        self.assertEqual(e[3], "fechada")
+
+    def test_dez_semanas(self):
+        self.assertEqual(len(self.estados({}, "2026-10-17")), 10)
+
+
+class TestEstadoAte(unittest.TestCase):
+    def test_estado_em_data_passada(self):
+        dias = dias_letivos("2026-10-15", SEMANA1, NUM_SEMANAS, FERIADOS)
+        regs = {d: {"presente": True} for d in dias[:10]}
+        meta = meta_floracao(len(dias))
+        hoje = calcular_membro(dias, regs, meta)
+        meio = estado_ate(dias, regs, meta, dias[4])
+        self.assertEqual(meio["dias_presentes"], 5)
+        self.assertLess(meio["estagio"], hoje["estagio"])
+
+    def test_floresceu_em_vem_no_estado(self):
+        dias = dias_letivos("2026-10-15", SEMANA1, NUM_SEMANAS, FERIADOS)
+        regs = {d: {"presente": True} for d in dias}
+        meta = meta_floracao(len(dias))
+        est = calcular_membro(dias, regs, meta)
+        self.assertEqual(est["floresceu_em"], dias[meta - 1])
+        self.assertIsNone(calcular_membro(dias, {}, meta)["floresceu_em"])
+
+
+class TestSequenciaDiasCheios(unittest.TestCase):
+    DIAS = ["2026-10-15", "2026-10-16", "2026-10-19", "2026-10-20", "2026-10-21"]
+
+    def test_sequencia_ate_hoje(self):
+        cheios = {"2026-10-15", "2026-10-16", "2026-10-19"}
+        self.assertEqual(sequencia_dias_cheios(self.DIAS, cheios, set(cheios), "2026-10-19"), 3)
+
+    def test_dia_recente_que_falhou_zera(self):
+        cheios = {"2026-10-15", "2026-10-16"}
+        com_registro = cheios | {"2026-10-19"}
+        self.assertEqual(sequencia_dias_cheios(self.DIAS, cheios, com_registro, "2026-10-19"), 0)
+
+    def test_hoje_ainda_sem_registro_nao_quebra(self):
+        cheios = {"2026-10-15", "2026-10-16"}
+        self.assertEqual(sequencia_dias_cheios(self.DIAS, cheios, set(cheios), "2026-10-19"), 2)
+
+    def test_dia_que_falhou_no_meio_quebra(self):
+        cheios = {"2026-10-15", "2026-10-16", "2026-10-20"}
+        com_registro = cheios | {"2026-10-19"}
+        self.assertEqual(sequencia_dias_cheios(self.DIAS, cheios, com_registro, "2026-10-20"), 1)
+
+    def test_dias_futuros_sao_ignorados(self):
+        cheios = {"2026-10-15", "2026-10-21"}
+        self.assertEqual(sequencia_dias_cheios(self.DIAS, cheios, set(cheios), "2026-10-15"), 1)
 
 
 if __name__ == "__main__":

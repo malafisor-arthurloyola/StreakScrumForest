@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% from "_planta.html" import conjunto %}
+{% from "_chama.html" import chama %}
+{% block title %}{{ m.name }} · Jardim da Equipe{% endblock %}
+
+{% block content %}
+{% set textos = {'presente': 'presente', 'justificada': 'avisou', 'faltou': 'faltou', 'hoje': 'hoje', 'vazio': 'sem registro', 'futuro': 'ainda não chegou', 'folga': 'sem aula'} %}
+<header class="pagina-cab">
+  <div>
+    <a class="voltar" href="{{ url_for('dashboard') }}">← Painel</a>
+    <h1>{{ m.name }}{% if not m.active %} <span class="chip chip-inativo">inativo</span>{% endif %}</h1>
+    <p class="sub">{{ m.estagio_nome }} · a planta floresce com {{ m.meta }} presenças</p>
+  </div>
+  <a class="btn btn-ghost" href="{{ url_for('loja_page', m=m.id) }}">Loja de {{ m.name }}</a>
+</header>
+
+<section class="perfil-topo">
+  <div class="perfil-planta">{{ conjunto(m, 150) }}</div>
+  <div class="perfil-numeros">
+    <div class="perfil-num">
+      <span class="perfil-rotulo">Sequência atual</span>
+      {{ chama(m.streak, m.chama, m.aceso if m.aceso is defined else true) }}
+    </div>
+    <div class="perfil-num"><span class="perfil-rotulo">Melhor sequência</span><b>{{ m.melhor_streak }} {{ 'dia' if m.melhor_streak == 1 else 'dias' }}</b></div>
+    <div class="perfil-num"><span class="perfil-rotulo">Dias presentes</span><b>{{ m.dias_presentes }}</b></div>
+    <div class="perfil-num"><span class="perfil-rotulo">Semanas fechadas</span><b>{{ fechadas }}</b></div>
+    <div class="perfil-num">
+      <span class="perfil-rotulo">Sementes</span>
+      <b class="sementes-num"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#p-semente" class="sem-corpo"/><use href="#p-semente-brilho" class="sem-brilho"/></svg>{{ m.sementes }}</b>
+    </div>
+    <div class="perfil-num">
+      <span class="perfil-rotulo">Próximo estágio</span>
+      <b>{% if m.floresceu %}Floresceu{% elif m.dias_ate_proximo %}faltam {{ m.dias_ate_proximo }} {{ 'dia' if m.dias_ate_proximo == 1 else 'dias' }}{% else %}—{% endif %}</b>
+    </div>
+  </div>
+</section>
+
+<section class="card" aria-label="Trilha das 10 semanas">
+  <h2>Trilha das 10 semanas</h2>
+  <div class="trilha trilha-grande">
+    {% for s in trilha %}
+    <span class="sem" data-estado="{{ s.estado }}" title="Semana {{ s.n }}: {{ s.presencas }} de {{ s.minimo }} presenças necessárias">
+      <svg viewBox="-9 -9 18 18" aria-hidden="true"><use href="#p-flor"/></svg>
+      <small>{{ s.n }}</small>
+    </span>
+    {% endfor %}
+  </div>
+  <p class="dica">Uma semana fecha com 4 presenças (3 em semana com feriado) e vira uma flor.</p>
+</section>
+
+<section class="card" aria-label="Calendário de presença">
+  <h2>Calendário de presença</h2>
+  <div class="calendario">
+    {% for sem in calendario %}
+    <div class="cal-sem">
+      <span class="cal-n">S{{ sem.n }}</span>
+      {% for d in sem.dias %}
+      <span class="cal-dia" data-estado="{{ d.estado }}" title="{{ d.rotulo }}: {{ textos[d.estado] }}"></span>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+  <div class="cal-legenda">
+    <span><i class="cal-dia" data-estado="presente"></i> presente</span>
+    <span><i class="cal-dia" data-estado="justificada"></i> avisou</span>
+    <span><i class="cal-dia" data-estado="hoje"></i> hoje</span>
+    <span><i class="cal-dia" data-estado="vazio"></i> sem registro</span>
+    <span><i class="cal-dia" data-estado="folga"></i> sem aula</span>
+  </div>
+</section>
+
+<section aria-label="Conquistas">
+  <h2 class="secao-titulo">Conquistas</h2>
+  <div class="conquistas">
+    {% for c in conquistas %}
+    <div class="conquista{{ ' ganha' if c.ganha }}">
+      <b>{{ c.nome }}</b>
+      <span>{{ c.desc if c.ganha else 'Ainda não conquistada.' }}</span>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}
