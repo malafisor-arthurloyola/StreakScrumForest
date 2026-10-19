@@ -921,6 +921,24 @@ input.input-nome:hover, input.input-nome:focus { background: var(--s2); }
   .item { grid-template-columns: 104px 1fr; }
 }
 
+/* ===== Tela de entrada (codigo de acesso) ===== */
+body.entrar { display: grid; grid-template-columns: minmax(0, 1fr); place-items: center; min-height: 100vh; padding: 24px; }
+.entrar-caixa {
+  width: 100%; max-width: 380px; padding: 32px 28px;
+  border-radius: var(--r-lg); background: var(--s1); text-align: center;
+}
+.entrar-logo { width: 64px; height: 64px; margin-bottom: 14px; }
+.entrar-caixa h1 { font-size: 2rem; }
+.entrar-caixa .sub { margin: 8px auto 22px; }
+.entrar-form { display: grid; gap: 10px; text-align: left; }
+.entrar-form label { color: var(--ink2); font-weight: 600; }
+.entrar-form input[type="password"] {
+  min-height: 48px; padding: 0.6rem 0.95rem; border: 0; border-radius: 14px;
+  background: var(--s2); color: var(--ink); font-size: 1.05rem;
+}
+.entrar-erro { margin: 0; padding: 10px 14px; border-radius: 12px; background: rgba(255, 141, 118, 0.14); color: var(--falta); font-weight: 600; }
+.entrar-form .btn { margin-top: 6px; }
+
 /* ===== Fase C: coletivo ===== */
 .cena-plantas { position: relative; }
 .placa-nome { color: var(--ink); text-decoration: none; }

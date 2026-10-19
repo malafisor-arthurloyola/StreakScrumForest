@@ -1,3 +1,17 @@
+/* Defesa extra de CSRF: todo pedido que altera dados leva um cabecalho que so o proprio
+   site envia (o servidor exige esse cabecalho quando o codigo de acesso esta ativo). */
+(function () {
+  var original = window.fetch;
+  window.fetch = function (url, opcoes) {
+    opcoes = opcoes || {};
+    var metodo = (opcoes.method || 'GET').toUpperCase();
+    if (metodo !== 'GET' && metodo !== 'HEAD') {
+      opcoes.headers = Object.assign({ 'X-Requested-With': 'fetch' }, opcoes.headers || {});
+    }
+    return original.call(this, url, opcoes);
+  };
+})();
+
 var CORES_CONFETE = ['#c6f24e', '#6db9ff', '#ff9ec4', '#ffd35c', '#4fdb9b', '#ff8d76'];
 var CORES_CHAMA = ['#ff7a1a', '#ffd35c', '#ff4d2e', '#ffe9a8'];
 var MARCOS_SEQUENCIA = [3, 5, 7, 10, 14, 20, 30, 40];

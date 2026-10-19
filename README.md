@@ -89,14 +89,79 @@ Pensado para o dia a dia em Scrum, sem prêmios de brincadeira nem comparação 
   dia não quebra a sequência; um dia em que alguém não veio quebra).
 - O banco ganhou a tabela `metas_sprint` (criada sem mexer nos dados existentes).
 
-## Como testar uma branch (`feature/coletivo`, `feature/loja-sementes`, `feature/jardim-vivo` ou `redesign/visual`)
+## Deploy gratuito no PythonAnywhere, com código de acesso (branch `feature/deploy`)
+
+O GitHub Pages só serve páginas estáticas e não roda Flask nem grava em SQLite, por isso não serve
+para operar a plataforma. O plano gratuito do [PythonAnywhere](https://www.pythonanywhere.com)
+roda o Flask como está, com disco persistente (o SQLite continua real) e HTTPS, num endereço
+`seuusuario.pythonanywhere.com`. Confira no site do PythonAnywhere os limites atuais do plano
+gratuito antes de começar.
+
+**Como o código de acesso funciona**
+
+- Local, sem nada configurado: o site abre normalmente, como sempre.
+- Com a variável `ACCESS_CODE` definida: todas as páginas e a API pedem o código na tela
+  `/entrar`. Depois de 5 erros seguidos o acesso daquele IP é bloqueado por 10 minutos. A sessão
+  dura 30 dias e cai se você trocar o código. `/sair` encerra a sessão.
+- O código e o `SECRET_KEY` ficam **só no servidor**, nunca neste repositório nem em conversas.
+
+**Passo a passo**
+
+1. Crie a conta gratuita no PythonAnywhere (você mesmo, com seu e-mail).
+2. Em **Consoles > Bash**, baixe o código e instale as dependências:
+   ```bash
+   git clone https://github.com/malafisor-arthurloyola/StreakScrumForest.git
+   cd StreakScrumForest
+   git switch main        # ou a branch que você quiser publicar
+   python3 -m venv ~/venv-jardim
+   ~/venv-jardim/bin/pip install -r requirements.txt
+   mkdir -p ~/dados
+   ```
+3. **Banco de dados**: ele fica numa pasta fora do repositório (`~/dados`), para o `git pull`
+   nunca sobrescrevê-lo. Suba **uma única vez** o seu banco atual: na aba **Files**, envie o
+   arquivo `data/strikes.db` do seu computador para `/home/SEUUSUARIO/dados/strikes.db`.
+   Nunca suba de novo por cima depois que o site estiver em uso.
+4. Na aba **Web**, clique em *Add a new web app* e escolha *Manual configuration* (Python 3.10 ou
+   mais novo). Em *Virtualenv*, informe `/home/SEUUSUARIO/venv-jardim`.
+5. Ainda na aba **Web**, abra o *WSGI configuration file* e substitua todo o conteúdo por:
+   ```python
+   import os, sys
+
+   sys.path.insert(0, "/home/SEUUSUARIO/StreakScrumForest")
+   os.environ["STRIKES_DB"] = "/home/SEUUSUARIO/dados/strikes.db"
+   os.environ["ACCESS_CODE"] = "escolha-um-codigo-que-o-grupo-saiba"
+   os.environ["SECRET_KEY"] = "um-texto-aleatorio-bem-longo-so-seu"
+   os.environ["COOKIE_SECURE"] = "1"
+
+   from wsgi import application
+   ```
+6. Clique em **Reload**. Abra `https://SEUUSUARIO.pythonanywhere.com`: deve aparecer a tela de código.
+7. **Atualizar o site depois**: no Bash, `cd ~/StreakScrumForest && git pull`, e **Reload** na aba Web.
+8. **Backup diário**: na aba **Tasks**, crie uma tarefa diária com o comando
+   ```bash
+   STRIKES_DB=/home/SEUUSUARIO/dados/strikes.db /home/SEUUSUARIO/venv-jardim/bin/python /home/SEUUSUARIO/StreakScrumForest/scripts/backup_db.py
+   ```
+   Ela guarda os últimos 14 dias em `~/dados/backups/`. Para baixar uma cópia do banco a qualquer
+   momento (logado), abra `/admin/baixar-banco`. Para restaurar, pare o site, copie o backup
+   desejado por cima de `~/dados/strikes.db` e dê Reload.
+9. **Manter no ar**: contas gratuitas pedem que, de tempos em tempos (a cada ~3 meses), você entre na
+   aba **Web** e clique no botão para estender a validade do app.
+
+**Trocar o código de acesso**: edite o `ACCESS_CODE` no arquivo WSGI e dê Reload; quem estava logado
+precisa entrar de novo.
+
+**Sobre o banco no GitHub**: o `data/strikes.db` do repositório é só um retrato de um momento. Em
+produção, os dados vivos ficam em `~/dados/strikes.db` no servidor. Se você continuar rodando o
+site também no seu computador, as duas bases vão divergir.
+
+## Como testar uma branch (`feature/deploy`, `feature/coletivo`, `feature/loja-sementes`, `feature/jardim-vivo` ou `redesign/visual`)
 
 Use sempre uma **cópia** do banco para não alterar os dados reais do grupo.
 
 1. Traga a branch e troque para ela (a partir da pasta do projeto):
    ```bash
    git fetch origin
-   git switch feature/coletivo
+   git switch feature/deploy
    ```
 2. Se ainda não instalou as dependências:
    ```bash

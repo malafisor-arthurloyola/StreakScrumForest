@@ -1,11 +1,18 @@
+import hashlib
+import hmac
+import io
 import math
 import os
 import shutil
 import sqlite3
+import tempfile
+import time
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from flask import Flask, abort, g, jsonify, redirect, render_template, request, url_for
+from flask import (
+    Flask, abort, g, jsonify, redirect, render_template, request, send_file, session, url_for,
+)
 
 import catalog
 import game
@@ -40,6 +47,128 @@ DEFAULT_FERIADOS = [
 ]
 
 app = Flask(__name__)
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    # em producao (HTTPS) defina COOKIE_SECURE=1; em http://localhost isso quebraria o login
+    SESSION_COOKIE_SECURE=os.environ.get("COOKIE_SECURE") == "1",
+    PERMANENT_SESSION_LIFETIME=timedelta(days=30),
+)
+
+
+# ------------------------------------------------------------ codigo de acesso
+# Sem ACCESS_CODE (uso local) nada muda. Com ele, todas as paginas e a API exigem o codigo.
+# O codigo e o SECRET_KEY ficam em variaveis de ambiente no servidor, nunca no repositorio.
+
+MAX_ERROS = 5
+BLOQUEIO_SEG = 600
+TENTATIVAS = {}
+
+
+def _codigo():
+    return os.environ.get("ACCESS_CODE") or None
+
+
+def _segredo():
+    chave = os.environ.get("SECRET_KEY")
+    if chave:
+        return chave
+    return hashlib.sha256(("jardim|" + (_codigo() or "")).encode("utf-8")).hexdigest()
+
+
+def _assinatura():
+    """Muda quando o codigo muda, derrubando as sessoes antigas."""
+    return hashlib.sha256((_codigo() or "").encode("utf-8")).hexdigest()[:16]
+
+
+def _ip():
+    encaminhado = request.headers.get("X-Forwarded-For", "")
+    return encaminhado.split(",")[0].strip() or request.remote_addr or "?"
+
+
+def _destino_seguro(destino):
+    if destino and destino.startswith("/") and not destino.startswith("//"):
+        return destino
+    return "/"
+
+
+@app.before_request
+def guarda_de_acesso():
+    if not _codigo():
+        return None
+    app.secret_key = _segredo()
+    if request.endpoint in ("entrar", "static"):
+        return None
+    if session.get("auth") != _assinatura():
+        if request.path.startswith("/api/"):
+            return jsonify({"ok": False, "erro": "Acesso negado."}), 401
+        return redirect(url_for("entrar", next=request.full_path.rstrip("?")))
+    if request.method == "POST" and request.path.startswith("/api/") \
+            and request.headers.get("X-Requested-With") != "fetch":
+        return jsonify({"ok": False, "erro": "Pedido inválido."}), 403
+    return None
+
+
+@app.route("/entrar", methods=["GET", "POST"])
+def entrar():
+    if not _codigo():
+        return redirect(url_for("home"))
+    ip = _ip()
+    agora = time.time()
+    estado = TENTATIVAS.get(ip, {"erros": 0, "bloqueado_ate": 0})
+    destino = _destino_seguro(request.values.get("next"))
+    erro, status = None, 200
+
+    if request.method == "POST":
+        if estado["bloqueado_ate"] > agora:
+            erro, status = "Muitas tentativas. Tente de novo em alguns minutos.", 429
+        else:
+            tentativa = (request.form.get("codigo") or "").encode("utf-8")
+            if hmac.compare_digest(tentativa, _codigo().encode("utf-8")):
+                TENTATIVAS.pop(ip, None)
+                session["auth"] = _assinatura()
+                session.permanent = True
+                return redirect(destino)
+            estado["erros"] += 1
+            if estado["erros"] >= MAX_ERROS:
+                estado["erros"] = 0
+                estado["bloqueado_ate"] = agora + BLOQUEIO_SEG
+                erro, status = "Muitas tentativas. Tente de novo em alguns minutos.", 429
+            else:
+                erro, status = "Código incorreto.", 401
+            TENTATIVAS[ip] = estado
+    return render_template("entrar.html", erro=erro, destino=destino), status
+
+
+@app.route("/sair")
+def sair():
+    session.clear()
+    return redirect(url_for("entrar") if _codigo() else url_for("home"))
+
+
+@app.route("/admin/baixar-banco")
+def baixar_banco():
+    """Copia consistente do banco, so quando o codigo de acesso esta ativo."""
+    if not _codigo():
+        abort(404)
+    pasta = tempfile.mkdtemp()
+    try:
+        destino = os.path.join(pasta, "copia.db")
+        src = sqlite3.connect(str(DB_PATH))
+        dst = sqlite3.connect(destino)
+        try:
+            src.backup(dst)
+        finally:
+            dst.close()
+            src.close()
+        with open(destino, "rb") as f:
+            dados = f.read()
+    finally:
+        shutil.rmtree(pasta, ignore_errors=True)
+    return send_file(
+        io.BytesIO(dados), mimetype="application/octet-stream", as_attachment=True,
+        download_name=f"strikes-{date.today().isoformat()}.db",
+    )
 
 
 def get_db():
