@@ -439,3 +439,17 @@ def sequencia_dias_cheios(dias_letivos_lista, cheios, dias_com_registro, hoje_st
         elif d in dias_com_registro:
             break
     return seq
+
+
+def nivel_presenca(presentes, total):
+    """Intensidade (0 a 4) de um dia no panorama do time, estilo mapa de contribuicoes."""
+    if total <= 0 or presentes <= 0:
+        return 0
+    if presentes >= total:
+        return 4
+    razao = presentes / total
+    if razao >= 0.7:
+        return 3
+    if razao >= 0.5:
+        return 2
+    return 1

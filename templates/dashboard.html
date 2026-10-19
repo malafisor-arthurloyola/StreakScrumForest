@@ -186,34 +186,18 @@
   </section>
 </div>
 
-{% set maior_streak = ativos | sort(attribute='melhor_streak', reverse=True) | first %}
-{% set mais_constante = ativos | sort(attribute='dias_presentes', reverse=True) | first %}
-{% set florescidos = ativos | selectattr('floresceu') | list %}
-{% if (maior_streak and maior_streak.melhor_streak > 0) or (mais_constante and mais_constante.dias_presentes > 0) or florescidos %}
+{% if destaques %}
 <section aria-label="Destaques">
   <h2 class="secao-titulo">Destaques</h2>
+  <p class="sub sub-secao">Quando há empate, todo mundo que empatou aparece.</p>
   <div class="destaques">
-    {% if maior_streak and maior_streak.melhor_streak > 0 %}
-    <div class="destaque destaque-1">
-      <span class="destaque-rotulo">Maior sequência</span>
-      <span class="destaque-valor">{{ maior_streak.melhor_streak }} {{ 'dia' if maior_streak.melhor_streak == 1 else 'dias' }}</span>
-      <span class="destaque-nome">{{ maior_streak.name }}</span>
+    {% for d in destaques %}
+    <div class="destaque destaque-{{ loop.index0 % 4 + 1 }}">
+      <span class="destaque-rotulo">{{ d.rotulo }}</span>
+      <span class="destaque-valor">{{ d.valor }}{% if d.id != 'floresceram' %} {{ 'dia' if d.valor == 1 else 'dias' }}{% endif %}</span>
+      <span class="destaque-nome">{{ d.texto }}</span>
     </div>
-    {% endif %}
-    {% if mais_constante and mais_constante.dias_presentes > 0 %}
-    <div class="destaque destaque-2">
-      <span class="destaque-rotulo">Mais constante</span>
-      <span class="destaque-valor">{{ mais_constante.dias_presentes }} {{ 'dia' if mais_constante.dias_presentes == 1 else 'dias' }}</span>
-      <span class="destaque-nome">{{ mais_constante.name }}</span>
-    </div>
-    {% endif %}
-    {% if florescidos %}
-    <div class="destaque destaque-3">
-      <span class="destaque-rotulo">Já floresceram</span>
-      <span class="destaque-valor">{{ florescidos | length }}</span>
-      <span class="destaque-nome">{{ florescidos | map(attribute='name') | join(', ') }}</span>
-    </div>
-    {% endif %}
+    {% endfor %}
   </div>
 </section>
 {% endif %}

@@ -1,0 +1,76 @@
+{% set textos_pessoa = {'presente': 'presente', 'justificada': 'avisou', 'faltou': 'faltou', 'hoje': 'hoje', 'vazio': 'sem registro', 'futuro': 'ainda não chegou', 'folga': 'sem aula'} %}
+{#
+  Panorama do grupo, no estilo do mapa de contribuicoes do GitHub: o time dia a dia
+  (intensidade = quantos vieram) e cada pessoa em uma linha. Periodo: projeto, sprint ou semana.
+#}
+{% macro secao_panorama(p, data_str) %}
+<section class="panorama panorama-{{ p.periodo }}" id="panorama" aria-label="Panorama do grupo">
+  <div class="secao-linha">
+    <h2 class="secao-titulo">Panorama do grupo</h2>
+    <nav class="periodos" aria-label="Período do panorama">
+      {% for o in p.opcoes %}
+      <a class="periodo{{ ' ativo' if o.id == p.periodo }}" href="{{ url_for('dia', data_str=data_str, p=o.id) }}#panorama">{{ o.nome }}</a>
+      {% endfor %}
+    </nav>
+  </div>
+
+  <div class="panorama-resumo">
+    <div class="pr"><b>{{ p.resumo.presenca_pct }}%</b><span>presença do time</span></div>
+    <div class="pr"><b>{{ p.resumo.dias_cheios }}</b><span>{{ 'dia cheio' if p.resumo.dias_cheios == 1 else 'dias cheios' }}</span></div>
+    <div class="pr"><b>{{ p.resumo.maior_sequencia }}</b><span>maior sequência de dias cheios</span></div>
+    <div class="pr"><b>{{ p.resumo.dias }}</b><span>{{ 'dia contado' if p.resumo.dias == 1 else 'dias contados' }}</span></div>
+  </div>
+
+  <div class="card">
+    <h3>O time dia a dia</h3>
+    <div class="gh" style="--semanas: {{ p.semanas | length }}">
+      {% for sem in p.semanas %}
+      <div class="gh-sem">
+        <span class="gh-n">S{{ sem.n }}</span>
+        {% for d in sem.dias %}
+        {% if d.estado == 'folga' %}
+        <span class="gh-dia" data-estado="folga" title="{{ d.rotulo }}: sem aula"></span>
+        {% else %}
+        <a class="gh-dia" data-estado="{{ d.estado }}" data-n="{{ d.nivel }}"{% if d.e_hoje %} data-hoje="1"{% endif %}
+           href="{{ url_for('dia', data_str=d.data) }}"
+           title="{{ d.rotulo }}: {% if d.estado == 'futuro' %}ainda não chegou{% else %}{{ d.presentes }} de {{ d.total }} presentes{% endif %}"></a>
+        {% endif %}
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+    <div class="gh-legenda">
+      <span>Menos</span>
+      <i class="gh-dia" data-n="0"></i><i class="gh-dia" data-n="1"></i><i class="gh-dia" data-n="2"></i><i class="gh-dia" data-n="3"></i><i class="gh-dia" data-n="4"></i>
+      <span>Mais (4 = todo mundo)</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Cada pessoa</h3>
+    <div class="pessoas">
+      {% for l in p.linhas %}
+      <div class="pessoa">
+        <a class="pessoa-nome" href="{{ url_for('membro_page', member_id=l.id) }}">{{ l.name }}</a>
+        <div class="pessoa-semanas">
+          {% for sem in l.semanas %}
+          <span class="pessoa-sem">
+            {% for c in sem %}<span class="pdia" data-estado="{{ c.estado }}" title="{{ c.rotulo }}: {{ textos_pessoa[c.estado] }}"></span>{% endfor %}
+          </span>
+          {% endfor %}
+        </div>
+      </div>
+      {% else %}
+      <p class="vazio">Nenhum membro ativo.</p>
+      {% endfor %}
+    </div>
+    <div class="cal-legenda">
+      <span><i class="pdia" data-estado="presente"></i> presente</span>
+      <span><i class="pdia" data-estado="justificada"></i> avisou</span>
+      <span><i class="pdia" data-estado="vazio"></i> sem registro</span>
+      <span><i class="pdia" data-estado="folga"></i> sem aula</span>
+    </div>
+    <p class="dica">Toque no nome para ver o perfil, ou em um dia do mapa do time para abri-lo.</p>
+  </div>
+</section>
+{% endmacro %}

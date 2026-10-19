@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "_cena.html" import cena with context %}
 {% from "_chama.html" import chama %}
+{% from "_panorama.html" import secao_panorama %}
 {% set cores = ['#c6f24e', '#6db9ff', '#ff9ec4', '#ffd35c', '#35d0c0', '#ff8d76', '#9be37f'] %}
 {% block title %}Hoje, {{ data_extenso }} · Jardim da Equipe{% endblock %}
 
@@ -23,6 +24,7 @@
     {% if data_str != hoje %}
       <a class="btn btn-ghost" href="{{ url_for('dia', data_str=hoje) }}">Ir para hoje</a>
     {% endif %}
+    <a class="btn btn-ghost" href="#panorama">Panorama do grupo</a>
   </div>
 </header>
 
@@ -85,6 +87,7 @@
   <p class="dica">Toque de novo no botão marcado para voltar a pendente. "Avisou" não conta como falta e não quebra a sequência.</p>
 </section>
 {% endif %}
+{{ secao_panorama(panorama, data_str) }}
 {% endblock %}
 
 {% block scripts %}

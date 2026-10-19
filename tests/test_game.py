@@ -20,6 +20,7 @@ from game import (
     marcos_coletivos,
     meta_floracao,
     nivel_chama,
+    nivel_presenca,
     periodo_do_dia,
     posicao_astro,
     progresso_estagio,
@@ -605,6 +606,17 @@ class TestSequenciaDiasCheios(unittest.TestCase):
     def test_dias_futuros_sao_ignorados(self):
         cheios = {"2026-10-15", "2026-10-21"}
         self.assertEqual(sequencia_dias_cheios(self.DIAS, cheios, set(cheios), "2026-10-15"), 1)
+
+
+class TestNivelPresenca(unittest.TestCase):
+    def test_niveis(self):
+        casos = [((0, 7), 0), ((1, 7), 1), ((3, 7), 1), ((4, 7), 2), ((5, 7), 3),
+                 ((6, 7), 3), ((7, 7), 4)]
+        for (presentes, total), esperado in casos:
+            self.assertEqual(nivel_presenca(presentes, total), esperado, (presentes, total))
+
+    def test_sem_ativos(self):
+        self.assertEqual(nivel_presenca(0, 0), 0)
 
 
 if __name__ == "__main__":

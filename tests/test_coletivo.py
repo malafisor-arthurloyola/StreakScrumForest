@@ -149,5 +149,130 @@ class TestBosqueEMarcos(ColetivoBase):
         self.assertIn('class="arvore-time"', html)
 
 
+class TestDestaquesLogica(unittest.TestCase):
+    def ativos(self, *dados):
+        return [
+            {"name": n, "streak": st, "melhor_streak": mb, "dias_presentes": dp, "floresceu": fl}
+            for n, st, mb, dp, fl in dados
+        ]
+
+    def por_id(self, destaques):
+        return {d["id"]: d for d in destaques}
+
+    def test_empate_lista_todos_os_lideres(self):
+        a = self.ativos(("Ana", 3, 3, 3, False), ("Bia", 3, 3, 3, False),
+                        ("Caio", 1, 1, 1, False), ("Duda", 0, 0, 0, False))
+        d = self.por_id(appmod._destaques(a))
+        self.assertEqual(d["melhor_sequencia"]["nomes"], ["Ana", "Bia"])
+        self.assertEqual(d["melhor_sequencia"]["valor"], 3)
+        self.assertEqual(d["streak_atual"]["nomes"], ["Ana", "Bia"])
+
+    def test_lider_unico(self):
+        a = self.ativos(("Ana", 5, 5, 5, False), ("Bia", 2, 2, 2, False))
+        d = self.por_id(appmod._destaques(a))
+        self.assertEqual(d["mais_constante"]["nomes"], ["Ana"])
+
+    def test_ninguem_com_zero_aparece(self):
+        a = self.ativos(("Ana", 0, 0, 0, False), ("Bia", 0, 0, 0, False))
+        self.assertEqual(appmod._destaques(a), [])
+
+    def test_quem_floresceu(self):
+        a = self.ativos(("Ana", 1, 1, 30, True), ("Bia", 0, 0, 3, False), ("Caio", 1, 1, 36, True))
+        d = self.por_id(appmod._destaques(a))
+        self.assertEqual(d["floresceram"]["nomes"], ["Ana", "Caio"])
+        self.assertEqual(d["floresceram"]["valor"], 2)
+
+    def test_formatar_nomes(self):
+        f = appmod.formatar_nomes
+        self.assertEqual(f(["Ana"], 7), "Ana")
+        self.assertEqual(f(["Ana", "Bia"], 7), "Ana e Bia")
+        self.assertEqual(f(["Ana", "Bia", "Caio"], 7), "Ana, Bia e Caio")
+        self.assertEqual(f(["Ana", "Bia", "Caio", "Duda", "Edu"], 7), "Ana, Bia, Caio e mais 2")
+        self.assertEqual(f(["Ana", "Bia", "Caio"], 3), "Todo o time")
+        self.assertEqual(f(["Ana"], 1), "Ana")
+
+
+class TestDestaquesNaPagina(ColetivoBase):
+    def test_empate_aparece_na_pagina(self):
+        self.presencas([1, 2, 3], 3)  # Arthur, Bento e Dominique com 3 dias
+        html = self.get("/dashboard").get_data(as_text=True)
+        trecho = html[html.index('aria-label="Destaques"'):]
+        for nome in ("Arthur", "Bento", "Dominique"):
+            self.assertIn(nome, trecho)
+
+
+class TestPanorama(ColetivoBase):
+    def panorama(self, periodo, hoje="2026-10-21"):
+        with appmod.app.test_request_context():
+            db = appmod.get_db()
+            ctx = appmod._base_coletivo(db)
+            return appmod._panorama(db, ctx, periodo, hoje=hoje)
+
+    def celula(self, p, data):
+        for sem in p["semanas"]:
+            for d in sem["dias"]:
+                if d["data"] == data:
+                    return d
+        return None
+
+    def test_projeto_tem_as_10_semanas_de_5_dias(self):
+        p = self.panorama("projeto")
+        self.assertEqual(len(p["semanas"]), 10)
+        self.assertTrue(all(len(s["dias"]) == 5 for s in p["semanas"]))
+
+    def test_sprint_tem_duas_semanas(self):
+        p = self.panorama("sprint")
+        self.assertEqual([s["n"] for s in p["semanas"]], [1, 2])
+
+    def test_semana_atual_tem_uma_semana(self):
+        p = self.panorama("semana")
+        self.assertEqual([s["n"] for s in p["semanas"]], [2])
+
+    def test_periodo_invalido_vira_projeto(self):
+        self.assertEqual(len(self.panorama("xyz")["semanas"]), 10)
+
+    def test_niveis_do_time_por_dia(self):
+        todos = self.todos()
+        self.presencas(todos, 1)            # 15/10: todo mundo
+        self.presencas(todos[:1], 2)        # 16/10: so um
+        p = self.panorama("projeto")
+        self.assertEqual(self.celula(p, "2026-10-15")["nivel"], 4)
+        self.assertEqual(self.celula(p, "2026-10-16")["nivel"], 1)
+
+    def test_estados_especiais(self):
+        p = self.panorama("projeto", hoje="2026-10-21")
+        self.assertEqual(self.celula(p, "2026-10-12")["estado"], "folga")   # feriado
+        self.assertEqual(self.celula(p, "2026-10-30")["estado"], "futuro")
+        self.assertEqual(self.celula(p, "2026-10-21")["estado"], "hoje")
+        self.assertEqual(self.celula(p, "2026-10-20")["estado"], "vazio")
+
+    def test_uma_linha_por_pessoa_com_as_mesmas_semanas(self):
+        p = self.panorama("projeto")
+        self.assertEqual(len(p["linhas"]), len(self.todos()))
+        self.assertTrue(all(len(l["semanas"]) == 10 for l in p["linhas"]))
+
+    def test_linha_da_pessoa_reflete_a_presenca(self):
+        self.presencas([1], 2)
+        p = self.panorama("projeto")
+        linha = next(l for l in p["linhas"] if l["id"] == 1)
+        celulas = {c["data"]: c["estado"] for sem in linha["semanas"] for c in sem}
+        self.assertEqual(celulas["2026-10-15"], "presente")
+        self.assertEqual(celulas["2026-10-16"], "presente")
+        self.assertEqual(celulas["2026-10-19"], "vazio")
+
+    def test_resumo_do_periodo(self):
+        todos = self.todos()
+        self.presencas(todos, 2)
+        r = self.panorama("projeto", hoje="2026-10-16")["resumo"]
+        self.assertEqual(r["presenca_pct"], 100)
+        self.assertEqual(r["dias_cheios"], 2)
+        self.assertEqual(r["dias"], 2)
+
+    def test_pagina_mostra_o_panorama_e_aceita_periodo(self):
+        for url in ("/dia/2026-10-19", "/dia/2026-10-19?p=sprint", "/dia/2026-10-19?p=semana"):
+            html = self.get(url).get_data(as_text=True)
+            self.assertIn("Panorama do grupo", html, url)
+
+
 if __name__ == "__main__":
     unittest.main()

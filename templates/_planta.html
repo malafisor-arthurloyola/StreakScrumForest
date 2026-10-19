@@ -1,3 +1,4 @@
+{% from "_especies.html" import desenho, especies_proprias %}
 {#
   Planta em camadas. Cada <g data-min/data-max> aparece conforme o estagio (0 a 10).
   O JS (aplicarEstagio em app.js) so troca os atributos data-* e a classe "on",
@@ -7,6 +8,7 @@
 {% set s = membro.estagio %}
 {% set fr = membro.frutos or 0 %}
 {% set v = membro.visual or {} %}
+{% set esp = v.especie or 'muda' %}
 {% set F = '#' ~ (v.folha or 'p-folha') %}
 <svg class="planta" viewBox="0 0 120 150" width="{{ tamanho }}" height="{{ (tamanho * 1.25) | round | int }}"
      role="img" aria-label="Planta de {{ membro.name }}: {{ membro.estagio_nome }}"
@@ -30,6 +32,9 @@
 
   <g class="cresce">
   <g class="top">
+    {% if esp in especies_proprias %}
+    {{ desenho(esp, s, fr) }}
+    {% else %}
     <g class="cam{{ ' on' if s >= 1 }}" data-min="1">
       <path class="caule" d="M60 117V104"/>
       <use href="{{ F }}" class="f1" transform="translate(60 105) rotate(-38) scale(.55)"/>
@@ -105,21 +110,21 @@
     <g class="cam{{ ' on' if s >= 10 }}" data-min="10">
       <use href="#p-flor-ouro" transform="translate(60 27) scale(1.9)"/>
     </g>
+    {% endif %}
   </g>
   </g>
 
   {# Brotinhos do dia: a cada presenca dentro do estagio nasce uma folhinha no vaso #}
   {% set prog = membro.progresso or 0 %}
-  <g class="dia-extra d1{{ ' on' if s >= 1 and prog >= 0.2 }}" data-prog="0.2">
-    <g transform="translate(55 113) rotate(-158) scale(.6)"><use href="{{ F }}" class="f3"/></g>
-  </g>
-  <g class="dia-extra d2{{ ' on' if s >= 1 and prog >= 0.5 }}" data-prog="0.5">
-    <g transform="translate(65 113) rotate(-22) scale(.6)"><use href="{{ F }}" class="f1"/></g>
-  </g>
-
-  <g class="dia-extra d3{{ ' on' if s >= 1 and prog >= 0.75 }}" data-prog="0.75">
-    <g transform="translate(60 113) rotate(-90) scale(.55)"><use href="{{ F }}" class="f2"/></g>
-  </g>
+  {% macro broto_dia(forma, x, rot, cls) %}
+    {% if forma == 'pup' %}<ellipse class="ea" cx="{{ x }}" cy="113" rx="2.6" ry="3.6"/>
+    {% elif forma == 'cogu' %}<g transform="translate({{ x }} 113)"><rect class="ed" x="-.9" y="-1" width="1.8" height="4" rx=".9"/><path class="ea" d="M-3.4 -1A3.4 2.8 0 0 1 3.4 -1Z"/></g>
+    {% else %}<g transform="translate({{ x }} 113) rotate({{ rot }}) scale(.6)"><use href="{{ F }}" class="{{ cls }}"/></g>{% endif %}
+  {% endmacro %}
+  {% set forma = 'pup' if esp == 'cacto' else ('cogu' if esp == 'cogumelo' else 'folha') %}
+  <g class="dia-extra d1{{ ' on' if s >= 1 and prog >= 0.2 }}" data-prog="0.2">{{ broto_dia(forma, 55, -158, 'f3') }}</g>
+  <g class="dia-extra d2{{ ' on' if s >= 1 and prog >= 0.5 }}" data-prog="0.5">{{ broto_dia(forma, 65, -22, 'f1') }}</g>
+  <g class="dia-extra d3{{ ' on' if s >= 1 and prog >= 0.75 }}" data-prog="0.75">{{ broto_dia(forma, 60, -90, 'f2') }}</g>
 
   <g class="balao" aria-hidden="true">
     <rect x="83" y="3" width="34" height="27" rx="13.5"/>

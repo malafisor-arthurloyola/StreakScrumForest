@@ -498,7 +498,8 @@ input::placeholder { color: var(--ink2); opacity: 0.8; }
 .bar-seg { height: 100%; border-radius: 999px; background: var(--ok); }
 .bar-meta { min-width: 60px; color: var(--ink2); font-size: 0.86rem; text-align: right; }
 
-.destaques { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.destaques { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+.destaque-4 { background: #ff9ec4; color: #3a0f20; }
 .destaque {
   display: flex; flex-direction: column; gap: 2px;
   min-height: 156px; padding: 22px 24px; border-radius: var(--r-lg);
@@ -938,6 +939,77 @@ body.entrar { display: grid; grid-template-columns: minmax(0, 1fr); place-items:
 }
 .entrar-erro { margin: 0; padding: 10px 14px; border-radius: 12px; background: rgba(255, 141, 118, 0.14); color: var(--falta); font-weight: 600; }
 .entrar-form .btn { margin-top: 6px; }
+
+/* ===== Desenhos proprios por especie (cores) ===== */
+.planta .ea { fill: var(--ea); } .planta .eb { fill: var(--eb); } .planta .ec { fill: var(--ec); }
+.planta .ed { fill: var(--ed); } .planta .ee { fill: var(--ee); } .planta .ef { fill: var(--ef); }
+.planta .eo { fill: var(--ouro); } .planta .eo2 { fill: var(--ouro-2); }
+.planta .sa, .planta .sb, .planta .sd { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.planta .sa { stroke: var(--ea); } .planta .sb { stroke: var(--eb); } .planta .sd { stroke: var(--ed); }
+.fronde-haste { fill: none; stroke: var(--eb); stroke-width: 1.5; stroke-linecap: round; }
+.planta[data-especie="girassol"] { --ea: #3fae5a; --eb: #2d8a46; --ec: #ffd23f; --ed: #5a3417; --ee: #ffe27a; --ef: #8a5a2b; --fruto: #8a5a2b; --ouro: #ffc21a; --ouro-2: #ff9f1c; }
+.planta[data-especie="cacto"] { --ea: #4fae6a; --eb: #3a935a; --ec: #ff7fae; --ed: #fff4c9; --ee: #ffc2d8; --ef: #ff5d8a; --petal: #ff7fae; --centro: #ffd35c; --fruto: #ff5d8a; }
+.planta[data-especie="cogumelo"] { --ea: #e5483b; --eb: #c63429; --ec: #ffffff; --ed: #f3ecd9; --ee: #d9cdb0; --ef: #ffd35c; --fruto: #f3ecd9; }
+.planta[data-especie="carnivora"] { --ea: #3fb06a; --eb: #ff5d73; --ec: #fff6d8; --ed: #5fbf78; --ee: #ffffff; --ef: #2a2030; --petal: #ffffff; --centro: #ffe27a; --fruto: #2a2030; }
+.planta[data-especie="samambaia"] { --ea: #2f9f6a; --eb: #1f7f58; --ec: #a9744a; --ed: #1f7f58; --ee: #62d29c; --ef: #ffd35c; --fruto: #a9744a; }
+.planta[data-especie="lavanda"] { --ea: #7fb59b; --eb: #5e9a82; --ec: #a98cff; --ed: #6f4bd6; --ee: #c4b0ff; --ef: #4a3a8a; --fruto: #4a3a8a; --ouro: #d9c8ff; --ouro-2: #b79cff; }
+.planta[data-especie="bambu"] { --ea: #8fd16a; --eb: #5ea845; --ec: #9be37f; --ed: #6fc95a; --ee: #fff3b0; --ef: #d9b86a; --fruto: #d9b86a; }
+.planta[data-especie="bonsai"] { --ea: #7a5434; --eb: #5a3d24; --ec: #2f8f5a; --ed: #1f6f46; --ee: #ffd0e0; --ef: #ff7a8a; --petal: #ffd0e0; --centro: #ff9ab8; --fruto: #ff7a8a; }
+.planta[data-especie="cerejeira"] { --ea: #8a5a4a; --eb: #6a4236; --ec: #ffb7cf; --ed: #ff8fb3; --ee: #7bc79a; --ef: #e03a52; --fruto: #e03a52; --ouro: #ffd9e6; --ouro-2: #ffc2d8; }
+.planta[data-especie="jabuticabeira"] { --ea: #6b4a2f; --eb: #4a3220; --ec: #3f9f5f; --ed: #2d8049; --ee: #ffffff; --ef: #3b1f4a; --petal: #ffffff; --centro: #ffe27a; --fruto: #3b1f4a; --fruto-verde: #7d5a8c; }
+.planta[data-especie="ipe"] { --ea: #7a5a3a; --eb: #5a4028; --ec: #ffd21f; --ed: #ff9f1c; --ee: #86d77d; --ef: #9a7a4a; --fruto: #9a7a4a; }
+.planta[data-especie="baoba"] { --ea: #b9835a; --eb: #946440; --ec: #5fcf9a; --ed: #ffffff; --ee: #5ee6d0; --ef: #8a6a3a; --petal: #ffffff; --centro: #ffd35c; --fruto: #8a6a3a; --ouro: #5ee6d0; --ouro-2: #2bbfa8; }
+
+.planta .lobo { transform-box: fill-box; transform-origin: left bottom; transform: rotate(34deg); animation: abre 9s ease-in-out var(--b, 0s) infinite; }
+@keyframes abre { 0%, 82%, 100% { transform: rotate(34deg); } 88%, 93% { transform: rotate(4deg); } }
+.planta .petalas-cai { animation: petala-queda 5s ease-in infinite; }
+@keyframes petala-queda { 0% { transform: translateY(-4px); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateY(34px); opacity: 0; } }
+
+/* ===== Panorama do grupo (estilo mapa de contribuicoes) ===== */
+.panorama { margin-top: 8px; }
+.periodos { display: flex; flex-wrap: wrap; gap: 6px; }
+.periodo { padding: 0.4rem 0.95rem; border-radius: 999px; background: var(--s2); color: var(--ink); font-size: 0.92rem; font-weight: 600; text-decoration: none; }
+.periodo:hover { background: var(--s3); }
+.periodo.ativo { background: var(--acc); color: var(--acc-ink); }
+.panorama-resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.pr { display: flex; flex-direction: column; gap: 2px; padding: 14px 16px; border-radius: var(--r-md); background: var(--s1); }
+.pr b { color: var(--acc); font-size: 1.8rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; }
+.pr span { color: var(--ink2); font-size: 0.88rem; }
+.panorama .card h3 { margin-bottom: 14px; font-size: 1.1rem; }
+.panorama .card + .card { margin-top: 12px; }
+
+.gh { display: grid; grid-template-columns: repeat(var(--semanas), minmax(0, 1fr)); gap: 6px; }
+.gh-sem { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.gh-n { color: var(--ink2); font-size: 0.72rem; font-weight: 700; }
+.gh-dia { display: block; width: 100%; max-width: 46px; aspect-ratio: 1; border-radius: 8px; background: var(--s2); }
+.gh-dia[data-n="1"] { background: #1f5240; }
+.gh-dia[data-n="2"] { background: #2a7a58; }
+.gh-dia[data-n="3"] { background: #39ad78; }
+.gh-dia[data-n="4"] { background: #66ea9f; }
+.gh-dia[data-estado="vazio"] { background: #26382f; }
+.gh-dia[data-estado="futuro"] { opacity: 0.45; }
+.gh-dia[data-estado="folga"] { background: transparent; border: 1px dashed var(--s4); }
+.gh-dia[data-hoje] { outline: 2px solid var(--acc); outline-offset: -2px; }
+a.gh-dia:hover { filter: brightness(1.25); }
+.gh-legenda { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 14px; color: var(--ink2); font-size: 0.82rem; }
+.gh-legenda .gh-dia { display: inline-block; width: 14px; height: 14px; max-width: none; border-radius: 4px; }
+
+.pessoas { display: grid; gap: 4px; overflow-x: auto; padding-bottom: 4px; }
+.pessoa { display: flex; align-items: center; gap: 12px; padding: 5px 0; min-width: max-content; }
+.pessoa-nome { flex: none; width: 108px; color: var(--ink); font-weight: 700; text-decoration: none; }
+.pessoa-nome:hover { text-decoration: underline; }
+.pessoa-semanas { display: flex; gap: 9px; }
+.pessoa-sem { display: flex; gap: 2px; }
+.pdia { display: block; width: 11px; height: 11px; border-radius: 3px; background: var(--s2); }
+.pdia[data-estado="presente"] { background: var(--ok); }
+.pdia[data-estado="justificada"] { background: var(--aviso); }
+.pdia[data-estado="hoje"] { outline: 2px solid var(--acc); outline-offset: -2px; }
+.pdia[data-estado="vazio"], .pdia[data-estado="faltou"] { background: #26382f; }
+.pdia[data-estado="futuro"] { opacity: 0.4; }
+.pdia[data-estado="folga"] { background: transparent; border: 1px dashed var(--s4); }
+.panorama-semana .pdia { width: 30px; height: 30px; border-radius: 8px; }
+.panorama-semana .pessoa-nome { width: 108px; }
+.cal-legenda .pdia { display: inline-block; vertical-align: -2px; margin-right: 4px; }
 
 /* ===== Fase C: coletivo ===== */
 .cena-plantas { position: relative; }

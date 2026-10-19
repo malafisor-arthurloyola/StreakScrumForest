@@ -154,6 +154,12 @@ precisa entrar de novo.
 produção, os dados vivos ficam em `~/dados/strikes.db` no servidor. Se você continuar rodando o
 site também no seu computador, as duas bases vão divergir.
 
+## Panorama do grupo e novas plantas (branch `feature/panorama-especies`)
+
+- **Panorama do grupo** na tela Hoje (botao "Panorama do grupo"): visao estilo GitHub do projeto todo, da sprint ou da semana, com mapa de calor do time (cada quadrado e um dia; clique para abrir o dia) e uma linha por pessoa (clique no nome para ver o membro).
+- **Destaques corrigidos**: em caso de empate, todo mundo que empatou aparece ("Bruno e Heloisa", "Todo o time").
+- **Plantas com desenho proprio**: cacto, cogumelo, planta carnivora (armadilhas que abrem e fecham), girassol, samambaia, lavanda, bambu, bonsai, cerejeira, jabuticabeira, ipe e baoba. Cacto, cogumelo e carnivora sao novas na Loja.
+
 ## Como testar uma branch (`feature/deploy`, `feature/coletivo`, `feature/loja-sementes`, `feature/jardim-vivo` ou `redesign/visual`)
 
 Use sempre uma **cópia** do banco para não alterar os dados reais do grupo.

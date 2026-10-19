@@ -725,6 +725,7 @@ def dia(data_str):
         dia_n=dias_letivos_lista.index(data_str) + 1 if e_letivo else None,
         dias_total=len(dias_letivos_lista),
         marcos_ids=_marcos_liberados(stats_list, game.meta_floracao(len(dias_letivos_lista))),
+        panorama=_panorama(db, _base_coletivo(db), request.args.get("p", "projeto")),
     )
 
 
@@ -833,6 +834,135 @@ def _resumo_semana(db, ctx):
     }
 
 
+PERIODOS_PANORAMA = ("projeto", "sprint", "semana")
+
+
+def _panorama(db, ctx, periodo="projeto", hoje=None):
+    """Panorama do grupo, estilo mapa de contribuicoes do GitHub: o time dia a dia e
+    cada pessoa em uma linha, para o projeto todo, a sprint atual ou a semana atual."""
+    hoje = hoje or ctx["hoje"]
+    if periodo not in PERIODOS_PANORAMA:
+        periodo = "projeto"
+    cfg = _get_config(db)
+    s1 = date.fromisoformat(cfg.get("semana1_inicio", "2026-10-12"))
+    n_sem = int(cfg.get("num_semanas", "10"))
+    sprint_n = game.sprint_da_data(hoje, ctx["sprints"])
+
+    indices = list(range(n_sem))
+    if periodo == "sprint":
+        sp = ctx["sprints"][sprint_n - 1]
+        indices = [i for i in indices
+                   if sp["inicio"] <= (s1 + timedelta(weeks=i)).isoformat() <= sp["fim"]]
+    elif periodo == "semana":
+        indices = [max(0, min(n_sem - 1, (date.fromisoformat(hoje) - s1).days // 7))]
+
+    ativos = ctx["ativos"]
+    total = len(ativos)
+    regs = {m["id"]: _reg_membro(ctx["glob"], m["id"]) for m in ativos}
+    semanas = []
+    linhas = {m["id"]: [] for m in ativos}
+    dias_do_periodo = []
+
+    for i in indices:
+        seg = s1 + timedelta(weeks=i)
+        dias_time = []
+        por_pessoa = {m["id"]: [] for m in ativos}
+        for j in range(5):
+            dd = seg + timedelta(days=j)
+            ds = dd.isoformat()
+            rotulo = f"{NOMES_SEMANA[j]} {dd.day:02d}/{dd.month:02d}"
+            letivo = ds in ctx["dias_set"]
+            presentes = sum(
+                1 for m in ativos if ctx["glob"].get(ds, {}).get(m["id"], {}).get("presente")
+            )
+            if letivo and ds <= hoje:
+                dias_do_periodo.append(ds)
+            if not letivo:
+                estado = "folga"
+            elif ds > hoje:
+                estado = "futuro"
+            elif presentes == 0:
+                estado = "hoje" if ds == hoje else "vazio"
+            else:
+                estado = "dia"
+            dias_time.append({
+                "data": ds, "rotulo": rotulo, "estado": estado,
+                "nivel": game.nivel_presenca(presentes, total) if estado in ("dia", "hoje", "vazio") else 0,
+                "presentes": presentes, "total": total, "e_hoje": ds == hoje,
+            })
+            for m in ativos:
+                por_pessoa[m["id"]].append({
+                    "data": ds, "rotulo": rotulo,
+                    "estado": _estado_dia(regs[m["id"]].get(ds, {}), ds, hoje, ctx["dias_set"]),
+                })
+        semanas.append({"n": i + 1, "dias": dias_time})
+        for m in ativos:
+            linhas[m["id"]].append(por_pessoa[m["id"]])
+
+    possiveis = len(dias_do_periodo) * total
+    presentes_total = sum(
+        1 for d in dias_do_periodo for m in ativos
+        if ctx["glob"].get(d, {}).get(m["id"], {}).get("presente")
+    )
+    resumo = {
+        "dias": len(dias_do_periodo),
+        "presenca_pct": round(100 * presentes_total / possiveis) if possiveis else 0,
+        "dias_cheios": sum(1 for d in dias_do_periodo if d in ctx["cheios"]),
+        "maior_sequencia": game.avaliar_meta(
+            "sequencia_time", 1, dias_do_periodo, hoje, ctx["ativos_ids"], ctx["glob"], ctx["cheios"]
+        )["valor"],
+    }
+    return {
+        "periodo": periodo,
+        "opcoes": [
+            {"id": "projeto", "nome": "Projeto todo"},
+            {"id": "sprint", "nome": f"Sprint {sprint_n}"},
+            {"id": "semana", "nome": "Esta semana"},
+        ],
+        "semanas": semanas,
+        "linhas": [{"id": m["id"], "name": m["name"], "semanas": linhas[m["id"]]} for m in ativos],
+        "resumo": resumo,
+        "total": total,
+    }
+
+
+def formatar_nomes(nomes, total):
+    """'Ana', 'Ana e Bia', 'Ana, Bia e Caio', 'Ana, Bia, Caio e mais 2' ou 'Todo o time'."""
+    if total > 1 and len(nomes) >= total:
+        return "Todo o time"
+    if len(nomes) <= 1:
+        return nomes[0] if nomes else ""
+    if len(nomes) <= 3:
+        return ", ".join(nomes[:-1]) + " e " + nomes[-1]
+    return ", ".join(nomes[:3]) + f" e mais {len(nomes) - 3}"
+
+
+def _lideres(ativos, chave):
+    if not ativos:
+        return 0, []
+    maior = max(m[chave] for m in ativos)
+    return maior, sorted(m["name"] for m in ativos if m[chave] == maior)
+
+
+def _destaques(ativos):
+    """Destaques positivos do time. Em empate, aparecem todos os lideres."""
+    itens = []
+    for ident, rotulo, chave in (
+        ("streak_atual", "Chama mais alta agora", "streak"),
+        ("melhor_sequencia", "Maior sequência", "melhor_streak"),
+        ("mais_constante", "Mais constante", "dias_presentes"),
+    ):
+        valor, nomes = _lideres(ativos, chave)
+        if valor > 0:
+            itens.append({"id": ident, "rotulo": rotulo, "valor": valor, "nomes": nomes,
+                          "texto": formatar_nomes(nomes, len(ativos))})
+    flores = sorted(m["name"] for m in ativos if m["floresceu"])
+    if flores:
+        itens.append({"id": "floresceram", "rotulo": "Já floresceram", "valor": len(flores),
+                      "nomes": flores, "texto": formatar_nomes(flores, len(ativos))})
+    return itens
+
+
 def _painel_coletivo(db, ctx):
     hoje = ctx["hoje"]
     n = game.sprint_da_data(hoje, ctx["sprints"])
@@ -865,6 +995,7 @@ def _painel_coletivo(db, ctx):
         ),
         "trilhas": trilhas,
         "resumo_semana": _resumo_semana(db, ctx),
+        "destaques": _destaques(ctx["ativos"]),
     }
 
 
@@ -1001,8 +1132,10 @@ def _resumo_sprint(db, ctx, n):
         serie.append({"data": d, "taxa": round(100 * presentes / len(ativos)), "total": len(ativos)})
 
     metas = _metas_da_sprint(db, ctx, n)
-    destaques_seq = sorted((x for x in destaques if x["sequencia"] > 0),
-                           key=lambda x: (-x["sequencia"], x["name"]))[:3]
+    com_seq = sorted((x for x in destaques if x["sequencia"] > 0),
+                     key=lambda x: (-x["sequencia"], x["name"]))
+    corte = com_seq[min(2, len(com_seq) - 1)]["sequencia"] if com_seq else 0
+    destaques_seq = [x for x in com_seq if x["sequencia"] >= corte]  # empates nao ficam de fora
     return {
         "sprint": sp, "n": n, "total_sprints": len(ctx["sprints"]),
         "dias_total": len(dias_sp), "dias_decorridos": len(decorridos),

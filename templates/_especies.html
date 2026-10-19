@@ -1,0 +1,616 @@
+{#
+  Desenhos proprios de cada especie. Todos seguem o mesmo contrato do _planta.html:
+  cada <g data-min/data-max> aparece conforme o estagio (0 a 10) e o JS so alterna a
+  classe "on". As cores vem de variaveis CSS por especie (--ea ... --ef) em style.css.
+  Classes: ea..ef = preenchimentos; sa/sb/sd = tracos; eo/eo2 = ouro do estagio 10.
+#}
+{% set especies_proprias = ['girassol', 'cacto', 'cogumelo', 'carnivora', 'samambaia', 'lavanda', 'bambu',
+                            'bonsai', 'cerejeira', 'jabuticabeira', 'ipe', 'baoba'] %}
+
+{# ---------------------------------------------------------------- girassol #}
+{% macro cabeca_girassol(n, raio, ry, rx, disco, ca, cb, cd) %}
+{% for i in range(n) %}
+<ellipse class="{{ ca if i % 2 == 0 else cb }}" cx="0" cy="-{{ raio }}" rx="{{ rx }}" ry="{{ ry }}" transform="rotate({{ (i * 360 / n) | round(1) }})"/>
+{% endfor %}
+<circle class="{{ cd }}" r="{{ disco }}"/>
+{% endmacro %}
+
+{% macro esp_girassol(s, fr) %}
+<g class="cam{{ ' on' if s >= 1 }}" data-min="1">
+  <path class="sa" stroke-width="3.2" d="M60 117V104"/>
+  <use href="#p-folha-redonda" class="ea" transform="translate(60 106) rotate(-30) scale(.45)"/>
+  <use href="#p-folha-redonda" class="eb" transform="translate(60 106) rotate(-150) scale(.45)"/>
+</g>
+<g class="cam{{ ' on' if s >= 2 }}" data-min="2">
+  <path class="sa" stroke-width="3.2" d="M60 106V92"/>
+  <use href="#p-folha-redonda" class="eb" transform="translate(60 98) rotate(-24) scale(.7)"/>
+  <use href="#p-folha-redonda" class="ea" transform="translate(60 98) rotate(-156) scale(.7)"/>
+</g>
+<g class="cam{{ ' on' if s >= 3 }}" data-min="3">
+  <path class="sa" stroke-width="3.2" d="M60 94V80"/>
+  <use href="#p-folha-redonda" class="ea" transform="translate(60 88) rotate(-20) scale(.85)"/>
+  <use href="#p-folha-redonda" class="eb" transform="translate(60 88) rotate(-160) scale(.85)"/>
+</g>
+<g class="cam{{ ' on' if s >= 4 }}" data-min="4">
+  <path class="sa" stroke-width="3.4" d="M60 82V68"/>
+  <use href="#p-folha-redonda" class="eb" transform="translate(60 78) rotate(-16) scale(.95)"/>
+  <use href="#p-folha-redonda" class="ea" transform="translate(60 78) rotate(-164) scale(.95)"/>
+</g>
+<g class="cam{{ ' on' if s >= 5 }}" data-min="5">
+  <path class="sa" stroke-width="3.4" d="M60 70V58"/>
+  <use href="#p-folha-redonda" class="ea" transform="translate(60 68) rotate(-30) scale(.8)"/>
+  <use href="#p-folha-redonda" class="eb" transform="translate(60 68) rotate(-150) scale(.8)"/>
+</g>
+<g class="cam{{ ' on' if s >= 6 }}" data-min="6">
+  <path class="sa" stroke-width="3.4" d="M60 60V46"/>
+  <use href="#p-folha-redonda" class="eb" transform="translate(60 56) rotate(-46) scale(.6)"/>
+  <use href="#p-folha-redonda" class="ea" transform="translate(60 56) rotate(-134) scale(.6)"/>
+</g>
+<g class="cam{{ ' on' if s == 7 }}" data-min="7" data-max="7">
+  <g transform="translate(60 40)">
+    <circle class="ea" r="8.5"/>
+    {% for k in range(8) %}<use href="#p-folha" class="eb" transform="rotate({{ k * 45 }}) translate(4.5 0) scale(.3)"/>{% endfor %}
+    <circle class="ec" r="4.4"/>
+  </g>
+</g>
+<g class="cam{{ ' on' if s >= 8 }}" data-min="8">
+  <g transform="translate(60 38)">
+    <circle class="ea" r="9.5"/>
+    {{ cabeca_girassol(10, 11, 7.5, 3.4, 7, 'ec', 'ee', 'ed') }}
+  </g>
+</g>
+<g class="cam{{ ' on' if s >= 9 }}" data-min="9">
+  <g transform="translate(60 36) rotate(-5)">
+    {{ cabeca_girassol(18, 15, 10.5, 3.8, 10, 'ec', 'ee', 'ed') }}
+    <circle class="ef" cx="0" cy="0" r="1.3"/><circle class="ef" cx="3.8" cy="0" r="1.3"/><circle class="ef" cx="-3.8" cy="0" r="1.3"/>
+    <circle class="ef" cx="0" cy="3.8" r="1.3"/><circle class="ef" cx="0" cy="-3.8" r="1.3"/>
+    <circle class="ef" cx="2.7" cy="2.7" r="1.2"/><circle class="ef" cx="-2.7" cy="2.7" r="1.2"/>
+    <circle class="ef" cx="2.7" cy="-2.7" r="1.2"/><circle class="ef" cx="-2.7" cy="-2.7" r="1.2"/>
+    <circle class="ef" cx="6.4" cy="0" r="1.1"/><circle class="ef" cx="-6.4" cy="0" r="1.1"/>
+    <circle class="ef" cx="0" cy="6.4" r="1.1"/><circle class="ef" cx="0" cy="-6.4" r="1.1"/>
+  </g>
+</g>
+<g class="frutos">
+  <circle class="fr{{ ' on' if fr >= 1 }}" data-fruto="1" cx="53" cy="36" r="2"/>
+  <circle class="fr{{ ' on' if fr >= 2 }}" data-fruto="2" cx="67" cy="36" r="2"/>
+  <circle class="fr{{ ' on' if fr >= 3 }}" data-fruto="3" cx="60" cy="29" r="2"/>
+  <circle class="fr{{ ' on' if fr >= 4 }}" data-fruto="4" cx="56" cy="43" r="2"/>
+  <circle class="fr{{ ' on' if fr >= 5 }}" data-fruto="5" cx="64" cy="43" r="2"/>
+</g>
+<g class="cam{{ ' on' if s >= 10 }}" data-min="10">
+  <g transform="translate(60 34)">
+    {{ cabeca_girassol(20, 18, 12.5, 4.2, 12, 'eo', 'eo2', 'ed') }}
+    <circle class="ef" cx="0" cy="0" r="1.6"/><circle class="ef" cx="4.4" cy="0" r="1.5"/><circle class="ef" cx="-4.4" cy="0" r="1.5"/>
+    <circle class="ef" cx="0" cy="4.4" r="1.5"/><circle class="ef" cx="0" cy="-4.4" r="1.5"/>
+    <circle class="ef" cx="3.1" cy="3.1" r="1.4"/><circle class="ef" cx="-3.1" cy="3.1" r="1.4"/>
+    <circle class="ef" cx="3.1" cy="-3.1" r="1.4"/><circle class="ef" cx="-3.1" cy="-3.1" r="1.4"/>
+  </g>
+</g>
+{% endmacro %}
+
+{# ---------------------------------------------------------------- cacto #}
+{% macro espinhos(pontos) %}
+<path class="sd" stroke-width="1.1" d="{% for x, y, dx in pontos %}M{{ x }} {{ y }}l{{ dx }} -1.5{% endfor %}"/>
+{% endmacro %}
+
+{% macro esp_cacto(s, fr) %}
+<g class="cam{{ ' on' if s >= 1 }}" data-min="1">
+  <ellipse class="ea" cx="60" cy="111" rx="6.4" ry="7"/>
+  {{ espinhos([(56, 108, -2.4), (64, 108, 2.4), (56, 113, -2.4), (64, 113, 2.4)]) }}
+</g>
+<g class="cam{{ ' on' if s >= 2 }}" data-min="2">
+  <rect class="ea" x="54.5" y="98" width="11" height="20" rx="5.5"/>
+  {{ espinhos([(56, 102, -2.4), (64, 100, 2.4), (56, 108, -2.4), (64, 106, 2.4)]) }}
+</g>
+<g class="cam{{ ' on' if s >= 3 }}" data-min="3">
+  <rect class="ea" x="54" y="88" width="12" height="30" rx="6"/>
+  {{ espinhos([(56, 92, -2.4), (64, 90, 2.4), (56, 98, -2.4), (64, 96, 2.4)]) }}
+</g>
+<g class="cam{{ ' on' if s >= 4 }}" data-min="4">
+  <rect class="ea" x="53" y="80" width="14" height="38" rx="7"/>
+  <path class="sd" stroke-width="0" d=""/>
+  <path class="sb" stroke-width="1.2" d="M60 84V116"/>
+  {{ espinhos([(55, 84, -2.4), (65, 82, 2.4), (55, 90, -2.4), (65, 88, 2.4), (55, 104, -2.4), (65, 102, 2.4)]) }}
+</g>
+<g class="cam{{ ' on' if s >= 5 }}" data-min="5">
+  <path class="sa" stroke-width="8" d="M54 104H44V92"/>
+  {{ espinhos([(41, 96, -2.4), (47, 94, 2.4), (41, 102, -2.4)]) }}
+</g>
+<g class="cam{{ ' on' if s >= 6 }}" data-min="6">
+  <rect class="ea" x="53" y="70" width="14" height="48" rx="7"/>
+  <path class="sb" stroke-width="1.2" d="M60 74V116"/>
+  <path class="sa" stroke-width="7" d="M66 98H76V84"/>
+  {{ espinhos([(55, 74, -2.4), (65, 72, 2.4), (55, 80, -2.4), (65, 78, 2.4), (73, 90, -2.4), (79, 88, 2.4)]) }}
+</g>
+<g class="cam{{ ' on' if s == 7 }}" data-min="7" data-max="7">
+  <ellipse class="ec" cx="60" cy="68" rx="3" ry="4"/>
+  <ellipse class="ec" cx="44" cy="89" rx="2.6" ry="3.4"/>
+  <ellipse class="ec" cx="76" cy="81" rx="2.6" ry="3.4"/>
+</g>
+<g class="cam{{ ' on' if s >= 8 }}" data-min="8">
+  <use href="#p-flor" transform="translate(60 66) scale(.95)"/>
+  <use href="#p-flor" transform="translate(44 87) scale(.7)"/>
+  <use href="#p-flor" transform="translate(76 79) scale(.7)"/>
+</g>
+<g class="frutos">
+  <ellipse class="fr{{ ' on' if fr >= 1 }}" data-fruto="1" cx="40" cy="96" rx="2.6" ry="3.4"/>
+  <ellipse class="fr{{ ' on' if fr >= 2 }}" data-fruto="2" cx="80" cy="90" rx="2.6" ry="3.4"/>
+  <ellipse class="fr{{ ' on' if fr >= 3 }}" data-fruto="3" cx="57" cy="76" rx="2.4" ry="3.2"/>
+  <ellipse class="fr{{ ' on' if fr >= 4 }}" data-fruto="4" cx="64" cy="80" rx="2.4" ry="3.2"/>
+  <ellipse class="fr{{ ' on' if fr >= 5 }}" data-fruto="5" cx="48" cy="100" rx="2.4" ry="3.2"/>
+</g>
+<g class="cam{{ ' on' if s >= 10 }}" data-min="10">
+  <use href="#p-flor-ouro" transform="translate(60 60) scale(1.6)"/>
+</g>
+{% endmacro %}
+
+{# ---------------------------------------------------------------- cogumelo #}
+{% macro capa(cx, cy, rx, ry, cls) %}
+<path class="{{ cls }}" d="M{{ cx - rx }} {{ cy }}A{{ rx }} {{ ry }} 0 0 1 {{ cx + rx }} {{ cy }}Q{{ cx }} {{ cy + ry * 0.4 }} {{ cx - rx }} {{ cy }}Z"/>
+{% endmacro %}
+
+{% macro esp_cogumelo(s, fr) %}
+<g class="cam{{ ' on' if s >= 1 }}" data-min="1">
+  <rect class="ed" x="58.8" y="109" width="2.8" height="8" rx="1.4"/>
+  {{ capa(60.2, 110, 4.4, 3.4, 'ea') }}
+</g>
+<g class="cam{{ ' on' if s >= 2 }}" data-min="2">
+  <rect class="ed" x="58" y="103" width="4" height="14" rx="2"/>
+  {{ capa(60, 104, 8, 5.4, 'ea') }}
+  <circle class="ec" cx="57" cy="101.2" r="1.3"/>
+</g>
+<g class="cam{{ ' on' if s >= 3 }}" data-min="3">
+  <rect class="ed" x="57.4" y="96" width="5.2" height="21" rx="2.4"/>
+  {{ capa(60, 97, 11, 7.4, 'ea') }}
+  <circle class="ec" cx="55.4" cy="93.6" r="1.6"/><circle class="ec" cx="63.6" cy="94.4" r="1.4"/>
+</g>
+<g class="cam{{ ' on' if s >= 4 }}" data-min="4">
+  <rect class="ed" x="56.8" y="90" width="6.4" height="27" rx="3"/>
+  {{ capa(60, 91, 14, 9.4, 'ea') }}
+  <circle class="ec" cx="54" cy="87.4" r="1.9"/><circle class="ec" cx="64" cy="88" r="1.6"/><circle class="ec" cx="59" cy="85" r="1.4"/>
+</g>
+<g class="cam{{ ' on' if s >= 5 }}" data-min="5">
+  <rect class="ed" x="39.6" y="110" width="3" height="7" rx="1.5"/>
+  {{ capa(41.1, 111, 6.4, 4.6, 'eb') }}
+  <circle class="ec" cx="39.6" cy="108.6" r="1"/>
+  <rect class="ed" x="78.4" y="112" width="2.6" height="5" rx="1.3"/>
+  {{ capa(79.7, 113, 5, 3.8, 'eb') }}
+</g>
+<g class="cam{{ ' on' if s >= 6 }}" data-min="6">
+  <rect class="ed" x="56.4" y="82" width="7.2" height="35" rx="3.4"/>
+  {{ capa(60, 83, 18, 11.5, 'ea') }}
+  <circle class="ec" cx="52" cy="78.6" r="2.2"/><circle class="ec" cx="64" cy="79" r="1.9"/><circle class="ec" cx="58" cy="75" r="1.6"/><circle class="ec" cx="68.6" cy="84" r="1.5"/>
+</g>
+<g class="cam{{ ' on' if s == 7 }}" data-min="7" data-max="7">
+  <circle class="ed" cx="48" cy="115" r="1.8"/><circle class="ed" cx="73" cy="115.4" r="1.8"/><circle class="ed" cx="53" cy="116" r="1.4"/>
+</g>
+<g class="cam{{ ' on' if s >= 8 }}" data-min="8">
+  <rect class="ed" x="46.6" y="108" width="2.8" height="9" rx="1.4"/>
+  {{ capa(48, 109, 5.6, 4, 'ea') }}
+  <circle class="ec" cx="46.6" cy="107" r="1"/>
+  <circle class="ef" cx="44" cy="62" r="1.2"/><circle class="ef" cx="52" cy="56" r="1.2"/><circle class="ef" cx="62" cy="60" r="1.4"/>
+  <circle class="ef" cx="72" cy="56" r="1.2"/><circle class="ef" cx="78" cy="64" r="1.1"/><circle class="ef" cx="58" cy="52" r="1"/>
+</g>
+<g class="frutos">
+  <circle class="fr{{ ' on' if fr >= 1 }}" data-fruto="1" cx="45" cy="115" r="2.2"/>
+  <circle class="fr{{ ' on' if fr >= 2 }}" data-fruto="2" cx="75" cy="115" r="2.2"/>
+  <circle class="fr{{ ' on' if fr >= 3 }}" data-fruto="3" cx="52" cy="115.6" r="1.8"/>
+  <circle class="fr{{ ' on' if fr >= 4 }}" data-fruto="4" cx="68" cy="115.6" r="1.8"/>
+  <circle class="fr{{ ' on' if fr >= 5 }}" data-fruto="5" cx="83" cy="115.6" r="1.8"/>
+</g>
+<g class="cam{{ ' on' if s >= 10 }}" data-min="10">
+  {{ capa(60, 82, 19, 12.5, 'eo') }}
+  <circle class="eo2" cx="52" cy="77" r="2.2"/><circle class="eo2" cx="64" cy="77.6" r="2"/><circle class="eo2" cx="58" cy="73" r="1.7"/><circle class="eo2" cx="69" cy="82" r="1.6"/>
+</g>
+{% endmacro %}
+
+{# ---------------------------------------------------------------- carnivora #}
+{% macro lobo() %}
+<g class="lobo">
+  <path class="ea" d="M0 0L0 -20C7 -18 11 -10 9.4 0C6 3 2 2 0 0Z"/>
+  <path class="eb" d="M0.9 -1L0.9 -17.4C5.8 -15.8 8.2 -9.6 7 -1C4.6 1 2.2 0.6 0.9 -1Z"/>
+  <path class="ec" d="M9 -1l3 -1l-1 3zM10 -6l3 -.5l-1.2 3zM9.4 -11l3 0l-1.5 2.8zM7.4 -15.6l2.6 -1.2l-.6 3zM4.2 -18.8l1.6 -2.4l.8 3z"/>
+</g>
+{% endmacro %}
+
+{% macro armadilha(rot, k, atraso) %}
+<g transform="translate(60 117) rotate({{ rot }}) scale({{ k }})">
+  <path class="sd" stroke-width="3.2" d="M0 0C0 -6 1.2 -10 0 -14"/>
+  <g transform="translate(0 -14)" style="--b:{{ atraso }}s">
+    <g>{{ lobo() }}</g>
+    <g transform="scale(-1 1)">{{ lobo() }}</g>
+  </g>
+</g>
+{% endmacro %}
+
+{% macro esp_carnivora(s, fr) %}
+<g class="cam{{ ' on' if s >= 1 and s <= 3 }}" data-min="1" data-max="3">{{ armadilha(0, 0.62, 0) }}</g>
+<g class="cam{{ ' on' if s >= 4 }}" data-min="4">{{ armadilha(0, 1.18, 0) }}</g>
+<g class="cam{{ ' on' if s >= 2 and s <= 5 }}" data-min="2" data-max="5">{{ armadilha(-34, 0.55, 1.2) }}{{ armadilha(34, 0.55, 2.4) }}</g>
+<g class="cam{{ ' on' if s >= 6 }}" data-min="6">{{ armadilha(-34, 0.98, 1.2) }}{{ armadilha(34, 0.98, 2.4) }}</g>
+<g class="cam{{ ' on' if s >= 3 }}" data-min="3">{{ armadilha(-64, 0.7, 3.1) }}{{ armadilha(64, 0.7, 4.2) }}</g>
+<g class="cam{{ ' on' if s >= 5 }}" data-min="5">{{ armadilha(-17, 0.86, 5) }}{{ armadilha(17, 0.86, 0.6) }}</g>
+<g class="cam{{ ' on' if s >= 7 }}" data-min="7">
+  <path class="sd" stroke-width="1.8" d="M60 117C60 92 58 62 60 38"/>
+  <circle class="ee" cx="60" cy="36" r="2.6"/><circle class="ee" cx="54" cy="42" r="2.2"/><circle class="ee" cx="66" cy="42" r="2.2"/>
+</g>
+<g class="cam{{ ' on' if s >= 8 }}" data-min="8">
+  <use href="#p-flor" transform="translate(60 33) scale(.85)"/>
+  <use href="#p-flor" transform="translate(52 42) scale(.7)"/>
+  <use href="#p-flor" transform="translate(68 42) scale(.7)"/>
+  <use href="#p-flor" transform="translate(60 50) scale(.6)"/>
+</g>
+<g class="frutos">
+  <circle class="fr{{ ' on' if fr >= 1 }}" data-fruto="1" cx="60" cy="33" r="1.8"/>
+  <circle class="fr{{ ' on' if fr >= 2 }}" data-fruto="2" cx="52" cy="42" r="1.7"/>
+  <circle class="fr{{ ' on' if fr >= 3 }}" data-fruto="3" cx="68" cy="42" r="1.7"/>
+  <circle class="fr{{ ' on' if fr >= 4 }}" data-fruto="4" cx="60" cy="50" r="1.6"/>
+  <circle class="fr{{ ' on' if fr >= 5 }}" data-fruto="5" cx="60" cy="42" r="1.6"/>
+</g>
+<g class="cam{{ ' on' if s >= 10 }}" data-min="10">
+  <use href="#p-flor-ouro" transform="translate(60 28) scale(1.35)"/>
+</g>
+{% endmacro %}
+
+{# ---------------------------------------------------------------- samambaia #}
+{% macro esp_samambaia(s, fr) %}
+<g class="cam{{ ' on' if s >= 1 }}" data-min="1"><use href="#p-fronde" class="ea" transform="translate(60 117) rotate(-14) scale(.55)"/></g>
+<g class="cam{{ ' on' if s >= 2 }}" data-min="2"><use href="#p-fronde" class="eb" transform="translate(60 117) scale(-.55 .55) rotate(-14)"/></g>
+<g class="cam{{ ' on' if s >= 3 }}" data-min="3"><use href="#p-fronde" class="ea" transform="translate(60 117) rotate(2) scale(.85)"/></g>
+<g class="cam{{ ' on' if s >= 4 }}" data-min="4"><use href="#p-fronde" class="eb" transform="translate(60 117) scale(-.85 .85) rotate(2)"/></g>
+<g class="cam{{ ' on' if s >= 5 }}" data-min="5"><use href="#p-fronde" class="ea" transform="translate(60 117) rotate(18) scale(1.1)"/></g>
+<g class="cam{{ ' on' if s >= 6 }}" data-min="6"><use href="#p-fronde" class="eb" transform="translate(60 117) scale(-1.1 1.1) rotate(18)"/>
+  <use href="#p-fronde" class="ea" transform="translate(60 117) rotate(-26) scale(1.3)"/><use href="#p-fronde" class="eb" transform="translate(60 117) scale(-1.3 1.3) rotate(-26)"/></g>
+<g class="cam{{ ' on' if s == 7 }}" data-min="7" data-max="7">
+  <path class="sd" stroke-width="1.6" d="M58 110C58 104 58 101 61 100C64 99 65 103 62 104"/>
+  <path class="sd" stroke-width="1.6" d="M63 112C63 107 63 104 66 103C69 102 70 106 67 107"/>
+  <circle class="ee" cx="62" cy="104" r="1.1"/><circle class="ee" cx="67" cy="107" r="1.1"/>
+</g>
+<g class="cam{{ ' on' if s >= 8 }}" data-min="8">
+  <circle class="ec" cx="70" cy="90" r="1.1"/><circle class="ec" cx="77" cy="82" r="1.1"/><circle class="ec" cx="82" cy="72" r="1"/>
+  <circle class="ec" cx="50" cy="90" r="1.1"/><circle class="ec" cx="43" cy="82" r="1.1"/><circle class="ec" cx="38" cy="72" r="1"/>
+  <circle class="ec" cx="64" cy="78" r="1"/><circle class="ec" cx="56" cy="78" r="1"/>
+</g>
+<g class="frutos">
+  <circle class="fr{{ ' on' if fr >= 1 }}" data-fruto="1" cx="66" cy="98" r="2.2"/>
+  <circle class="fr{{ ' on' if fr >= 2 }}" data-fruto="2" cx="54" cy="98" r="2.2"/>
+  <circle class="fr{{ ' on' if fr >= 3 }}" data-fruto="3" cx="71" cy="90" r="2"/>
+  <circle class="fr{{ ' on' if fr >= 4 }}" data-fruto="4" cx="49" cy="90" r="2"/>
+  <circle class="fr{{ ' on' if fr >= 5 }}" data-fruto="5" cx="60" cy="92" r="2"/>
+</g>
+<g class="cam{{ ' on' if s >= 10 }}" data-min="10">
+  <use href="#p-fronde" class="eo" transform="translate(60 117) rotate(-2) scale(1.05)"/>
+  <use href="#p-fronde" class="eo2" transform="translate(60 117) scale(-1.05 1.05) rotate(-2)"/>
+</g>
+{% endmacro %}
+
+{# ---------------------------------------------------------------- lavanda #}
+{% macro haste_lavanda(x, topo, minimo, s) %}
+{% set x0 = 60 + (x - 60) * 0.35 %}
+<g class="cam{{ ' on' if s >= minimo }}" data-min="{{ minimo }}">
+  <path class="sb" stroke-width="1.5" d="M{{ x0 }} 117Q{{ x0 + (x - x0) * 0.1 }} {{ (117 + topo) / 2 + 4 }} {{ x }} {{ topo }}"/>
+  <use href="#p-folha-fina" class="ea" transform="translate({{ x0 }} 116) rotate({{ -90 + (x - 60) * 2.2 }}) scale(.42)"/>
+</g>
+{% endmacro %}
+
+{% macro espiga_lavanda(x, topo, cores) %}
+{% for i in range(5) %}
+<ellipse class="{{ cores[i % 2] }}" cx="{{ x + (i % 2) * 0.6 - 0.3 }}" cy="{{ topo - i * 3.6 }}" rx="2.3" ry="3.3"/>
+{% endfor %}
+{% endmacro %}
+
+{% macro esp_lavanda(s, fr) %}
+{% set hastes = [(60, 52, 3), (51, 60, 4), (69, 62, 4), (43, 68, 5), (77, 70, 5), (36, 76, 6), (84, 78, 6)] %}
+<g class="cam{{ ' on' if s >= 1 }}" data-min="1">
+  <use href="#p-folha-fina" class="ea" transform="translate(60 117) rotate(-100) scale(.42)"/>
+  <use href="#p-folha-fina" class="eb" transform="translate(60 117) rotate(-80) scale(.42)"/>
+</g>
+<g class="cam{{ ' on' if s >= 2 }}" data-min="2">
+  <use href="#p-folha-fina" class="ea" transform="translate(60 117) rotate(-125) scale(.55)"/>
+  <use href="#p-folha-fina" class="ea" transform="translate(60 117) rotate(-55) scale(.55)"/>
+  <use href="#p-folha-fina" class="eb" transform="translate(60 117) rotate(-90) scale(.62)"/>
+</g>
+{% for x, topo, minimo in hastes %}{{ haste_lavanda(x, topo, minimo, s) }}{% endfor %}
+<g class="cam{{ ' on' if s == 7 }}" data-min="7" data-max="7">
+  {% for x, topo, minimo in hastes %}<ellipse class="ee" cx="{{ x }}" cy="{{ topo - 1 }}" rx="1.8" ry="2.6"/>{% endfor %}
+</g>
+<g class="cam{{ ' on' if s >= 8 }}" data-min="8">
+  {% for x, topo, minimo in hastes %}{{ espiga_lavanda(x, topo, ['ec', 'ed']) }}{% endfor %}
+</g>
+<g class="frutos">
+  <circle class="fr{{ ' on' if fr >= 1 }}" data-fruto="1" cx="60" cy="59" r="1.6"/>
+  <circle class="fr{{ ' on' if fr >= 2 }}" data-fruto="2" cx="56" cy="65" r="1.5"/>
+  <circle class="fr{{ ' on' if fr >= 3 }}" data-fruto="3" cx="64" cy="67" r="1.5"/>
+  <circle class="fr{{ ' on' if fr >= 4 }}" data-fruto="4" cx="52" cy="71" r="1.4"/>
+  <circle class="fr{{ ' on' if fr >= 5 }}" data-fruto="5" cx="68" cy="72" r="1.4"/>
+</g>
+<g class="cam{{ ' on' if s >= 10 }}" data-min="10">
+  {% for x, topo, minimo in hastes %}{{ espiga_lavanda(x, topo - 2, ['eo', 'eo2']) }}{% endfor %}
+</g>
+{% endmacro %}
+
+{# ---------------------------------------------------------------- bambu #}
+{% macro colmo(x, segmentos, inicio, s, cls_seg, cls_no) %}
+{% for k in range(1, segmentos + 1) %}
+<g class="cam{{ ' on' if s >= inicio + k - 1 }}" data-min="{{ inicio + k - 1 }}">
+  <rect class="{{ cls_seg }}" x="{{ x - 2.1 }}" y="{{ 117 - k * 13 }}" width="4.2" height="13.4" rx="1.8"/>
+  <rect class="{{ cls_no }}" x="{{ x - 2.9 }}" y="{{ 117 - k * 13 - 0.8 }}" width="5.8" height="2" rx="1"/>
+  {% if k >= 3 %}
+  <use href="#p-folha-fina" class="ec" transform="translate({{ x }} {{ 117 - k * 13 + 1 }}) rotate(-38) scale(.5)"/>
+  <use href="#p-folha-fina" class="ed" transform="translate({{ x }} {{ 117 - k * 13 + 1 }}) rotate(-142) scale(.5)"/>
+  {% endif %}
+</g>
+{% endfor %}
+{% endmacro %}
+
+{% macro esp_bambu(s, fr) %}
+{{ colmo(60, 6, 1, s, 'ea', 'eb') }}
+{{ colmo(51, 4, 3, s, 'ea', 'eb') }}
+{{ colmo(69, 4, 4, s, 'ea', 'eb') }}
+{{ colmo(43, 2, 6, s, 'ea', 'eb') }}
+{{ colmo(77, 2, 6, s, 'ea', 'eb') }}
+<g class="cam{{ ' on' if s == 7 }}" data-min="7" data-max="7">
+  <rect class="ee" x="55.4" y="108" width="3" height="9" rx="1.5"/><rect class="ee" x="64.4" y="109" width="3" height="8" rx="1.5"/>
+</g>
+<g class="cam{{ ' on' if s >= 8 }}" data-min="8">
+  <ellipse class="ee" cx="56" cy="38" rx="2" ry="5" transform="rotate(-24 56 38)"/><ellipse class="ee" cx="64" cy="38" rx="2" ry="5" transform="rotate(24 64 38)"/>
+  <ellipse class="ee" cx="60" cy="34" rx="2" ry="5.4"/>
+  <ellipse class="ee" cx="47" cy="68" rx="1.8" ry="4" transform="rotate(-24 47 68)"/><ellipse class="ee" cx="73" cy="68" rx="1.8" ry="4" transform="rotate(24 73 68)"/>
+</g>
+<g class="frutos">
+  <ellipse class="fr{{ ' on' if fr >= 1 }}" data-fruto="1" cx="55" cy="40" rx="1.2" ry="2.2"/>
+  <ellipse class="fr{{ ' on' if fr >= 2 }}" data-fruto="2" cx="65" cy="40" rx="1.2" ry="2.2"/>
+  <ellipse class="fr{{ ' on' if fr >= 3 }}" data-fruto="3" cx="60" cy="36" rx="1.2" ry="2.2"/>
+  <ellipse class="fr{{ ' on' if fr >= 4 }}" data-fruto="4" cx="46" cy="70" rx="1.1" ry="2"/>
+  <ellipse class="fr{{ ' on' if fr >= 5 }}" data-fruto="5" cx="74" cy="70" rx="1.1" ry="2"/>
+</g>
+<g class="cam{{ ' on' if s >= 10 }}" data-min="10">
+  {% for k in range(1, 7) %}<rect class="eo" x="57.9" y="{{ 117 - k * 13 }}" width="4.2" height="13.4" rx="1.8"/>{% endfor %}
+  <use href="#p-folha-fina" class="eo2" transform="translate(60 40) rotate(-60) scale(.6)"/>
+  <use href="#p-folha-fina" class="eo2" transform="translate(60 40) rotate(-120) scale(.6)"/>
+</g>
+{% endmacro %}
+
+{# ---------------------------------------------------------------- bonsai #}
+{% macro pad(cx, cy, rx, ry) %}
+<ellipse class="ed" cx="{{ cx }}" cy="{{ cy + 2.2 }}" rx="{{ rx }}" ry="{{ ry }}"/>
+<ellipse class="ec" cx="{{ cx }}" cy="{{ cy }}" rx="{{ rx }}" ry="{{ ry }}"/>
+{% endmacro %}
+
+{% macro esp_bonsai(s, fr) %}
+<g class="cam{{ ' on' if s >= 1 }}" data-min="1">
+  <path class="sa" stroke-width="4" d="M60 117C58 110 62 104 58 98"/>
+  <use href="#p-folha-redonda" class="ec" transform="translate(58 98) rotate(-40) scale(.5)"/>
+</g>
+<g class="cam{{ ' on' if s >= 2 }}" data-min="2">
+  <path class="sa" stroke-width="4.2" d="M58 100C54 94 62 88 59 82"/>
+  <use href="#p-folha-redonda" class="ec" transform="translate(59 82) rotate(-140) scale(.55)"/>
+</g>
+<g class="cam{{ ' on' if s >= 3 }}" data-min="3">
+  <path class="sa" stroke-width="4.2" d="M59 84C57 78 61 72 60 66"/>
+  <path class="sb" stroke-width="2.6" d="M58 90C50 88 46 82 44 76"/>
+</g>
+<g class="cam{{ ' on' if s >= 4 }}" data-min="4">
+  <path class="sb" stroke-width="2.6" d="M60 74C68 72 74 68 76 62"/>
+  <use href="#p-folha-redonda" class="ec" transform="translate(44 76) rotate(-110) scale(.5)"/>
+</g>
+<g class="cam{{ ' on' if s >= 5 }}" data-min="5">{{ pad(60, 56, 14, 8) }}</g>
+<g class="cam{{ ' on' if s >= 6 }}" data-min="6">
+  {{ pad(44, 70, 10, 6) }}{{ pad(77, 58, 10, 6) }}{{ pad(60, 50, 17, 10) }}
+</g>
+<g class="cam{{ ' on' if s == 7 }}" data-min="7" data-max="7">
+  <circle class="ee" cx="52" cy="48" r="1.8"/><circle class="ee" cx="66" cy="44" r="1.8"/><circle class="ee" cx="44" cy="68" r="1.6"/><circle class="ee" cx="78" cy="56" r="1.6"/>
+</g>
+<g class="cam{{ ' on' if s >= 8 }}" data-min="8">
+  <use href="#p-flor" transform="translate(52 48) scale(.5)"/><use href="#p-flor" transform="translate(66 44) scale(.55)"/>
+  <use href="#p-flor" transform="translate(44 67) scale(.45)"/><use href="#p-flor" transform="translate(78 55) scale(.45)"/>
+  <use href="#p-flor" transform="translate(60 54) scale(.4)"/>
+</g>
+<g class="frutos">
+  <circle class="fr{{ ' on' if fr >= 1 }}" data-fruto="1" cx="48" cy="58" r="2"/>
+  <circle class="fr{{ ' on' if fr >= 2 }}" data-fruto="2" cx="72" cy="60" r="2"/>
+  <circle class="fr{{ ' on' if fr >= 3 }}" data-fruto="3" cx="40" cy="76" r="1.8"/>
+  <circle class="fr{{ ' on' if fr >= 4 }}" data-fruto="4" cx="82" cy="64" r="1.8"/>
+  <circle class="fr{{ ' on' if fr >= 5 }}" data-fruto="5" cx="60" cy="61" r="1.8"/>
+</g>
+<g class="cam{{ ' on' if s >= 10 }}" data-min="10">
+  <ellipse class="eo" cx="60" cy="42" rx="11" ry="6"/><ellipse class="eo2" cx="60" cy="46" rx="7" ry="3.4"/>
+</g>
+{% endmacro %}
+
+{# ---------------------------------------------------------------- cerejeira #}
+{% macro esp_cerejeira(s, fr) %}
+<g class="cam{{ ' on' if s >= 1 }}" data-min="1">
+  <path class="sa" stroke-width="3" d="M60 117V102"/>
+  <use href="#p-folha" class="ee" transform="translate(60 104) rotate(-35) scale(.5)"/><use href="#p-folha" class="ee" transform="translate(60 104) rotate(-145) scale(.5)"/>
+</g>
+<g class="cam{{ ' on' if s >= 2 }}" data-min="2">
+  <path class="sa" stroke-width="3.4" d="M60 104V90"/>
+  <use href="#p-folha" class="ee" transform="translate(60 94) rotate(-30) scale(.65)"/><use href="#p-folha" class="ee" transform="translate(60 94) rotate(-150) scale(.65)"/>
+</g>
+<g class="cam{{ ' on' if s >= 3 }}" data-min="3">
+  <path class="sa" stroke-width="3.8" d="M60 92V78"/>
+  <path class="sb" stroke-width="2.2" d="M60 86C54 84 51 80 50 76M60 82C66 80 69 76 70 72"/>
+</g>
+<g class="cam{{ ' on' if s >= 4 }}" data-min="4">
+  <path class="sa" stroke-width="3.4" d="M60 80C60 72 54 68 50 62"/>
+  <path class="sa" stroke-width="3.4" d="M60 80C60 72 66 68 70 62"/>
+  <circle class="ee" cx="50" cy="61" r="4.4"/><circle class="ee" cx="70" cy="61" r="4.4"/>
+</g>
+<g class="cam{{ ' on' if s >= 5 }}" data-min="5">
+  <path class="sa" stroke-width="3" d="M60 78V56"/>
+  <circle class="ee" cx="50" cy="54" r="10"/><circle class="ee" cx="70" cy="54" r="10"/><circle class="ee" cx="60" cy="47" r="10"/>
+</g>
+<g class="cam{{ ' on' if s >= 6 }}" data-min="6">
+  <circle class="ee" cx="44" cy="56" r="11"/><circle class="ee" cx="76" cy="56" r="11"/><circle class="ee" cx="60" cy="40" r="12"/><circle class="ee" cx="60" cy="58" r="11"/>
+</g>
+<g class="cam{{ ' on' if s == 7 }}" data-min="7" data-max="7">
+  <circle class="ed" cx="48" cy="48" r="2.2"/><circle class="ed" cx="72" cy="50" r="2.2"/><circle class="ed" cx="60" cy="36" r="2.2"/><circle class="ed" cx="42" cy="60" r="2"/><circle class="ed" cx="78" cy="60" r="2"/><circle class="ed" cx="56" cy="62" r="2"/>
+</g>
+<g class="cam{{ ' on' if s >= 8 }}" data-min="8">
+  <circle class="ec" cx="44" cy="56" r="12"/><circle class="ec" cx="76" cy="56" r="12"/><circle class="ec" cx="60" cy="40" r="13"/><circle class="ec" cx="60" cy="58" r="12"/><circle class="ec" cx="52" cy="48" r="9"/><circle class="ec" cx="68" cy="48" r="9"/>
+  <circle class="ed" cx="50" cy="44" r="2.4"/><circle class="ed" cx="70" cy="42" r="2.4"/><circle class="ed" cx="44" cy="60" r="2.2"/><circle class="ed" cx="78" cy="60" r="2.2"/><circle class="ee" cx="60" cy="34" r="2.6"/><circle class="ee" cx="56" cy="56" r="2.4"/><circle class="ee" cx="66" cy="54" r="2.4"/>
+  <g class="petalas-cai"><ellipse class="ec" cx="38" cy="68" rx="2.2" ry="1.3"/><ellipse class="ed" cx="82" cy="70" rx="2.2" ry="1.3"/><ellipse class="ec" cx="52" cy="72" rx="2" ry="1.2"/><ellipse class="ed" cx="68" cy="73" rx="2" ry="1.2"/></g>
+</g>
+<g class="frutos">
+  <g class="fr{{ ' on' if fr >= 1 }}" data-fruto="1"><path class="sa" stroke-width=".8" d="M50 66V69"/><circle class="ef" cx="50" cy="71" r="2.6"/></g>
+  <g class="fr{{ ' on' if fr >= 2 }}" data-fruto="2"><path class="sa" stroke-width=".8" d="M70 66V69"/><circle class="ef" cx="70" cy="71" r="2.6"/></g>
+  <g class="fr{{ ' on' if fr >= 3 }}" data-fruto="3"><path class="sa" stroke-width=".8" d="M60 68V71"/><circle class="ef" cx="60" cy="73" r="2.6"/></g>
+  <g class="fr{{ ' on' if fr >= 4 }}" data-fruto="4"><path class="sa" stroke-width=".8" d="M42 64V67"/><circle class="ef" cx="42" cy="69" r="2.4"/></g>
+  <g class="fr{{ ' on' if fr >= 5 }}" data-fruto="5"><path class="sa" stroke-width=".8" d="M78 64V67"/><circle class="ef" cx="78" cy="69" r="2.4"/></g>
+</g>
+<g class="cam{{ ' on' if s >= 10 }}" data-min="10">
+  <circle class="eo" cx="60" cy="36" r="9"/><circle class="eo2" cx="52" cy="44" r="5"/><circle class="eo2" cx="68" cy="44" r="5"/>
+</g>
+{% endmacro %}
+
+{# ---------------------------------------------------------------- jabuticabeira #}
+{% macro esp_jabuticabeira(s, fr) %}
+{% set pontos = [(57, 104), (63, 99), (58, 93), (62, 87), (57, 81)] %}
+<g class="cam{{ ' on' if s >= 1 }}" data-min="1">
+  <path class="sa" stroke-width="3.4" d="M60 117V102"/>
+  <use href="#p-folha-redonda" class="ec" transform="translate(60 104) rotate(-35) scale(.5)"/><use href="#p-folha-redonda" class="ed" transform="translate(60 104) rotate(-145) scale(.5)"/>
+</g>
+<g class="cam{{ ' on' if s >= 2 }}" data-min="2">
+  <path class="sa" stroke-width="3.8" d="M60 104V90"/>
+  <use href="#p-folha-redonda" class="ed" transform="translate(60 94) rotate(-30) scale(.65)"/><use href="#p-folha-redonda" class="ec" transform="translate(60 94) rotate(-150) scale(.65)"/>
+</g>
+<g class="cam{{ ' on' if s >= 3 }}" data-min="3">
+  <path class="sa" stroke-width="4.4" d="M60 92V80"/>
+  <use href="#p-folha-redonda" class="ec" transform="translate(60 84) rotate(-26) scale(.75)"/><use href="#p-folha-redonda" class="ed" transform="translate(60 84) rotate(-154) scale(.75)"/>
+</g>
+<g class="cam{{ ' on' if s >= 4 }}" data-min="4">
+  <path class="sa" stroke-width="5" d="M60 82V70"/>
+  <use href="#p-folha-redonda" class="ed" transform="translate(60 74) rotate(-22) scale(.85)"/><use href="#p-folha-redonda" class="ec" transform="translate(60 74) rotate(-158) scale(.85)"/>
+</g>
+<g class="cam{{ ' on' if s >= 5 }}" data-min="5">
+  <path class="sa" stroke-width="6" d="M60 117V66"/>
+  <circle class="ed" cx="60" cy="63" r="12"/><circle class="ec" cx="60" cy="60" r="11"/>
+</g>
+<g class="cam{{ ' on' if s >= 6 }}" data-min="6">
+  <circle class="ed" cx="60" cy="52" r="16"/><circle class="ed" cx="45" cy="64" r="11"/><circle class="ed" cx="75" cy="64" r="11"/>
+  <circle class="ec" cx="60" cy="49" r="15"/><circle class="ec" cx="46" cy="62" r="10"/><circle class="ec" cx="74" cy="62" r="10"/>
+</g>
+<g class="cam{{ ' on' if s == 7 }}" data-min="7" data-max="7">
+  {% for x, y in pontos %}<circle class="ee" cx="{{ x }}" cy="{{ y }}" r="1.5"/>{% endfor %}
+</g>
+<g class="cam{{ ' on' if s >= 8 }}" data-min="8">
+  {% for x, y in pontos %}<g transform="translate({{ x }} {{ y }}) scale(.34)"><use href="#p-flor"/></g>{% endfor %}
+</g>
+<g class="cam{{ ' on' if s == 9 }}" data-min="9" data-max="9">
+  {% for x, y in pontos %}<circle class="fruto-verde" cx="{{ x }}" cy="{{ y }}" r="2.6"/>{% endfor %}
+</g>
+<g class="frutos">
+  {% for x, y in pontos %}<circle class="fr{{ ' on' if fr >= loop.index }}" data-fruto="{{ loop.index }}" cx="{{ x + (2 if loop.index is even else -2) }}" cy="{{ y + 1 }}" r="3"/>{% endfor %}
+</g>
+<g class="cam{{ ' on' if s >= 10 }}" data-min="10">
+  <circle class="eo" cx="60" cy="40" r="8"/><circle class="eo2" cx="52" cy="48" r="4"/><circle class="eo2" cx="68" cy="48" r="4"/>
+</g>
+{% endmacro %}
+
+{# ---------------------------------------------------------------- ipe #}
+{% macro esp_ipe(s, fr) %}
+<g class="cam{{ ' on' if s >= 1 }}" data-min="1">
+  <path class="sa" stroke-width="2.6" d="M60 117V102"/>
+  <use href="#p-folha" class="ee" transform="translate(60 104) rotate(-35) scale(.5)"/><use href="#p-folha" class="ee" transform="translate(60 104) rotate(-145) scale(.5)"/>
+</g>
+<g class="cam{{ ' on' if s >= 2 }}" data-min="2">
+  <path class="sa" stroke-width="2.6" d="M60 104C60 98 61 94 60 88"/>
+  <use href="#p-folha" class="ee" transform="translate(60 92) rotate(-30) scale(.6)"/><use href="#p-folha" class="ee" transform="translate(60 92) rotate(-150) scale(.6)"/>
+</g>
+<g class="cam{{ ' on' if s >= 3 }}" data-min="3">
+  <path class="sa" stroke-width="2.8" d="M60 90C60 84 59 78 60 72"/>
+  <use href="#p-folha" class="ee" transform="translate(60 78) rotate(-28) scale(.7)"/><use href="#p-folha" class="ee" transform="translate(60 78) rotate(-152) scale(.7)"/>
+</g>
+<g class="cam{{ ' on' if s >= 4 }}" data-min="4">
+  <path class="sa" stroke-width="3" d="M60 74C60 68 61 62 60 56"/>
+  <path class="sb" stroke-width="1.8" d="M60 70C54 68 50 64 48 60M60 66C66 64 70 60 72 56"/>
+</g>
+<g class="cam{{ ' on' if s >= 5 }}" data-min="5">
+  <path class="sa" stroke-width="2.6" d="M60 60C52 56 46 52 42 46M60 60C68 56 74 52 78 46M60 58V44"/>
+  <circle class="ee" cx="42" cy="46" r="5"/><circle class="ee" cx="78" cy="46" r="5"/><circle class="ee" cx="60" cy="42" r="5"/>
+</g>
+<g class="cam{{ ' on' if s >= 6 }}" data-min="6">
+  <circle class="ee" cx="42" cy="44" r="9"/><circle class="ee" cx="78" cy="44" r="9"/><circle class="ee" cx="60" cy="36" r="10"/><circle class="ee" cx="50" cy="52" r="8"/><circle class="ee" cx="70" cy="52" r="8"/>
+</g>
+<g class="cam{{ ' on' if s == 7 }}" data-min="7" data-max="7">
+  <circle class="ec" cx="42" cy="42" r="2.2"/><circle class="ec" cx="78" cy="42" r="2.2"/><circle class="ec" cx="60" cy="34" r="2.2"/><circle class="ec" cx="50" cy="52" r="2"/><circle class="ec" cx="70" cy="52" r="2"/><circle class="ec" cx="36" cy="48" r="1.8"/><circle class="ec" cx="84" cy="48" r="1.8"/>
+</g>
+<g class="cam{{ ' on' if s >= 8 }}" data-min="8">
+  <circle class="ec" cx="42" cy="44" r="10"/><circle class="ec" cx="78" cy="44" r="10"/><circle class="ec" cx="60" cy="35" r="11"/><circle class="ec" cx="50" cy="52" r="9"/><circle class="ec" cx="70" cy="52" r="9"/><circle class="ec" cx="32" cy="50" r="6"/><circle class="ec" cx="88" cy="50" r="6"/>
+  <circle class="ed" cx="40" cy="40" r="2.4"/><circle class="ed" cx="80" cy="40" r="2.4"/><circle class="ed" cx="60" cy="31" r="2.6"/><circle class="ed" cx="50" cy="50" r="2.2"/><circle class="ed" cx="70" cy="50" r="2.2"/>
+  <g class="petalas-cai"><ellipse class="ec" cx="36" cy="64" rx="2.2" ry="1.3"/><ellipse class="ed" cx="86" cy="66" rx="2.2" ry="1.3"/><ellipse class="ec" cx="56" cy="68" rx="2" ry="1.2"/></g>
+</g>
+<g class="cam{{ ' on' if s >= 9 }}" data-min="9">
+  <ellipse class="ec" cx="42" cy="114" rx="2.4" ry="1.1"/><ellipse class="ec" cx="52" cy="113" rx="2.2" ry="1"/><ellipse class="ed" cx="68" cy="113.4" rx="2.2" ry="1"/><ellipse class="ec" cx="78" cy="114" rx="2.4" ry="1.1"/>
+</g>
+<g class="frutos">
+  <ellipse class="fr{{ ' on' if fr >= 1 }}" data-fruto="1" cx="46" cy="62" rx="1.3" ry="5"/>
+  <ellipse class="fr{{ ' on' if fr >= 2 }}" data-fruto="2" cx="74" cy="62" rx="1.3" ry="5"/>
+  <ellipse class="fr{{ ' on' if fr >= 3 }}" data-fruto="3" cx="60" cy="54" rx="1.3" ry="5"/>
+  <ellipse class="fr{{ ' on' if fr >= 4 }}" data-fruto="4" cx="54" cy="62" rx="1.2" ry="4.4"/>
+  <ellipse class="fr{{ ' on' if fr >= 5 }}" data-fruto="5" cx="66" cy="62" rx="1.2" ry="4.4"/>
+</g>
+<g class="cam{{ ' on' if s >= 10 }}" data-min="10">
+  <circle class="eo" cx="42" cy="42" r="9"/><circle class="eo" cx="78" cy="42" r="9"/><circle class="eo" cx="60" cy="34" r="10"/><circle class="eo2" cx="50" cy="50" r="7"/><circle class="eo2" cx="70" cy="50" r="7"/>
+</g>
+{% endmacro %}
+
+{# ---------------------------------------------------------------- baoba #}
+{% macro esp_baoba(s, fr) %}
+<g class="cam{{ ' on' if s >= 1 }}" data-min="1">
+  <ellipse class="ea" cx="60" cy="109" rx="7" ry="9"/>
+  <use href="#p-folha" class="ec" transform="translate(60 101) rotate(-40) scale(.5)"/><use href="#p-folha" class="ec" transform="translate(60 101) rotate(-140) scale(.5)"/>
+</g>
+<g class="cam{{ ' on' if s >= 2 }}" data-min="2">
+  <ellipse class="ea" cx="60" cy="105" rx="9.5" ry="14"/>
+</g>
+<g class="cam{{ ' on' if s >= 3 }}" data-min="3">
+  <path class="ea" d="M51 117C49 104 53 92 56 84H64C67 92 71 104 69 117Z"/>
+</g>
+<g class="cam{{ ' on' if s >= 4 }}" data-min="4">
+  <path class="ea" d="M47 117C43 102 51 90 55 80H65C69 90 77 102 73 117Z"/>
+</g>
+<g class="cam{{ ' on' if s >= 5 }}" data-min="5">
+  <path class="ea" d="M44 117C39 100 49 86 54 74H66C71 86 81 100 76 117Z"/>
+  <path class="sb" stroke-width="1.2" d="M52 112C50 100 54 88 57 80M60 114V78M68 112C70 100 66 88 63 80"/>
+</g>
+<g class="cam{{ ' on' if s >= 6 }}" data-min="6">
+  <path class="sa" stroke-width="3.6" d="M55 76C49 70 45 64 43 57M65 76C71 70 75 64 77 57M60 74V54"/>
+  <circle class="ec" cx="43" cy="55" r="5"/><circle class="ec" cx="77" cy="55" r="5"/><circle class="ec" cx="60" cy="51" r="5.4"/>
+  <circle class="ec" cx="50" cy="60" r="3.6"/><circle class="ec" cx="70" cy="60" r="3.6"/>
+</g>
+<g class="cam{{ ' on' if s == 7 }}" data-min="7" data-max="7">
+  <circle class="ed" cx="43" cy="50" r="2"/><circle class="ed" cx="77" cy="50" r="2"/><circle class="ed" cx="60" cy="45" r="2.2"/>
+</g>
+<g class="cam{{ ' on' if s >= 8 }}" data-min="8">
+  <use href="#p-flor" transform="translate(43 49) scale(.8)"/><use href="#p-flor" transform="translate(77 49) scale(.8)"/><use href="#p-flor" transform="translate(60 43) scale(.9)"/>
+</g>
+<g class="frutos">
+  <g class="fr{{ ' on' if fr >= 1 }}" data-fruto="1"><path class="sa" stroke-width=".8" d="M39 60V63"/><ellipse class="ef" cx="39" cy="67" rx="3" ry="4.6"/></g>
+  <g class="fr{{ ' on' if fr >= 2 }}" data-fruto="2"><path class="sa" stroke-width=".8" d="M81 60V63"/><ellipse class="ef" cx="81" cy="67" rx="3" ry="4.6"/></g>
+  <g class="fr{{ ' on' if fr >= 3 }}" data-fruto="3"><path class="sa" stroke-width=".8" d="M60 56V59"/><ellipse class="ef" cx="60" cy="63" rx="3" ry="4.6"/></g>
+  <g class="fr{{ ' on' if fr >= 4 }}" data-fruto="4"><path class="sa" stroke-width=".8" d="M50 62V65"/><ellipse class="ef" cx="50" cy="69" rx="2.8" ry="4.2"/></g>
+  <g class="fr{{ ' on' if fr >= 5 }}" data-fruto="5"><path class="sa" stroke-width=".8" d="M70 62V65"/><ellipse class="ef" cx="70" cy="69" rx="2.8" ry="4.2"/></g>
+</g>
+<g class="cam{{ ' on' if s >= 10 }}" data-min="10">
+  <use href="#p-flor-ouro" transform="translate(60 44) scale(1.5)"/>
+</g>
+{% endmacro %}
+
+{# ---------------------------------------------------------------- despacho #}
+{% macro desenho(esp, s, fr) %}
+{% if esp == 'girassol' %}{{ esp_girassol(s, fr) }}
+{% elif esp == 'cacto' %}{{ esp_cacto(s, fr) }}
+{% elif esp == 'cogumelo' %}{{ esp_cogumelo(s, fr) }}
+{% elif esp == 'carnivora' %}{{ esp_carnivora(s, fr) }}
+{% elif esp == 'samambaia' %}{{ esp_samambaia(s, fr) }}
+{% elif esp == 'lavanda' %}{{ esp_lavanda(s, fr) }}
+{% elif esp == 'bambu' %}{{ esp_bambu(s, fr) }}
+{% elif esp == 'bonsai' %}{{ esp_bonsai(s, fr) }}
+{% elif esp == 'cerejeira' %}{{ esp_cerejeira(s, fr) }}
+{% elif esp == 'jabuticabeira' %}{{ esp_jabuticabeira(s, fr) }}
+{% elif esp == 'ipe' %}{{ esp_ipe(s, fr) }}
+{% elif esp == 'baoba' %}{{ esp_baoba(s, fr) }}
+{% endif %}
+{% endmacro %}
