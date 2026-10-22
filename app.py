@@ -399,8 +399,11 @@ def _estado_jogo_membro(db, member_id, dias_letivos_lista):
 def _registros_globais(db):
     """{data: {member_id: {'presente': True, ...}}} em uma unica consulta."""
     glob = {}
-    for r in db.execute("SELECT member_id, event_date, status FROM attendance").fetchall():
-        glob.setdefault(r["event_date"], {}).setdefault(r["member_id"], {})[r["status"]] = True
+    for r in db.execute("SELECT member_id, event_date, event_type, status FROM attendance").fetchall():
+        reg = glob.setdefault(r["event_date"], {}).setdefault(r["member_id"], {})
+        reg[r["status"]] = True
+        if r["status"] == "presente":
+            reg.setdefault("eventos", set()).add(r["event_type"])
     return glob
 
 

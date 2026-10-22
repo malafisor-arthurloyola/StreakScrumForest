@@ -29,17 +29,17 @@ class TestCatalogo(unittest.TestCase):
         self.assertIsNone(catalog.padrao("companheiro"))
 
     def test_faixas_de_preco_do_plano(self):
-        faixas = {"vaso": (6, 15), "companheiro": (10, 25), "acessorio": (8, 15), "especie": (20, 60)}
+        faixas = {"vaso": (12, 30), "companheiro": (20, 50), "acessorio": (16, 30), "especie": (40, 120)}
         for i in catalog.ITENS:
             if i["tipo"] in faixas and i["preco"] > 0:
                 lo, hi = faixas[i["tipo"]]
                 self.assertTrue(lo <= i["preco"] <= hi, (i["id"], i["preco"]))
-        self.assertEqual(catalog.item("slot_2")["preco"], 30)
-        self.assertEqual(catalog.item("slot_3")["preco"], 55)
+        self.assertEqual(catalog.item("slot_2")["preco"], 60)
+        self.assertEqual(catalog.item("slot_3")["preco"], 110)
 
     def test_catalogo_soma_bem_mais_que_o_orcamento(self):
         total = sum(i["preco"] for i in catalog.ITENS)
-        self.assertGreater(total, 400)
+        self.assertGreater(total, 800)
 
     def test_item_inexistente(self):
         self.assertIsNone(catalog.item("nao-existe"))
@@ -47,37 +47,37 @@ class TestCatalogo(unittest.TestCase):
 
 class TestCompra(unittest.TestCase):
     def test_compra_simples(self):
-        ok, _ = catalog.pode_comprar("girassol", saldo=20, possui=set(), floresceu=False)
+        ok, _ = catalog.pode_comprar("girassol", saldo=40, possui=set(), floresceu=False)
         self.assertTrue(ok)
 
     def test_saldo_insuficiente(self):
-        ok, motivo = catalog.pode_comprar("girassol", saldo=19, possui=set(), floresceu=False)
+        ok, motivo = catalog.pode_comprar("girassol", saldo=39, possui=set(), floresceu=False)
         self.assertFalse(ok)
         self.assertIn("semente", motivo)
 
     def test_ja_possui(self):
-        ok, _ = catalog.pode_comprar("girassol", saldo=99, possui={"girassol"}, floresceu=False)
+        ok, _ = catalog.pode_comprar("girassol", saldo=199, possui={"girassol"}, floresceu=False)
         self.assertFalse(ok)
 
     def test_padrao_nao_se_compra(self):
-        ok, _ = catalog.pode_comprar("muda", saldo=99, possui=set(), floresceu=False)
+        ok, _ = catalog.pode_comprar("muda", saldo=199, possui=set(), floresceu=False)
         self.assertFalse(ok)
 
     def test_baoba_exige_ter_florescido(self):
-        ok, motivo = catalog.pode_comprar("baoba", saldo=99, possui=set(), floresceu=False)
+        ok, motivo = catalog.pode_comprar("baoba", saldo=199, possui=set(), floresceu=False)
         self.assertFalse(ok)
         self.assertIn("flor", motivo.lower())
-        ok, _ = catalog.pode_comprar("baoba", saldo=99, possui=set(), floresceu=True)
+        ok, _ = catalog.pode_comprar("baoba", saldo=199, possui=set(), floresceu=True)
         self.assertTrue(ok)
 
     def test_slot_3_exige_slot_2(self):
-        ok, _ = catalog.pode_comprar("slot_3", saldo=99, possui=set(), floresceu=False)
+        ok, _ = catalog.pode_comprar("slot_3", saldo=199, possui=set(), floresceu=False)
         self.assertFalse(ok)
-        ok, _ = catalog.pode_comprar("slot_3", saldo=99, possui={"slot_2"}, floresceu=False)
+        ok, _ = catalog.pode_comprar("slot_3", saldo=199, possui={"slot_2"}, floresceu=False)
         self.assertTrue(ok)
 
     def test_item_desconhecido(self):
-        ok, _ = catalog.pode_comprar("fantasma", saldo=99, possui=set(), floresceu=False)
+        ok, _ = catalog.pode_comprar("fantasma", saldo=199, possui=set(), floresceu=False)
         self.assertFalse(ok)
 
 

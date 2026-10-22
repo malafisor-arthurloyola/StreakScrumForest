@@ -24,6 +24,9 @@ VIGOR_LEVELS = [
     (10, "radiante"),
 ]
 
+# sementes por evento com presenca (um dia com os tres eventos rende 3)
+SEED_POR_EVENTO = {"daily": 1, "dev": 1, "encerramento": 1}
+
 SEED_MILESTONES = [
     (5,  3),
     (10, 5),
@@ -247,6 +250,19 @@ def calcular_sementes(dias_letivos_lista, semanas_projeto, registros_por_data, f
     dias_presentes = sum(
         1 for d in dias_letivos_lista if registros_por_data.get(d, {}).get("presente", False)
     )
+    por_evento = {e: 0 for e in SEED_POR_EVENTO}
+    for d in dias_letivos_lista:
+        reg = registros_por_data.get(d, {})
+        if not reg.get("presente", False):
+            continue
+        eventos = reg.get("eventos")
+        if eventos is None:  # registro sem detalhe por evento: vale como um evento
+            por_evento["daily"] += 1
+        else:
+            for e in eventos:
+                if e in por_evento:
+                    por_evento[e] += 1
+    seeds_eventos = sum(por_evento[e] * SEED_POR_EVENTO[e] for e in por_evento)
     semenas_fechadas = calcular_semanas_fechadas(semanas_projeto, registros_por_data)
 
     streak_max = 0
@@ -271,10 +287,11 @@ def calcular_sementes(dias_letivos_lista, semanas_projeto, registros_por_data, f
         if registros_por_data.get(d, {}).get("presente", False)
     )
 
-    total = dias_presentes + semenas_fechadas * 3 + marcos + bonus_floresceu + por_dia_cheio
+    total = seeds_eventos + semenas_fechadas * 3 + marcos + bonus_floresceu + por_dia_cheio
     return {
         "total": total,
-        "por_presenca": dias_presentes,
+        "por_presenca": seeds_eventos,
+        "por_evento": por_evento,
         "por_semanas_fechadas": semenas_fechadas * 3,
         "por_marcos": marcos,
         "por_floresceu": bonus_floresceu,

@@ -53,15 +53,16 @@ membro vira um cartao compacto.
 
 ## Sementes e Loja (branch `feature/loja-sementes`)
 
-- **Sementes** (derivadas do histórico, nunca perdem por falta): +1 por dia de presença, +3 por
+- **Sementes** (derivadas do histórico, nunca perdem por falta): +1 por evento com presença (daily, dev e encerramento), +3 por
   semana fechada, +1 em "dia cheio" do time (todos presentes), +3/+5/+10/+20 nos marcos de
-  sequência de 5/10/20/40 dias e +20 ao florescer. Um membro dedicado junta ~175 no projeto e um
-  típico ~130. O saldo só diminui com compras e nunca fica negativo.
+  sequência de 5/10/20/40 dias e +20 ao florescer. Um membro dedicado (3 eventos todo dia) junta ~265
+  no projeto e um típico ~190. Os preços da loja foram dobrados para acompanhar. O balanceamento completo
+  está em [docs/BALANCEAMENTO.md](docs/BALANCEAMENTO.md). O saldo só diminui com compras e nunca fica negativo.
 - **Loja** (`/loja`): escolha quem você é (fica salvo no navegador) e gaste as sementes em
   espécies de planta (girassol, samambaia, lavanda, cerejeira, bambu, bonsai, jabuticabeira, ipê e
   baobá, que só desbloqueia depois de florescer), vasos, companheiros (joaninha, borboleta,
-  vagalume, passarinho, gato), acessórios e plantinhas extras no canteiro (a segunda custa 30 e a
-  terceira 55; elas crescem junto da principal, um pouco menores). É só enfeite: não muda o
+  vagalume, passarinho, gato), acessórios e plantinhas extras no canteiro (a segunda custa 60 e a
+  terceira 110; elas crescem junto da principal, um pouco menores). É só enfeite: não muda o
   crescimento real. Sem login, no esquema de confiança: toda compra aparece em "Minhas compras" e
   pode ser desfeita, devolvendo as sementes.
 - **Coleção** (`/album`): todos os itens, com os que faltam em silhueta.

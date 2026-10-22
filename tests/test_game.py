@@ -621,3 +621,41 @@ class TestNivelPresenca(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestSementesPorEvento(unittest.TestCase):
+    def setUp(self):
+        self.dias = dias_letivos("2026-10-15", SEMANA1, NUM_SEMANAS, FERIADOS)
+        self.semanas = semanas_do_projeto(SEMANA1, NUM_SEMANAS, FERIADOS)
+
+    def _tudo(self, eventos):
+        return {d: {"presente": True, "eventos": set(eventos)} for d in self.dias}
+
+    def test_cada_evento_vale_uma_semente(self):
+        d = self.dias[:1]
+        for ev, esperado in (({"daily"}, 1), ({"daily", "dev"}, 2), ({"daily", "dev", "encerramento"}, 3)):
+            r = calcular_sementes(d, self.semanas, {d[0]: {"presente": True, "eventos": ev}}, False)
+            self.assertEqual(r["por_presenca"], esperado)
+
+    def test_registro_sem_detalhe_vale_um(self):
+        d = self.dias[:1]
+        r = calcular_sementes(d, self.semanas, {d[0]: {"presente": True}}, False)
+        self.assertEqual(r["por_presenca"], 1)
+
+    def test_dedicado_com_tres_eventos(self):
+        regs = self._tudo(("daily", "dev", "encerramento"))
+        r = calcular_sementes(self.dias, self.semanas, regs, True, dias_cheios=set(self.dias))
+        self.assertEqual(r["por_presenca"], 135)
+        self.assertEqual(r["total"], 265)
+
+    def test_so_daily_continua_no_total_antigo(self):
+        regs = self._tudo(("daily",))
+        r = calcular_sementes(self.dias, self.semanas, regs, True, dias_cheios=set(self.dias))
+        self.assertEqual(r["total"], 175)
+
+    def test_crescimento_nao_depende_de_eventos(self):
+        meta = meta_floracao(len(self.dias))
+        a = calcular_membro(self.dias, self._tudo(("daily",)), meta)
+        b = calcular_membro(self.dias, self._tudo(("daily", "dev", "encerramento")), meta)
+        self.assertEqual(a["g"], b["g"])
+

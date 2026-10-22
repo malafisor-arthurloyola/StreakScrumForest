@@ -29,13 +29,14 @@ class LojaBase(unittest.TestCase):
         self.client = appmod.app.test_client()
         self.dias = _dias()
 
-    def presencas(self, member_id, n):
+    def presencas(self, member_id, n, eventos=("daily",)):
         con = sqlite3.connect(DB)
         for d in self.dias[:n]:
-            con.execute(
-                "INSERT INTO attendance (member_id, event_date, event_type, status) VALUES (?,?,?,?)",
-                (member_id, d, "daily", "presente"),
-            )
+            for ev in eventos:
+                con.execute(
+                    "INSERT INTO attendance (member_id, event_date, event_type, status) VALUES (?,?,?,?)",
+                    (member_id, d, ev, "presente"),
+                )
         con.commit()
         con.close()
 
@@ -76,13 +77,31 @@ class TestSementes(LojaBase):
         self.assertIn("sementes", r.get_json()["jogo"])
 
 
+class TestSementesPorEvento(LojaBase):
+    def test_cada_evento_rende_uma_semente(self):
+        self.presencas(1, 1, ("daily",))
+        self.presencas(2, 1, ("daily", "dev", "encerramento"))
+        self.assertEqual(self.stats(2)["sementes_ganhas"], self.stats(1)["sementes_ganhas"] + 2)
+
+    def test_dev_e_encerramento_sozinhos_tambem_rendem(self):
+        self.presencas(1, 1, ("dev",))
+        self.presencas(2, 1, ("encerramento",))
+        self.assertEqual(self.stats(1)["sementes_ganhas"], self.stats(2)["sementes_ganhas"])
+        self.assertGreater(self.stats(1)["sementes_ganhas"], 0)
+
+    def test_crescimento_continua_por_dia(self):
+        self.presencas(1, 3, ("daily",))
+        self.presencas(2, 3, ("daily", "dev", "encerramento"))
+        self.assertEqual(self.stats(1)["g"], self.stats(2)["g"])
+
+
 class TestCompra(LojaBase):
     def test_comprar_desconta_do_saldo(self):
-        self.presencas(1, 10)
+        self.presencas(1, 20)
         antes = self.stats(1)["sementes"]
         r = self.comprar(1, "girassol")
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(self.stats(1)["sementes"], antes - 20)
+        self.assertEqual(self.stats(1)["sementes"], antes - 40)
 
     def test_sem_saldo_nao_compra(self):
         r = self.comprar(2, "girassol")
@@ -135,7 +154,7 @@ class TestEquipar(LojaBase):
         self.assertIsNone(self.stats(1)["visual"]["companheiro"])
 
     def test_segunda_planta(self):
-        self.presencas(1, 30)
+        self.presencas(1, 30, ("daily", "dev", "encerramento"))
         self.assertEqual(self.comprar(1, "slot_2").status_code, 200)
         self.comprar(1, "samambaia")
         self.assertEqual(self.equipar(1, "especie_2", "samambaia").status_code, 200)
@@ -182,7 +201,7 @@ class TestDesfazer(LojaBase):
         self.assertEqual(self.comprar(1, "girassol").status_code, 200)
 
     def test_nao_desfaz_slot_2_com_slot_3(self):
-        self.presencas(1, 45)
+        self.presencas(1, 45, ("daily", "dev", "encerramento"))
         self.assertEqual(self.comprar(1, "slot_2").status_code, 200)
         self.assertEqual(self.comprar(1, "slot_3").status_code, 200)
         r = self.post("/api/loja/desfazer", member_id=1, compra_id=self._compra_id(1, "slot_2"))
