@@ -40,24 +40,83 @@ sem deixar ninguém para trás no visual.
 
 ## 4. Sementes (a economia)
 
-### 4.1 Fontes de ganho
+### 4.1 De onde vêm as sementes, explicado do zero
 
-| Fonte | Valor | Observação |
+Existem **5 jeitos** de ganhar sementes. Só o primeiro é "por evento"; os outros quatro são bônus
+automáticos que o sistema soma sozinho por cima.
+
+**Jeito 1: presença nos eventos (a base, o que você pediu)**
+
+| Evento | Sementes |
+|---|---|
+| Presença na daily | +1 |
+| Presença no dev | +1 |
+| Presença no encerramento | +1 |
+
+Um dia em que a pessoa vai aos três rende **3 sementes**. Durante os 45 dias letivos, o máximo
+possível é 45 x 3 = **135 sementes só da base**.
+
+**Jeito 2: semana fechada (+3)**: bônus por constância semanal. Uma semana "fecha" quando a pessoa
+teve presença (em qualquer evento) em pelo menos 4 dias da semana. Em semana com feriado, vale um dia
+a menos do que os dias letivos (feriado não pune). Das 10 semanas do projeto, 9 podem fechar; a
+semana 1 só tem 2 dias contados (o uso começou em 15/10), então não fecha. Máximo: 9 x 3 = **27**.
+
+**Jeito 3: marco de sequência (bônus único)**: ao alcançar uma **sequência** de dias seguidos com
+presença, a pessoa ganha um prêmio **uma vez só** por marco:
+
+| Sequência alcançada | Prêmio (uma vez) |
+|---|---|
+| 5 dias seguidos | +3 |
+| 10 dias seguidos | +5 |
+| 20 dias seguidos | +10 |
+| 40 dias seguidos | +20 |
+
+Quem consegue 40 dias seguidos leva os quatro (3+5+10+20), total **38**.
+
+**Jeito 4: dia cheio do time (+1)**: quando **todos** os membros ativos foram ao menos a um evento
+no mesmo dia e ninguém faltou, cada pessoa presente naquele dia ganha +1 extra. É o bônus coletivo,
+para incentivar o time a vir junto. Máximo: 45 dias cheios = **45**.
+
+**Jeito 5: Floresceu (+20)**: quando a planta chega ao estágio 10 (atingiu as 36 presenças). Bônus único.
+
+> Justificada ("avisou") rende 0 sementes e não quebra nenhum desses bônus.
+
+### 4.2 A streak (sequência) multiplica o ganho? Não
+
+**Não existe multiplicador.** Uma sequência longa não aumenta o valor de cada evento: o daily vale
++1 no dia 1 e continua valendo +1 no dia 40. A streak entra na economia de duas formas, sem
+multiplicar nada:
+
+1. **Marcos únicos** (Jeito 3): bônus fixos em 5, 10, 20 e 40 dias seguidos (total de 38).
+2. **Visual, sem semente**: a chama e o vigor da planta (verde, viçosa, florida, radiante) refletem a
+   sequência atual, mas só mudam a aparência.
+
+Por que não multiplicador? Em um multiplicador a diferença cresce bola de neve: quem quebra a
+sequência uma vez perde muito, o que cria ansiedade (o mesmo problema criticado no Duolingo) e fere o
+princípio "nunca punir". Os marcos dão a recompensa de constância sem esse risco: quebrar a
+sequência não tira nada do que já foi ganho, só reinicia a contagem para o próximo marco.
+
+Se o time preferir um multiplicador, dá para adicionar (por exemplo +1 semente extra por dia de
+presença com sequência acima de 10). Isso aumentaria o total do dedicado e exigiria subir os preços
+de novo. Ver a seção 8.
+
+### 4.3 Por que o perfil dedicado chega a 265 (conta passo a passo)
+
+"Dedicado" = foi aos 3 eventos todos os 45 dias letivos, sem nenhuma falta, e o time inteiro também.
+
+| Origem | Conta | Sementes |
 |---|---|---|
-| Presença na **daily** | +1 | por dia |
-| Presença no **dev** | +1 | por dia |
-| Presença no **encerramento** | +1 | por dia (novo: antes só o dia inteiro rendia 1) |
-| Semana fechada | +3 | 4 presenças na semana (ou dias letivos - 1 em semana com feriado) |
-| Marco de sequência | +3 / +5 / +10 / +20 | uma vez cada, em 5 / 10 / 20 / 40 dias seguidos |
-| Dia cheio do time | +1 | para cada pessoa presente num dia em que todos vieram |
-| Floresceu | +20 | uma vez |
-| Justificada | 0 | neutro |
+| Presença nos eventos | 45 dias x 3 eventos x 1 | 135 |
+| Semanas fechadas | 9 semanas x 3 | 27 |
+| Marcos de sequência | 3 + 5 + 10 + 20 | 38 |
+| Dia cheio do time | 45 dias x 1 | 45 |
+| Floresceu | bônus único | 20 |
+| **Total** | | **265** |
 
-Um dia com os três eventos rende até **3 sementes** (antes rendia 1). Cada evento vale o mesmo, porque
-os três são obrigatórios e igualmente importantes para o time. Os pesos ficam em
-`SEED_POR_EVENTO` (`game.py`), então dá para dar peso diferente a um evento depois.
+Ou seja: **só 135 de 265 vêm de "estar presente em cada evento"**. As outras 130 são os bônus de
+constância e de time (Jeitos 2 a 5). Esse é o motivo de o total ser maior do que "3 sementes x 45 dias".
 
-### 4.2 Totais esperados no projeto inteiro (simulação)
+### 4.4 Totais esperados no projeto inteiro (simulação)
 
 | Perfil | Antes | Agora | Composição (agora) |
 |---|---|---|---|
@@ -68,7 +127,7 @@ os três são obrigatórios e igualmente importantes para o time. Os pesos ficam
 Leitura: quem vai a tudo ganha 51% mais que antes; quem faz só a daily fica igual. Isso é o efeito
 desejado: o dev e o encerramento passam a ter recompensa própria.
 
-### 4.3 Curva de saldo acumulado (sem gastar), por fim de semana
+### 4.5 Curva de saldo acumulado (sem gastar), por fim de semana
 
 | Semana | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -129,6 +188,7 @@ Exemplo de orçamento típico (191): 2ª plantinha (60) + espécie rara (70) + v
 | Quero mudar | Onde |
 |---|---|
 | Peso de cada evento | `SEED_POR_EVENTO` em `game.py` |
+| Multiplicador de sequência (não existe hoje) | seria código novo em `calcular_sementes` |
 | Bônus de semana (+3), dia cheio (+1), floresceu (+20) | `calcular_sementes` em `game.py` |
 | Marcos de sequência | `SEED_MILESTONES` em `game.py` |
 | Preços | `catalog.py` (campo `preco`) |
