@@ -8,7 +8,7 @@
 <header class="pagina-cab">
   <div>
     <a class="voltar" href="{{ url_for('dashboard') }}">← Painel</a>
-    <h1>{{ m.name }}{% if not m.active %} <span class="chip chip-inativo">inativo</span>{% endif %}{% if m.fundador %} <span class="chip chip-fundador" title="Esteve no jardim desde o começo">Fundador</span>{% endif %}</h1>
+    <h1>{{ m.name }}{% if not m.active %} <span class="chip chip-inativo">inativo</span>{% endif %}{% if m.convidado %} <span class="chip chip-convidado">convidado</span>{% endif %}{% if m.fundador %} <span class="chip chip-fundador" title="Esteve no jardim desde o começo">Fundador</span>{% endif %}</h1>
     <p class="sub">{{ m.estagio_nome }} · a planta floresce com {{ m.meta }} presenças</p>
   </div>
   <a class="btn btn-ghost" href="{{ url_for('loja_page', m=m.id) }}">Loja de {{ m.name }}</a>

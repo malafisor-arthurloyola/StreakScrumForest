@@ -352,3 +352,121 @@ document.querySelectorAll('.status-toggle').forEach(function (wrapper) {
     });
   });
 });
+
+/* Convidados no jardim (Hoje e Painel): 3 modos (ocultos, em faixa ou no fundo do jardim),
+   lembrados no localStorage (com try/catch). Os dados de cada convidado aparecem num cartao
+   que sobe ao passar o mouse (e abre/fecha por toque no celular). */
+(function () {
+  var bloco = document.querySelector('.jardim-bloco[data-tem-convidados="true"]');
+  if (!bloco) return;
+  var KEY = 'jardim.modoConvidados';
+  var MODOS = ['oculto', 'faixa', 'fundo'];
+  var cena = bloco.querySelector('.jardim-cena');
+  var botoes = bloco.querySelectorAll('.chip-modo');
+
+  function aplicar(modo) {
+    if (MODOS.indexOf(modo) < 0) modo = 'fundo';
+    MODOS.forEach(function (m) { if (cena) cena.classList.toggle('modo-' + m, m === modo); });
+    botoes.forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.modo === modo ? 'true' : 'false'); });
+    try { localStorage.setItem(KEY, modo); } catch (e) {}
+    posicionarFundo();
+    esconder();
+  }
+
+  // Convidados "no fundo": ficam nas frestas reais entre os vasos do time.
+  function posicionarFundo() {
+    var linha = bloco.querySelector('.cena-plantas');
+    if (!linha) return;
+    var itens = linha.querySelectorAll('.canteiro-item');
+    var guests = linha.querySelectorAll('.conv-fundo');
+    if (itens.length === 0 || guests.length === 0) return;
+    var planta = linha.querySelector('.canteiro-item .planta');
+    if (planta) {
+      var h = linha.getBoundingClientRect().bottom - planta.getBoundingClientRect().bottom;
+      if (h > 0) linha.style.setProperty('--placa-h', Math.round(h) + 'px');
+    }
+    var n = itens.length;
+    var contagem = {};
+    guests.forEach(function (g) { var k = g.dataset.gap; contagem[k] = (contagem[k] || 0) + 1; });
+    var visto = {};
+    guests.forEach(function (g) {
+      var gap = Math.max(0, Math.min(parseInt(g.dataset.gap, 10) || 0, n));
+      var x;
+      if (gap === 0) { x = itens[0].offsetLeft + 6; }
+      else if (gap >= n) { x = itens[n - 1].offsetLeft + itens[n - 1].offsetWidth - 6; }
+      else { x = (itens[gap - 1].offsetLeft + itens[gap - 1].offsetWidth + itens[gap].offsetLeft) / 2; }
+      // varios convidados na mesma fresta: abre um leque curto para nao empilhar
+      var total = contagem[g.dataset.gap], i = visto[g.dataset.gap] || 0;
+      visto[g.dataset.gap] = i + 1;
+      x += (i - (total - 1) / 2) * 34;
+      g.style.left = Math.round(x) + 'px';
+    });
+  }
+
+  var tip = document.createElement('div');
+  tip.className = 'conv-tip';
+  tip.setAttribute('role', 'tooltip');
+  tip.innerHTML = '<div class="conv-tip-topo"><b class="t-nome"></b><span class="chip chip-convidado">convidado</span></div>' +
+    '<dl><div><dt>Sequência</dt><dd><svg class="chama-svg" viewBox="0 0 24 24" aria-hidden="true"><use href="#p-chama" class="chama-corpo"/><use href="#p-chama-miolo" class="chama-miolo"/></svg><span class="t-seq"></span></dd></div>' +
+    '<div><dt>Estágio</dt><dd class="t-estagio"></dd></div>' +
+    '<div><dt>Sementes</dt><dd class="t-sementes"></dd></div></dl>' +
+    '<a class="t-link" href="#">Ver perfil</a>';
+  document.body.appendChild(tip);
+  var atual = null, timer = null;
+
+  function esconder() {
+    clearTimeout(timer);
+    tip.classList.remove('visivel');
+    document.querySelectorAll('.convidado-tip.aberto').forEach(function (o) { o.classList.remove('aberto'); });
+    atual = null;
+  }
+  function agendarEsconder() { clearTimeout(timer); timer = setTimeout(esconder, 220); }
+
+  function mostrar(alvo) {
+    clearTimeout(timer);
+    if (atual && atual !== alvo) atual.classList.remove('aberto');
+    atual = alvo; alvo.classList.add('aberto');
+    var d = alvo.dataset, n = parseInt(d.streak, 10);
+    tip.querySelector('.t-nome').textContent = d.nome;
+    tip.querySelector('.t-seq').textContent = n + (n === 1 ? ' dia' : ' dias');
+    tip.querySelector('.t-estagio').textContent = d.estagio;
+    tip.querySelector('.t-sementes').textContent = d.sementes;
+    tip.querySelector('.t-link').href = d.perfil;
+    tip.classList.remove('abaixo');
+    tip.classList.add('visivel');
+    var r = alvo.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
+    var cx = r.left + r.width / 2;
+    var left = Math.max(8, Math.min(cx - w / 2, window.innerWidth - w - 8));
+    var top = r.top - h - 12;
+    if (top < 8) { top = r.bottom + 12; tip.classList.add('abaixo'); }
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+    tip.style.setProperty('--seta', Math.round(cx - left) + 'px');
+  }
+
+  bloco.querySelectorAll('.convidado-tip').forEach(function (el) {
+    el.addEventListener('mouseenter', function () { mostrar(el); });
+    el.addEventListener('mouseleave', agendarEsconder);
+    el.addEventListener('focus', function () { mostrar(el); });
+    el.addEventListener('blur', agendarEsconder);
+    el.addEventListener('click', function (e) {      // toque no celular (sem hover)
+      e.stopPropagation();
+      mostrar(el);
+    });
+  });
+  tip.addEventListener('mouseenter', function () { clearTimeout(timer); });
+  tip.addEventListener('mouseleave', agendarEsconder);
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('.convidado-tip') && !e.target.closest('.conv-tip')) esconder();
+  });
+  window.addEventListener('resize', function () { posicionarFundo(); esconder(); });
+  window.addEventListener('scroll', esconder, { passive: true });
+  var linhaScroll = bloco.querySelector('.cena-plantas');
+  if (linhaScroll) linhaScroll.addEventListener('scroll', esconder, { passive: true });
+
+  var salvo = 'fundo';
+  try { var v = localStorage.getItem(KEY); if (v) salvo = v; } catch (e) {}
+  aplicar(salvo);
+  botoes.forEach(function (b) { b.addEventListener('click', function () { aplicar(b.dataset.modo); }); });
+  window.addEventListener('load', posicionarFundo);
+})();

@@ -675,9 +675,11 @@ input.input-nome:hover, input.input-nome:focus { background: var(--s2); }
 
 .cena-fundo .ceu { fill: var(--ceu); }
 .cena-fundo .ceu2 { fill: var(--ceu2); }
+.cena-fundo .colina0 { fill: var(--colina1); filter: brightness(1.22) saturate(0.85); }
+.cena-fundo .arvores-longe { fill: var(--colina2); filter: brightness(0.78); opacity: 0.95; }
 .cena-fundo .colina1 { fill: var(--colina1); }
 .cena-fundo .colina2 { fill: var(--colina2); }
-.cena-fundo .ceu, .cena-fundo .ceu2, .cena-fundo .colina1, .cena-fundo .colina2 { transition: fill 1.2s; }
+.cena-fundo .ceu, .cena-fundo .ceu2, .cena-fundo .colina0, .cena-fundo .colina1, .cena-fundo .colina2, .cena-fundo .arvores-longe { transition: fill 1.2s; }
 .estrelas { fill: #cfe8d7; opacity: var(--estrelas); transition: opacity 1.2s; }
 .nuvens { fill: var(--nuvem); opacity: var(--nuvens); transition: opacity 1.2s, fill 1.2s; }
 .nuvem { animation: deriva var(--dur) linear var(--atraso) infinite; }
@@ -690,9 +692,9 @@ input.input-nome:hover, input.input-nome:focus { background: var(--s2); }
 }
 
 .astro { position: absolute; border-radius: 50%; pointer-events: none; transform: translate(-50%, -50%); transition: opacity 1.2s, background 1.2s; }
-.astro.sol { width: 60px; height: 60px; left: var(--sx); top: var(--sy); background: var(--sol); opacity: var(--sol-op); }
+.astro.sol { width: 78px; height: 78px; left: var(--sx); top: calc(var(--sy) * 0.6); background: var(--sol); opacity: var(--sol-op); }
 .astro.lua {
-  width: 46px; height: 46px; left: var(--lx); top: var(--ly);
+  width: 50px; height: 50px; left: var(--lx); top: calc(var(--ly) * 0.6);
   background: #f0eed0; opacity: var(--lua-op); overflow: hidden;
 }
 .astro.lua::after {
@@ -1289,3 +1291,199 @@ a.gh-dia:hover { filter: brightness(1.25); }
 .prox-nome { font-weight: 600; }
 .prox-estado { color: var(--ink2); font-size: 0.9rem; }
 .barra-fill-acc { background: var(--acc); }
+
+/* ===== Membros convidados (Fase 2) ===== */
+/* Selo "convidado" com contraste alto o bastante para ler sobre ceu/areia azulados */
+.chip-convidado { background: rgba(12, 26, 40, 0.82); color: #bfe0ff; border: 1px solid rgba(169, 214, 255, 0.55); font-weight: 600; }
+.convidados-subtitulo { font-size: 1rem; margin: 0; }
+
+/* Seletor de tipo no formulario de novo membro, no mesmo visual dos inputs */
+#novo-membro select {
+  min-height: 44px; padding: 0.6rem 0.95rem; border: 0; border-radius: 14px;
+  background: var(--s2); color: var(--ink); font: inherit;
+}
+
+/* Controle de 3 modos dos convidados: ocultos, em faixa ou junto das plantas */
+.jardim-modos { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0 10px; }
+.jardim-modos-rotulo { color: var(--ink2); font-weight: 600; font-size: 0.92rem; }
+.chip-modo {
+  min-height: 36px; padding: 0.35rem 0.9rem; border-radius: 999px; border: 1px solid var(--s4);
+  background: var(--s2); color: var(--ink); font: inherit; font-weight: 600; font-size: 0.9rem; cursor: pointer;
+}
+.chip-modo[aria-pressed="true"] { background: var(--acc); color: var(--acc-ink); border-color: var(--acc); }
+.chip-modo:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+
+/* Convidados: faixa propria sob o jardim (mesmo ceu e colina), plantas menores.
+   A altura e fixa por faixa, entao ter muitos convidados nunca estoura a tela: rola de lado. */
+.cena-convidados { --chao-h: 62px; margin: 0; border-radius: var(--r-lg); }
+.cena-convidados .convidados-titulo {
+  position: absolute; left: 12px; top: 10px; z-index: 2; padding: 3px 10px; border-radius: 999px;
+  background: rgba(11, 21, 17, 0.6); color: #d9e6dc; font-size: 0.78rem; font-weight: 700;
+}
+.convidados-fileira {
+  display: flex; align-items: flex-end; justify-content: center; gap: clamp(14px, 3vw, 30px);
+  padding: 46px clamp(10px, 3vw, 28px) 0; overflow-x: auto; scrollbar-width: none;
+}
+.convidados-fileira::-webkit-scrollbar { display: none; }
+.convidado-mini {
+  flex: 0 0 auto; width: 84px; padding: 0; border: 0; background: none; color: inherit; font: inherit;
+  display: flex; flex-direction: column; align-items: center; cursor: pointer;
+  filter: saturate(0.75);
+}
+.convidado-mini .planta { width: 84px; }
+.convidado-nome { margin-top: 4px; font-weight: 700; font-size: 0.9rem; color: #f2f7ee; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.convidado-mini > .chama { margin-bottom: 10px; font-size: 0.85rem; }
+.convidado-mini .chama-n { color: #fff3dc; }
+.convidado-mini:hover, .convidado-mini.aberto { filter: none; }
+.convidado-mini.aberto .convidado-nome { text-decoration: underline; text-underline-offset: 3px; }
+.convidado-mini:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; border-radius: 10px; }
+/* Visibilidade por modo (classe no .jardim-cena): fundo | faixa | oculto */
+.jardim-cena .conv-fundo { display: none; }
+.jardim-cena.modo-fundo .conv-fundo { display: block; }
+.jardim-cena.modo-fundo .cena-convidados { display: none; }
+.jardim-cena.modo-faixa .conv-fundo { display: none; }
+.jardim-cena.modo-oculto .cena-convidados,
+.jardim-cena.modo-oculto .conv-fundo { display: none; }
+
+/* Convidados "no fundo": plantados atras do time, menores e levemente dessaturados.
+   Ficam logo atras da linha dos vasos (bottom = altura da placa + um pouco) e
+   o cartao com os dados aparece ao passar o mouse (ver .conv-tip). */
+.cena-plantas > .canteiro-item { position: relative; z-index: 1; }
+.conv-fundo {
+  position: absolute; z-index: 0; bottom: calc(var(--placa-h, 118px) + 7px); left: 50%;
+  width: 68px; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer;
+  transform: translateX(-50%); transition: filter 0.15s;
+  /* sem brilho em repouso (o destaque fica por conta da plaquinha de nome); o brilho aparece no hover */
+  filter: none;
+}
+.conv-fundo .planta { width: 68px; }
+.conv-fundo:hover, .conv-fundo:focus-visible, .conv-fundo.aberto {
+  filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 11px rgba(255, 238, 150, 0.95)) brightness(1.1); z-index: 2;
+}
+.conv-fundo:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; border-radius: 10px; }
+
+/* Cartao que sobe ao passar o mouse (um unico elemento, posicionado por JS, nunca cortado pela cena) */
+.conv-tip {
+  position: fixed; z-index: 60; min-width: 190px; max-width: 240px; padding: 10px 14px 12px;
+  background: var(--s1); color: var(--ink); border: 1px solid var(--s4); border-radius: 14px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+  opacity: 0; visibility: hidden; transform: translateY(6px); transition: opacity 0.14s, transform 0.14s;
+}
+.conv-tip.visivel { opacity: 1; visibility: visible; transform: none; }
+.conv-tip-topo { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.conv-tip-topo b { font-size: 1rem; }
+.conv-tip dl { margin: 0; display: grid; gap: 3px; }
+.conv-tip dl > div { display: flex; justify-content: space-between; gap: 12px; }
+.conv-tip dt { color: var(--ink2); font-size: 0.85rem; margin: 0; }
+.conv-tip dd { margin: 0; font-weight: 700; font-size: 0.88rem; display: inline-flex; align-items: center; gap: 4px; }
+.conv-tip .chama-svg { width: 18px; height: 18px; }
+.conv-tip .chama-svg .chama-corpo { fill: #ff7a1a; }
+.conv-tip .chama-svg .chama-miolo { fill: #ffd35c; }
+.conv-tip a { display: inline-block; margin-top: 8px; color: var(--acc); font-weight: 700; font-size: 0.88rem; }
+.conv-tip::after {
+  content: ""; position: absolute; left: var(--seta, 50%); bottom: -7px; width: 12px; height: 12px;
+  background: var(--s1); border-right: 1px solid var(--s4); border-bottom: 1px solid var(--s4);
+  transform: translateX(-50%) rotate(45deg);
+}
+.conv-tip.abaixo::after { bottom: auto; top: -7px; transform: translateX(-50%) rotate(225deg); }
+
+.registro-convidados { margin-top: 16px; padding-top: 12px; border-top: 1px dashed var(--s3); }
+
+/* ===== Visual do jardim: tufos de grama ===== */
+.cena:not(.cena-convidados) { margin: 18px 0 28px; }
+.tufo { position: absolute; z-index: 1; bottom: calc(var(--chao-h) - 6px); width: 58px; height: auto; fill: #3f9e55; pointer-events: none; filter: saturate(0.9) brightness(0.9); }
+.tufo-e { left: 4px; }
+.tufo-d { right: 4px; transform: scaleX(-1); }
+.cena-convidados .tufo { display: none; }
+.cena-dica { top: auto; bottom: 5px; left: 50%; transform: translateX(-50%); font-size: 0.7rem; padding: 2px 10px; white-space: nowrap; z-index: 3; animation: dica-some 1s ease 5s forwards; pointer-events: none; }
+@keyframes dica-some { to { opacity: 0; } }
+
+/* ===== Canteiro: terra com textura, borda de madeira, placas, cerca e terraco dos convidados ===== */
+.cena { --chao-h: 152px; }
+.cena-grande { --chao-h: 178px; }
+.cena-convidados { --chao-h: 62px; }
+
+/* terra com pedrinhas e graos */
+.cena::after {
+  background:
+    radial-gradient(ellipse 6px 3px at 9% 58%, rgba(255, 255, 255, 0.13), transparent 70%),
+    radial-gradient(ellipse 7px 3px at 31% 74%, rgba(255, 255, 255, 0.10), transparent 70%),
+    radial-gradient(ellipse 5px 3px at 58% 52%, rgba(255, 255, 255, 0.12), transparent 70%),
+    radial-gradient(ellipse 7px 4px at 83% 70%, rgba(255, 255, 255, 0.10), transparent 70%),
+    radial-gradient(circle at 30% 30%, rgba(0, 0, 0, 0.2) 1.4px, transparent 2.4px) 0 0 / 34px 26px,
+    var(--chao);
+}
+/* borda do canteiro em madeira */
+.cena::before {
+  height: 14px; bottom: calc(var(--chao-h) - 3px);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--chao-lip) 40%, #d9a468), color-mix(in srgb, var(--chao-lip) 60%, #8a5a2b));
+  border-bottom: 2px solid rgba(40, 22, 8, 0.7);
+}
+.cena-convidados::before { display: none; }
+
+/* placas discretas: madeira escura e suave, sem pregos */
+.placa {
+  height: auto; width: calc(100% - 10px); margin: 12px 5px 10px; padding: 8px 6px 7px; gap: 1px;
+  border-radius: 10px; border: 1px solid rgba(255, 224, 170, 0.16); position: relative;
+  background: linear-gradient(180deg, rgba(122, 78, 40, 0.78), rgba(92, 58, 30, 0.82));
+  box-shadow: none;
+}
+.placa .placa-nome { color: #fff4dc; }
+.placa .placa-estagio, .placa .placa-prox { color: #f1dcc0; }
+.placa .chama-un { color: #f1dcc0; }
+.placa .chama-n { color: #fff4dc; }
+.placa .barra-prox { background: rgba(40, 22, 8, 0.5); }
+.placa .dia-pt[data-estado="faltou"]::after, .placa .dia-pt[data-estado="vazio"]::after { background: rgba(255, 255, 255, 0.28); }
+.placa .dia-pt[data-estado="futuro"]::after { background: rgba(255, 255, 255, 0.14); }
+.placa .dia-pt[data-estado="folga"]::after { background: rgba(255, 255, 255, 0.2); }
+.canteiro-item .planta { filter: drop-shadow(0 5px 3px rgba(0, 0, 0, 0.28)); }
+
+/* cerca ao fundo (decor) e terraco dos convidados */
+.cerca {
+  position: absolute; left: 0; right: 0; bottom: calc(var(--chao-h) + 11px); height: 24px; z-index: -1; pointer-events: none;
+  background:
+    linear-gradient(180deg, transparent 38%, #a07446 38% 56%, transparent 56% 70%, #a07446 70% 86%, transparent 86%),
+    repeating-linear-gradient(90deg, #c9a066 0 5px, transparent 5px 16px);
+  border-radius: 3px 3px 0 0; opacity: 0.92;
+}
+.cena[data-periodo="madrugada"] .cerca, .cena[data-periodo="noite"] .cerca { filter: brightness(0.5); }
+.cena[data-periodo="entardecer"] .cerca, .cena[data-periodo="amanhecer"] .cerca { filter: brightness(0.82); }
+.cena-convidados .cerca { display: none; }
+.terraco {
+  position: absolute; left: 0; right: 0; bottom: calc(var(--chao-h) + 8px); height: 15px; z-index: -1; pointer-events: none;
+  background: linear-gradient(180deg, #67b865, #3f8f4f 70%, #2f7340);
+  border-top: 2px solid rgba(255, 255, 255, 0.18);
+}
+.cena[data-periodo="madrugada"] .terraco, .cena[data-periodo="noite"] .terraco { filter: brightness(0.55); }
+.jardim-cena:not(.modo-fundo) .terraco { display: none; }
+
+/* convidados do fundo: pe no terraco, com plaquinha de nome */
+.conv-fundo { bottom: calc(var(--placa-h, 150px) + 12px); }
+.conv-nome {
+  position: absolute; left: 50%; bottom: -14px; transform: translateX(-50%); z-index: 2; max-width: 64px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; padding: 1px 6px; border-radius: 5px; border: 1px solid #4e3015;
+  background: linear-gradient(180deg, #b98350, #9c6837); color: #fff4dc; font-size: 0.62rem; font-weight: 800; line-height: 1.25;
+  text-shadow: 0 1px 0 #4e3015; box-shadow: 0 2px 3px rgba(0, 0, 0, 0.35); pointer-events: none;
+}
+
+/* brilho do sol e da lua */
+.astro.sol { box-shadow: 0 0 40px 14px rgba(255, 214, 110, 0.45); }
+.astro.lua { box-shadow: 0 0 24px 6px rgba(240, 238, 208, 0.22); }
+.conv-fundo .balao { display: none; }
+.placa { min-height: 118px; }
+
+/* arvores mais proximas (um tom mais claro que as distantes) */
+.cena-fundo .arvores-perto { fill: var(--colina2); filter: brightness(0.95) saturate(1.1); }
+.cena-fundo .arvores-perto, .cena-fundo .arvores-longe { transition: fill 1.2s; }
+
+/* textura bem leve nas placas: so um veio quase imperceptivel, sem nos */
+.placa {
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.022) 0 2px, transparent 2px 9px),
+    linear-gradient(180deg, rgba(122, 78, 40, 0.78), rgba(92, 58, 30, 0.82));
+}
+.conv-nome {
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.03) 0 2px, transparent 2px 8px),
+    linear-gradient(180deg, #b98350, #9c6837);
+}

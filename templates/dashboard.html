@@ -5,7 +5,7 @@
 {% block title %}Painel · Jardim da Equipe{% endblock %}
 
 {% block content %}
-{% set ativos = membros | selectattr('active') | list %}
+{% set ativos = membros | selectattr('active') | rejectattr('convidado') | list %}
 {% set rotulo_meta = {'presenca_pct': 'de presença do time', 'dias_cheios': 'dias com todo mundo', 'sequencia_time': 'dias cheios seguidos'} %}
 <header class="pagina-cab">
   <div>
@@ -45,7 +45,21 @@
 </section>
 {% endif %}
 
+{% if convidados %}
+<div class="jardim-bloco" data-tem-convidados="true">
+  <div class="jardim-modos" role="group" aria-label="Convidados no jardim">
+    <span class="jardim-modos-rotulo">Convidados:</span>
+    <button type="button" class="chip-modo" data-modo="oculto">Ocultos</button>
+    <button type="button" class="chip-modo" data-modo="faixa">Em faixa</button>
+    <button type="button" class="chip-modo" data-modo="fundo">No fundo do jardim</button>
+  </div>
+  <div class="jardim-cena">
+    {{ cena(ativos, True, marcos_ids, convidados) }}
+  </div>
+</div>
+{% else %}
 {{ cena(ativos, True, marcos_ids) }}
+{% endif %}
 
 <ol class="escada" aria-label="Estágios de crescimento">
   {% for i in range(11) %}

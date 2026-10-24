@@ -6,11 +6,11 @@
   app.js corrige com a hora do navegador. A regra de horarios existe nos dois lugares:
   game.periodo_do_dia e periodoPorHora (app.js).
 #}
-{% macro cena(membros, grande=False, marcos=[]) %}
+{% macro cena(membros, grande=False, marcos=[], convidados=[]) %}
 <section class="cena{{ ' cena-grande' if grande }}" data-periodo="{{ cena_periodo }}" style="{{ cena_vars }}" aria-label="Jardim da equipe">
   <svg class="cena-fundo" viewBox="0 0 1200 420" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
     <rect class="ceu" width="1200" height="420"/>
-    <rect class="ceu2" y="200" width="1200" height="220"/>
+    <rect class="ceu2" y="150" width="1200" height="270"/>
     <g class="estrelas">
       {% for i in range(30) %}
       <circle cx="{{ (i * 47 + 30) % 1180 }}" cy="{{ (i * 29 + 14) % 220 }}" r="{{ 1 + (i % 3) * 0.5 }}" opacity="{{ 0.35 + (i % 4) * 0.15 }}"/>
@@ -24,9 +24,42 @@
       </g>
       {% endfor %}
     </g>
-    <path class="colina1" d="M0 300C140 248 260 250 380 285C520 326 640 240 780 262C920 284 1040 302 1200 258V420H0Z"/>
-    <path class="colina2" d="M0 342C180 300 330 332 480 344C660 360 800 300 980 320C1080 331 1150 342 1200 330V420H0Z"/>
+    {# Colinas e arvores num grupo so, deslocado para cima: antes ficavam atras do chao e das plantas. #}
+    {% macro arvore(x, y, k, tipo) %}
+    <g transform="translate({{ x }} {{ y }}) scale({{ k }})">
+      <rect x="-3" y="-26" width="6" height="26" rx="2"/>
+      {% if tipo == 'p' %}
+      <path d="M0 -92L22 -48H-22Z"/><path d="M0 -76L27 -30H-27Z"/><path d="M0 -58L32 -14H-32Z"/>
+      {% else %}
+      <circle cx="0" cy="-44" r="21"/><circle cx="-14" cy="-31" r="15"/><circle cx="14" cy="-32" r="16"/>
+      {% endif %}
+    </g>
+    {% endmacro %}
+    <g class="paisagem" transform="translate(0 -96)">
+      <path class="colina0" d="M0 250C120 214 240 222 360 244C500 270 620 206 760 220C900 234 1040 262 1200 226V600H0Z"/>
+      <g class="arvores-longe">
+        {% for x, y, tipo, k in [(90, 231, 'r', 1.0), (180, 225, 'p', 1.1), (270, 231, 'r', 0.85), (462, 249, 'r', 0.95), (560, 236, 'p', 1.2), (658, 222, 'r', 1.05), (760, 220, 'p', 0.95), (865, 232, 'r', 1.15), (972, 242, 'p', 1.0), (1083, 242, 'r', 0.95)] %}
+        {{ arvore(x, y + 3, k, tipo) }}
+        {% endfor %}
+      </g>
+      <path class="colina1" d="M0 300C140 248 260 250 380 285C520 326 640 240 780 262C920 284 1040 302 1200 258V600H0Z"/>
+      <g class="arvores-perto">
+        {% for x, y, tipo, k in [(101, 271, 'r', 0.95), (197, 260, 'p', 0.9), (678, 262, 'p', 0.95), (982, 285, 'r', 1.05)] %}
+        {{ arvore(x, y + 3, k, tipo) }}
+        {% endfor %}
+      </g>
+      <g class="flores-colina">
+        {% for i in range(18) %}
+        <circle cx="{{ (i * 67 + 25) % 1180 }}" cy="{{ 300 + (i * 29) % 40 }}" r="{{ 2.4 + (i % 3) * 0.6 }}" fill="{{ ['#ffd35c', '#ff9ec4', '#ffffff', '#ffb36b'][i % 4] }}"/>
+        {% endfor %}
+      </g>
+      <path class="colina2" d="M0 342C180 300 330 332 480 344C660 360 800 300 980 320C1080 331 1150 342 1200 330V600H0Z"/>
+    </g>
   </svg>
+  <div class="cerca" aria-hidden="true"></div>
+  {% if convidados %}<div class="terraco" aria-hidden="true"></div>{% endif %}
+  <svg class="tufo tufo-e" viewBox="0 0 80 60" aria-hidden="true"><path d="M6 60C8 36 6 20 2 6c10 10 14 26 14 54zM20 60C20 40 26 24 36 10c-2 18-4 32-6 50zM34 60C40 44 48 34 62 28c-10 8-14 20-16 32zM48 60C54 50 62 44 74 42c-8 6-12 12-14 18z"/></svg>
+  <svg class="tufo tufo-d" viewBox="0 0 80 60" aria-hidden="true"><path d="M6 60C8 36 6 20 2 6c10 10 14 26 14 54zM20 60C20 40 26 24 36 10c-2 18-4 32-6 50zM34 60C40 44 48 34 62 28c-10 8-14 20-16 32zM48 60C54 50 62 44 74 42c-8 6-12 12-14 18z"/></svg>
   <span class="astro sol" aria-hidden="true"></span>
   <span class="astro lua" aria-hidden="true"></span>
   {% for i in range(9) %}
@@ -66,6 +99,30 @@
   {% endif %}
   <span class="cena-dica" aria-hidden="true">Arraste para ver o jardim todo</span>
   <div class="cena-plantas" role="list">
+    {% if convidados %}
+    {# Modo "no fundo": convidados plantados atras do time, nas frestas entre os vasos.
+       app.js refina a posicao (left) pelas frestas reais; aqui vai um valor aproximado. #}
+    {% set n_time = membros | length %}
+    {# Regra de posicao: 1o centralizar, 2o ordem alfabetica. Os convidados ocupam frestas
+       consecutivas, centradas na fileira, da esquerda para a direita em ordem alfabetica. #}
+    {% set n_frestas = [n_time - 1, 1] | max %}
+    {% set n_conv = convidados | length %}
+    {% for m in convidados | sort(attribute='name') %}
+    {% if n_conv <= n_frestas %}
+      {% set gap = ((n_frestas - n_conv + 1) // 2) + 1 + loop.index0 %}
+    {% else %}
+      {% set gap = [[((loop.index * n_time) / (n_conv + 1)) | round | int, 1] | max, n_frestas] | min %}
+    {% endif %}
+    <button type="button" class="conv-fundo convidado-tip" role="listitem" data-member-id="{{ m.id }}"
+            data-gap="{{ gap }}" style="left: {{ (gap / ([n_time, 1] | max) * 100) | round(1) }}%"
+            data-nome="{{ m.name }}" data-streak="{{ m.streak }}" data-estagio="{{ m.estagio_nome }}"
+            data-sementes="{{ m.sementes }}" data-perfil="{{ url_for('membro_page', member_id=m.id) }}"
+            aria-label="Convidado {{ m.name }}, sequência de {{ m.streak }} dias">
+      <span class="conv-nome">{{ m.name.split()[0] }}</span>
+      {{ conjunto(m, tamanho=64) }}
+    </button>
+    {% endfor %}
+    {% endif %}
     {% for m in membros %}
     {% set n_extras = m.visual.extras | length if m.visual else 0 %}
     {% set fator = 1 + 0.62 * n_extras %}
@@ -94,4 +151,28 @@
     {% endfor %}
   </div>
 </section>
+{% if convidados %}
+{# Convidados: faixa propria sob o jardim, mesmo ceu e mesma colina, plantas menores.
+   Sequencia visivel na propria faixa; o resto aparece ao tocar (painel logo abaixo). #}
+<section class="cena cena-convidados" data-periodo="{{ cena_periodo }}" style="{{ cena_vars }}" aria-label="Convidados do jardim">
+  <svg class="cena-fundo" viewBox="0 0 1200 420" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+    <rect class="ceu" width="1200" height="420"/>
+    <rect class="ceu2" y="200" width="1200" height="220"/>
+    <path class="colina1" d="M0 300C140 248 260 250 380 285C520 326 640 240 780 262C920 284 1040 302 1200 258V420H0Z"/>
+  </svg>
+  <span class="convidados-titulo">Convidados do jardim</span>
+  <div class="convidados-fileira" role="list">
+    {% for m in convidados %}
+    <button type="button" class="convidado-mini convidado-tip" role="listitem" data-member-id="{{ m.id }}"
+            data-nome="{{ m.name }}" data-streak="{{ m.streak }}" data-estagio="{{ m.estagio_nome }}"
+            data-sementes="{{ m.sementes }}" data-perfil="{{ url_for('membro_page', member_id=m.id) }}"
+            aria-label="Convidado {{ m.name }}, sequência de {{ m.streak }} dias. Toque para ver detalhes">
+      {{ conjunto(m, tamanho=84) }}
+      <span class="convidado-nome">{{ m.name.split()[0] }}</span>
+      {{ chama(m.streak, m.chama, m.aceso, m.id) }}
+    </button>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
 {% endmacro %}

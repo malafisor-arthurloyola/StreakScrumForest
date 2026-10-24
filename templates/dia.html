@@ -34,7 +34,21 @@
 </div>
 {% endif %}
 
-{% if jardim %}{{ cena(jardim, False, marcos_ids) }}{% endif %}
+{% if jardim or jardim_convidados %}
+<div class="jardim-bloco" data-tem-convidados="{{ 'true' if jardim_convidados else 'false' }}">
+  {% if jardim_convidados %}
+  <div class="jardim-modos" role="group" aria-label="Convidados no jardim">
+    <span class="jardim-modos-rotulo">Convidados:</span>
+    <button type="button" class="chip-modo" data-modo="oculto">Ocultos</button>
+    <button type="button" class="chip-modo" data-modo="faixa">Em faixa</button>
+    <button type="button" class="chip-modo" data-modo="fundo">No fundo do jardim</button>
+  </div>
+  {% endif %}
+  <div class="jardim-cena">
+    {{ cena(jardim, False, marcos_ids, jardim_convidados) }}
+  </div>
+</div>
+{% endif %}
 
 {% if not linhas %}
   <p class="vazio">Nenhum membro ativo ainda. Cadastre o grupo em <a href="{{ url_for('membros_page') }}">Membros</a>.</p>
@@ -46,7 +60,7 @@
     <div class="todos">
       <span class="todos-rotulo">Todos presentes em</span>
       {% for chave, label in events %}
-        <button type="button" class="btn btn-ghost btn-marcar-todos" data-event-type="{{ chave }}">{{ label }}</button>
+        <button type="button" class="btn btn-ghost btn-marcar-todos" data-event-type="{{ chave }}" data-tipo="equipe">{{ label }}</button>
       {% endfor %}
     </div>
   </div>
@@ -56,11 +70,10 @@
     {% for chave, label in events %}<span>{{ label }}</span>{% endfor %}
   </div>
 
-  <div class="linhas">
-    {% for linha in linhas %}
+  {% macro linha_registro(linha, cor) %}
     <article class="linha" data-member-row="{{ linha.member.id }}">
       <div class="linha-quem">
-        <span class="avatar" style="--c: {{ cores[loop.index0 % cores | length] }}">{{ linha.member.name[0] }}</span>
+        <span class="avatar" style="--c: {{ cor }}">{{ linha.member.name[0] }}</span>
         <div>
           <div class="linha-nome">{{ linha.member.name }}</div>
           <div class="linha-chips">
@@ -83,8 +96,36 @@
       </div>
       {% endfor %}
     </article>
+  {% endmacro %}
+
+  {% set equipe_linhas = linhas | rejectattr('stats.convidado') | list %}
+  {% set convidado_linhas = linhas | selectattr('stats.convidado') | list %}
+
+  <div class="linhas">
+    {% for linha in equipe_linhas %}
+      {{ linha_registro(linha, cores[loop.index0 % cores | length]) }}
     {% endfor %}
   </div>
+
+  {% if convidado_linhas %}
+  <div class="registro-convidados">
+    <div class="registro-topo">
+      <h3 class="convidados-subtitulo">Convidados</h3>
+      <div class="todos">
+        <span class="todos-rotulo">Todos presentes em</span>
+        {% for chave, label in events %}
+          <button type="button" class="btn btn-ghost btn-marcar-todos" data-event-type="{{ chave }}" data-tipo="convidado">{{ label }}</button>
+        {% endfor %}
+      </div>
+    </div>
+    <p class="dica">Convidados marcam presença normalmente, mas ficam fora das contas do time.</p>
+    <div class="linhas">
+      {% for linha in convidado_linhas %}
+        {{ linha_registro(linha, cores[loop.index0 % cores | length]) }}
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
   <p class="dica">Toque de novo no botão marcado para voltar a pendente. "Avisou" não conta como falta e não quebra a sequência.</p>
 </section>
 {% endif %}
@@ -100,11 +141,13 @@
   document.querySelectorAll('.btn-marcar-todos').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var eventType = this.dataset.eventType;
-      if (!confirm('Marcar todos os membros ativos como presentes em "' + this.textContent.trim() + '"? Isso sobrescreve marcações já feitas.')) return;
+      var tipo = this.dataset.tipo || null;
+      var grupo = tipo === 'convidado' ? 'os convidados' : (tipo === 'equipe' ? 'o time' : 'todos');
+      if (!confirm('Marcar ' + grupo + ' como presentes em "' + this.textContent.trim() + '"? Isso sobrescreve marcações já feitas.')) return;
       fetch('/api/attendance/marcar_todos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event_date: '{{ data_str }}', event_type: eventType, status: 'presente' }),
+        body: JSON.stringify({ event_date: '{{ data_str }}', event_type: eventType, status: 'presente', tipo: tipo }),
       })
         .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
         .then(function () { window.location.reload(); })

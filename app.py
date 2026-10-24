@@ -343,8 +343,21 @@ def init_db():
             DEFAULT_FERIADOS,
         )
 
+    _migrar_membros_tipo(db)
+
     db.commit()
     db.close()
+
+
+def _migrar_membros_tipo(db):
+    """Adiciona members.tipo ('equipe' | 'convidado') de forma aditiva e idempotente.
+    Convidados ficam fora de tudo que e coletivo; o default mantem todo mundo na equipe."""
+    colunas = {r["name"] for r in db.execute("PRAGMA table_info(members)").fetchall()}
+    if "tipo" in colunas:
+        return
+    db.execute(
+        "ALTER TABLE members ADD COLUMN tipo TEXT NOT NULL DEFAULT 'equipe'"
+    )
 
 
 def _get_config(db):
@@ -413,7 +426,9 @@ def _dia_cheio_na_data(db, data_str, dias_letivos_lista):
     if data_str not in set(dias_letivos_lista):
         return False
     ativos_ids = [
-        r["id"] for r in db.execute("SELECT id FROM members WHERE active = 1").fetchall()
+        r["id"] for r in db.execute(
+            "SELECT id FROM members WHERE active = 1 AND COALESCE(tipo, 'equipe') = 'equipe'"
+        ).fetchall()
     ]
     glob = _registros_globais(db)
     cheios = game.dia_cheio(ativos_ids, {data_str: glob.get(data_str, {})})
@@ -450,6 +465,16 @@ def _posses_e_equipados(db):
     return posses, equip
 
 
+def _e_equipe(membro_row):
+    """True se o membro e da equipe (nao convidado). Tolera linhas antigas sem a
+    coluna tipo, tratando-as como equipe."""
+    try:
+        tipo = membro_row["tipo"]
+    except (KeyError, IndexError):
+        return True
+    return (tipo or "equipe") == "equipe"
+
+
 def get_member_stats(db, dias_letivos_lista=None):
     if dias_letivos_lista is None:
         dias_letivos_lista = _dias_letivos(db)
@@ -460,7 +485,8 @@ def get_member_stats(db, dias_letivos_lista=None):
         "SELECT * FROM members ORDER BY active DESC, name COLLATE NOCASE"
     ).fetchall()
     glob = _registros_globais(db)
-    ativos_ids = [m["id"] for m in membros if m["active"]]
+    # Dia cheio e um calculo de time: so conta a equipe, nunca os convidados.
+    ativos_ids = [m["id"] for m in membros if m["active"] and _e_equipe(m)]
     cheios = game.dia_cheio(ativos_ids, {d: v for d, v in glob.items() if d in dias_set})
     gastos = _gastos_por_membro(db)
     posses, equip = _posses_e_equipados(db)
@@ -490,6 +516,7 @@ def get_member_stats(db, dias_letivos_lista=None):
             "id": m["id"],
             "name": m["name"],
             "active": bool(m["active"]),
+            "convidado": not _e_equipe(m),
             "estagio": estado["estagio"],
             "estagio_nome": game.STAGE_NAMES[estado["estagio"]],
             "floresceu": estado["floresceu"],
@@ -597,7 +624,8 @@ def get_overall_trend(db, dias=14):
                SUM(CASE WHEN status = 'presente' THEN 1 ELSE 0 END) AS presentes,
                SUM(CASE WHEN status = 'faltou' THEN 1 ELSE 0 END) AS faltas,
                COUNT(*) as total_reg
-        FROM attendance
+        FROM attendance a
+        JOIN members m ON m.id = a.member_id AND COALESCE(m.tipo, 'equipe') = 'equipe'
         GROUP BY event_date
         ORDER BY event_date DESC
         LIMIT ?
@@ -639,7 +667,7 @@ def get_presencas_por_membro(db):
                SUM(CASE WHEN a.status = 'faltou' THEN 1 ELSE 0 END) AS faltas
         FROM members m
         LEFT JOIN attendance a ON a.member_id = m.id
-        WHERE m.active = 1
+        WHERE m.active = 1 AND COALESCE(m.tipo, 'equipe') = 'equipe'
         GROUP BY m.id
         ORDER BY presentes DESC
         """
@@ -736,8 +764,12 @@ def dia(data_str):
     dia_anterior = (data_atual - timedelta(days=1)).isoformat()
     dia_seguinte = (data_atual + timedelta(days=1)).isoformat()
 
+    ativos_visiveis = [s for s in stats_list if s["active"]]
     jardim = _enriquecer_jardim(
-        db, [s for s in stats_list if s["active"]], data_str, set(dias_letivos_lista)
+        db, [s for s in ativos_visiveis if not s["convidado"]], data_str, set(dias_letivos_lista)
+    )
+    jardim_convidados = _enriquecer_jardim(
+        db, [s for s in ativos_visiveis if s["convidado"]], data_str, set(dias_letivos_lista)
     )
 
     return render_template(
@@ -751,6 +783,7 @@ def dia(data_str):
         e_letivo=e_letivo,
         motivo_nao_letivo=motivo_nao_letivo,
         jardim=jardim,
+        jardim_convidados=jardim_convidados,
         data_extenso=_data_extenso(data_atual),
         dia_n=dias_letivos_lista.index(data_str) + 1 if e_letivo else None,
         dias_total=len(dias_letivos_lista),
@@ -789,13 +822,17 @@ def _base_coletivo(db):
     dias = _dias_letivos(db)
     dias_set = set(dias)
     membros = get_member_stats(db, dias)
-    ativos = [m for m in membros if m["active"]]
+    # "ativos" e o time: tudo que e coletivo (dia cheio, jardim coletivo, metas, destaques,
+    # panorama, trilha, bosque, resumo da sprint) olha so a equipe. Convidados ficam de fora.
+    ativos = [m for m in membros if m["active"] and not m["convidado"]]
     ativos_ids = [m["id"] for m in ativos]
+    convidados = [m for m in membros if m["active"] and m["convidado"]]
     glob = _registros_globais(db)
     cheios = game.dia_cheio(ativos_ids, {d: v for d, v in glob.items() if d in dias_set})
     return {
         "dias": dias, "dias_set": dias_set, "meta": game.meta_floracao(len(dias)),
         "membros": membros, "ativos": ativos, "ativos_ids": ativos_ids,
+        "convidados": convidados,
         "glob": glob, "cheios": cheios, "sprints": _cfg_sprints(db),
         "hoje": date.today().isoformat(),
     }
@@ -808,7 +845,8 @@ def _progresso_coletivo(ativos, meta):
 
 
 def _marcos_liberados(stats_list, meta):
-    ativos = [s for s in stats_list if s["active"]]
+    # Jardim coletivo: so a equipe conta para o progresso dos marcos.
+    ativos = [s for s in stats_list if s["active"] and not s["convidado"]]
     return [m["id"] for m in game.marcos_coletivos(_progresso_coletivo(ativos, meta)) if m["liberado"]]
 
 
@@ -1065,10 +1103,12 @@ def dashboard():
     db = get_db()
     ctx = _base_coletivo(db)
     _enriquecer_jardim(db, ctx["ativos"], ctx["hoje"], ctx["dias_set"])
+    _enriquecer_jardim(db, ctx["convidados"], ctx["hoje"], ctx["dias_set"])
     tendencia = get_overall_trend(db, dias=14)
     return render_template(
         "dashboard.html",
         membros=ctx["membros"],
+        convidados=ctx["convidados"],
         grafico_linha=build_line_chart(tendencia),
         tem_tendencia=len(tendencia) >= 2,
         presencas=get_presencas_por_membro(db),
@@ -1462,6 +1502,7 @@ def api_marcar_todos():
     event_date = payload.get("event_date")
     event_type = payload.get("event_type")
     status = payload.get("status", "presente")
+    tipo = payload.get("tipo")  # None = todos; 'equipe' ou 'convidado' = so esse grupo
 
     try:
         date.fromisoformat(event_date)
@@ -1471,9 +1512,16 @@ def api_marcar_todos():
         abort(400)
     if status not in ("presente", "faltou", "justificada"):
         abort(400)
+    if tipo not in (None, "equipe", "convidado"):
+        abort(400)
 
     db = get_db()
-    membros_ativos = db.execute("SELECT id FROM members WHERE active = 1").fetchall()
+    if tipo is None:
+        membros_ativos = db.execute("SELECT id FROM members WHERE active = 1").fetchall()
+    else:
+        membros_ativos = db.execute(
+            "SELECT id FROM members WHERE active = 1 AND COALESCE(tipo, 'equipe') = ?", (tipo,)
+        ).fetchall()
     for m in membros_ativos:
         db.execute(
             """
@@ -1497,8 +1545,11 @@ def api_add_membro():
     nome = (payload.get("name") or "").strip()
     if not nome:
         abort(400)
+    tipo = payload.get("tipo", "equipe")
+    if tipo not in ("equipe", "convidado"):
+        abort(400)
     db = get_db()
-    db.execute("INSERT INTO members (name) VALUES (?)", (nome,))
+    db.execute("INSERT INTO members (name, tipo) VALUES (?, ?)", (nome, tipo))
     db.commit()
     return jsonify({"ok": True})
 
@@ -1519,6 +1570,11 @@ def api_editar_membro(member_id):
             "UPDATE members SET active = ? WHERE id = ?",
             (1 if payload.get("active") else 0, member_id),
         )
+    if "tipo" in payload:
+        tipo = payload.get("tipo")
+        if tipo not in ("equipe", "convidado"):
+            abort(400)
+        db.execute("UPDATE members SET tipo = ? WHERE id = ?", (tipo, member_id))
     db.commit()
     return jsonify({"ok": True})
 

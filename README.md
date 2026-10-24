@@ -174,6 +174,16 @@ site também no seu computador, as duas bases vão divergir.
 - **Boas-vindas (+20)**: bônus único na primeira presença registrada de cada pessoa. Os totais do projeto passam a: dedicado 285, típico 211, só daily 195 (ver `docs/BALANCEAMENTO.md`).
 - **Selo/acessório Fundador**: quem teve presença em qualquer dia até a data `fundador_ate` (padrão 23/10/2026, editável na tela Calendário) ganha o selo exclusivo "Fundador", visível no perfil e no álbum e equipável no vaso. É só cosmético, não está à venda e não muda nenhum total de sementes.
 
+## Membros convidados (branch `feature/membros-convidados`)
+
+Pessoas de fora do time podem participar do jardim sem entrar nas contas da equipe.
+
+- **Tipo do membro**: cada pessoa é `equipe` ou `convidado` (coluna nova `members.tipo`, default `equipe`, migração aditiva e idempotente). Na tela Membros dá para escolher o tipo ao criar e trocar depois ("Tornar convidado" / "Tornar equipe").
+- **Convidado tem jogo próprio**: planta, loja, sementes, sequência e perfil funcionam igual para convidados (inclusive as boas-vindas).
+- **Convidado fica fora de tudo que é do time**: dia cheio, progresso do jardim coletivo, metas da sprint, destaques, panorama do grupo (inclusive o denominador do mapa de calor), trilha e bosque e o resumo da sprint. A separação é centralizada: tudo coletivo usa só a equipe (`tipo = 'equipe'`).
+- **Onde aparecem**: na tela Hoje, os convidados ficam numa seção "Convidados" separada (marcam presença normalmente) e no jardim há 3 modos, escolhidos acima da cena e lembrados no navegador: **No fundo do jardim** (padrão: plantas pequenas atrás do time, nas frestas entre os vasos), **Em faixa** (faixa própria sob o jardim, com a sequência e o foguinho de cada um) ou **Ocultos**. Ao passar o mouse (ou tocar, no celular) num convidado sobe um cartão com sequência, estágio e sementes e o link para o perfil (`/membro/ID`, que mostra a nota "convidado"). O jardim também ganhou colinas altas com pinheiros e árvores, flores, cerca de madeira ao fundo, terra com pedrinhas, borda de canteiro em madeira e placas discretas de madeira escura com textura bem leve com nome, sequência e estágio. No modo "no fundo", os convidados ficam num terraço verde atrás do time, cada um com uma plaquinha de nome. Posição: primeiro centralizados na fileira, depois em ordem alfabética, ocupando frestas consecutivas entre os vasos do time.
+- **Exemplo**: com 7 de equipe e 2 convidados, um dia com os 7 presentes (e os convidados ausentes) continua sendo "dia cheio"; adicionar ou reclassificar um convidado não muda o progresso coletivo nem as metas.
+
 ## Como testar uma branch (`feature/deploy`, `feature/coletivo`, `feature/loja-sementes`, `feature/jardim-vivo` ou `redesign/visual`)
 
 Use sempre uma **cópia** do banco para não alterar os dados reais do grupo.

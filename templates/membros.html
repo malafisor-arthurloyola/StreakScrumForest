@@ -15,8 +15,13 @@
 <form class="form-linha" id="novo-membro">
   <label for="nome-novo">Novo membro</label>
   <input type="text" id="nome-novo" placeholder="Nome" required autocomplete="off">
+  <select id="tipo-novo" aria-label="Tipo do membro">
+    <option value="equipe">Equipe</option>
+    <option value="convidado">Convidado</option>
+  </select>
   <button type="submit" class="btn btn-primary">Adicionar ao jardim</button>
 </form>
+<p class="dica">Convidados têm planta, loja e sementes próprias, mas ficam fora das contas do time (dia cheio, jardim coletivo, metas, destaques e panorama).</p>
 
 <div class="membros-lista">
   {% for m in membros %}
@@ -29,11 +34,15 @@
         {{ chama(m.streak, m.chama, true) }}
         <span class="chip chip-sementes"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#p-semente" class="sem-corpo"/><use href="#p-semente-brilho" class="sem-brilho"/></svg><b>{{ m.sementes }}</b></span>
         <span class="chip">{{ m.dias_presentes }} {{ 'presença' if m.dias_presentes == 1 else 'presenças' }}</span>
+        {% if m.convidado %}<span class="chip chip-convidado">convidado</span>{% endif %}
         {% if not m.active %}<span class="chip chip-inativo">inativo</span>{% endif %}
       </div>
     </div>
     <div class="acoes">
       <button type="button" class="btn btn-ghost btn-salvar-nome" data-member-id="{{ m.id }}">Salvar nome</button>
+      <button type="button" class="btn btn-ghost btn-toggle-tipo" data-member-id="{{ m.id }}" data-tipo="{{ 'convidado' if m.convidado else 'equipe' }}">
+        {{ "Tornar equipe" if m.convidado else "Tornar convidado" }}
+      </button>
       <button type="button" class="btn btn-ghost btn-toggle-ativo" data-member-id="{{ m.id }}" data-active="{{ 1 if m.active else 0 }}">
         {{ "Desativar" if m.active else "Reativar" }}
       </button>
@@ -66,12 +75,26 @@ document.getElementById('novo-membro').addEventListener('submit', function (e) {
   var input = document.getElementById('nome-novo');
   var nome = input.value.trim();
   if (!nome) return;
+  var tipo = document.getElementById('tipo-novo').value;
   fetch('/api/membros', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: nome }),
+    body: JSON.stringify({ name: nome, tipo: tipo }),
   }).then(function (r) { return r.json(); })
     .then(function () { window.location.reload(); });
+});
+
+document.querySelectorAll('.btn-toggle-tipo').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var memberId = this.dataset.memberId;
+    var novo = this.dataset.tipo === 'convidado' ? 'equipe' : 'convidado';
+    fetch('/api/membros/' + memberId, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tipo: novo }),
+    }).then(function (r) { return r.json(); })
+      .then(function () { window.location.reload(); });
+  });
 });
 
 document.querySelectorAll('.btn-salvar-nome').forEach(function (btn) {
