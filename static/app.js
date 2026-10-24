@@ -34,6 +34,96 @@ function rotuloDias(n) {
   return n === 1 ? 'dia' : 'dias';
 }
 
+/* -------------------------------------------------------------- dia cheio (1.2)
+   Celebracao quando o dia passa de "nao cheio" para "cheio" durante o uso da tela.
+   Nunca dispara ao abrir/recarregar: o estado inicial vem do servidor em
+   data-dia-cheio-inicial. Nao repete na mesma sessao (sessionStorage). */
+var diaCheioAnterior = (function () {
+  var sec = document.querySelector('.registro[data-dia-data]');
+  return sec ? sec.dataset.diaCheioInicial === 'true' : false;
+})();
+
+function dataVista() {
+  var sec = document.querySelector('.registro[data-dia-data]');
+  return sec ? sec.dataset.diaData : '';
+}
+
+function jaCelebrou(data) {
+  try { return sessionStorage.getItem('jardim.diaCheio.' + data) === '1'; }
+  catch (e) { return false; }
+}
+
+function marcarCelebrado(data) {
+  try { sessionStorage.setItem('jardim.diaCheio.' + data, '1'); } catch (e) {}
+}
+
+function prefereSemMovimento() {
+  return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+function fecharCelebracao(el) {
+  if (!el || el.dataset.fechando) return;
+  el.dataset.fechando = '1';
+  el.classList.remove('visivel');
+  setTimeout(function () { el.remove(); }, 400);
+}
+
+function celebrarDiaCheio() {
+  var data = dataVista();
+  if (jaCelebrou(data)) return;
+  marcarCelebrado(data);
+
+  if (prefereSemMovimento()) {
+    // Sem movimento: so um aviso fixo e discreto, sem tela cheia nem peatalas.
+    mostrarToast('Dia cheio! +1 semente para todos.', 'sucesso');
+    return;
+  }
+
+  var tela = document.createElement('div');
+  tela.className = 'dia-cheio-festa';
+  tela.setAttribute('role', 'status');
+  tela.setAttribute('aria-live', 'polite');
+
+  var petalas = document.createElement('div');
+  petalas.className = 'dc-petalas';
+  petalas.setAttribute('aria-hidden', 'true');
+  var cores = ['#ff9ec4', '#ffd35c', '#c6f24e', '#6db9ff', '#ff8d76'];
+  for (var i = 0; i < 28; i++) {
+    var p = document.createElement('i');
+    p.style.left = Math.random() * 100 + '%';
+    p.style.background = cores[i % cores.length];
+    p.style.setProperty('--atraso', (Math.random() * 1.2).toFixed(2) + 's');
+    p.style.setProperty('--giro', (Math.random() * 360).toFixed(0) + 'deg');
+    p.style.setProperty('--desvio', (Math.random() * 60 - 30).toFixed(0) + 'px');
+    petalas.appendChild(p);
+  }
+
+  var msg = document.createElement('div');
+  msg.className = 'dc-msg';
+  msg.innerHTML = '<strong>Dia cheio!</strong><span>+1 semente para todos</span>';
+
+  tela.appendChild(petalas);
+  tela.appendChild(msg);
+  document.body.appendChild(tela);
+  requestAnimationFrame(function () { tela.classList.add('visivel'); });
+
+  // Dispensa por clique ou Esc, e some sozinha em ~3,5s.
+  tela.addEventListener('click', function () { fecharCelebracao(tela); });
+  function porEsc(ev) {
+    if (ev.key === 'Escape') { fecharCelebracao(tela); document.removeEventListener('keydown', porEsc); }
+  }
+  document.addEventListener('keydown', porEsc);
+  setTimeout(function () { fecharCelebracao(tela); document.removeEventListener('keydown', porEsc); }, 3500);
+}
+
+/* Olha a flag dia_cheio da resposta da API e celebra so na transicao nao-cheio -> cheio. */
+function verificarDiaCheio(data) {
+  if (data.dia_cheio === undefined) return;
+  var agora = !!data.dia_cheio;
+  if (agora && !diaCheioAnterior) celebrarDiaCheio();
+  diaCheioAnterior = agora;
+}
+
 function confete(memberId, cores) {
   var item = document.querySelector('.canteiro-item[data-member-id="' + memberId + '"]');
   if (!item) return;
@@ -145,6 +235,14 @@ function atualizarSementes(jogo) {
   });
 }
 
+/* Atualiza o contador de sementes de todos os membros da lista (cada item tem id e
+   sementes). Usado quando marcar um evento fecha o dia cheio: todos ganham +1, nao
+   so quem foi marcado. Reaproveita a animacao de "+N" de atualizarSementes. */
+function atualizarSementesTodos(lista) {
+  if (!lista) return;
+  lista.forEach(function (m) { atualizarSementes(m); });
+}
+
 function regar(memberId) {
   document.querySelectorAll('.planta[data-member-id="' + memberId + '"]').forEach(function (svg) {
     svg.classList.remove('regando');
@@ -221,7 +319,11 @@ document.querySelectorAll('.status-toggle').forEach(function (wrapper) {
           var streakAntes = atualizarChama(j);
           atualizarProximo(j);
           atualizarSemana(j);
-          atualizarSementes(j);
+          // Atualiza o contador de todos os ativos (dia cheio da +1 para todos);
+          // se o servidor nao mandar a lista, cai no do membro marcado.
+          if (data.sementes_membros) atualizarSementesTodos(data.sementes_membros);
+          else atualizarSementes(j);
+          verificarDiaCheio(data);
 
           var nome = '';
           var linha = wrapper.closest('[data-member-row]');

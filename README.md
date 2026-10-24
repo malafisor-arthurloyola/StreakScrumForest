@@ -165,6 +165,15 @@ site também no seu computador, as duas bases vão divergir.
 - **Destaques corrigidos**: em caso de empate, todo mundo que empatou aparece ("Bruno e Heloisa", "Todo o time").
 - **Plantas com desenho proprio**: cacto, cogumelo, planta carnivora (armadilhas que abrem e fecham), girassol, samambaia, lavanda, bambu, bonsai, cerejeira, jabuticabeira, ipe e baoba. Cacto, cogumelo e carnivora sao novas na Loja.
 
+## Sementes, dia cheio e Fundador (branch `feature/sementes-e-dia-cheio`)
+
+- **Bug do dia cheio corrigido**: ao marcar a última presença que fecha o dia (todos presentes, ninguém faltou), o contador de sementes de **todos** os membros sobe +1 na hora, não só o de quem foi marcado. A resposta de `/api/attendance` agora traz as sementes de todos os ativos e o estado de dia cheio.
+- **Celebração de dia cheio**: quando o dia passa de "não cheio" para "cheio" enquanto você usa a tela Hoje, aparece uma chuva de pétalas com "Dia cheio! +1 semente para todos". Some sozinha em ~3,5s, dispensa com clique ou Esc, não repete na mesma sessão e respeita `prefers-reduced-motion` (nesse caso, só um aviso discreto). Nunca dispara ao recarregar a página.
+- **Aba Sementes** (`/sementes`): explica de forma visual todas as fontes de sementes (eventos, semana fechada, dia cheio, marcos de sequência, floresceu e boas-vindas), com os valores lidos das constantes de `game.py` (nunca duplicados no HTML). Tem a seção "a sequência não multiplica" e, se você escolheu quem é na Loja, mostra seu progresso (sequência, próximo marco e quanto rendeu cada fonte).
+- **Card "Próximos marcos" no Painel**: cada pessoa em ordem alfabética, com a barra até o próximo marco de sequência (ex.: "8 de 10 dias, +5 sementes"). Só destaque positivo; leva para a aba Sementes.
+- **Boas-vindas (+20)**: bônus único na primeira presença registrada de cada pessoa. Os totais do projeto passam a: dedicado 285, típico 211, só daily 195 (ver `docs/BALANCEAMENTO.md`).
+- **Selo/acessório Fundador**: quem teve presença em qualquer dia até a data `fundador_ate` (padrão 23/10/2026, editável na tela Calendário) ganha o selo exclusivo "Fundador", visível no perfil e no álbum e equipável no vaso. É só cosmético, não está à venda e não muda nenhum total de sementes.
+
 ## Como testar uma branch (`feature/deploy`, `feature/coletivo`, `feature/loja-sementes`, `feature/jardim-vivo` ou `redesign/visual`)
 
 Use sempre uma **cópia** do banco para não alterar os dados reais do grupo.

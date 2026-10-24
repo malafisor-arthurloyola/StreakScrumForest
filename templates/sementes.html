@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% block title %}Sementes · Jardim da Equipe{% endblock %}
+
+{% block content %}
+{% set dia_completo = fontes.por_evento.daily + fontes.por_evento.dev + fontes.por_evento.encerramento %}
+<header class="pagina-cab">
+  <div>
+    <h1>De onde vêm as sementes</h1>
+    <p class="sub">Sementes são o dinheiro do jardim: você troca por plantas e enfeites na Loja. Elas só aumentam, nunca caem por falta.</p>
+  </div>
+  <a class="btn btn-ghost" href="{{ url_for('loja_page', m=atual.id if atual else None) }}">Ir à loja</a>
+</header>
+
+<!-- Topo: um exemplo concreto -->
+<section class="sem-exemplo card" aria-label="Exemplo">
+  <div class="sem-exemplo-conta">
+    <span class="sem-exemplo-rotulo">Um dia completo</span>
+    <div class="sem-exemplo-eventos">
+      <span class="sem-ev">daily<b>+{{ fontes.por_evento.daily }}</b></span>
+      <span class="sem-mais">+</span>
+      <span class="sem-ev">dev<b>+{{ fontes.por_evento.dev }}</b></span>
+      <span class="sem-mais">+</span>
+      <span class="sem-ev">encerramento<b>+{{ fontes.por_evento.encerramento }}</b></span>
+      <span class="sem-igual">=</span>
+      <span class="sem-ev sem-ev-total">{{ dia_completo }} sementes</span>
+    </div>
+  </div>
+  <p class="fonte-nota">Essa é a base. Por cima vêm os bônus de constância, de time e de boas-vindas — é por isso que o total final é bem maior do que "{{ dia_completo }} por dia".</p>
+</section>
+
+<!-- Grafico empilhado: de onde vem o total do dedicado -->
+<section class="card sem-grafico" aria-label="Composição do total">
+  <div class="sem-grafico-cab">
+    <h2>De onde vem o número</h2>
+    <p class="sub sub-secao">Quem vai a tudo, todos os dias, com o time inteiro presente, chega a <b>{{ total_dedicado }}</b> sementes no projeto. Cada fatia é uma fonte:</p>
+  </div>
+  <svg class="sem-barra-svg" viewBox="0 0 100 10" preserveAspectRatio="none" role="img"
+       aria-label="Barra empilhada das fontes que somam {{ total_dedicado }} sementes">
+    {% for c in composicao %}
+    <rect x="{{ c.inicio }}" y="0" width="{{ c.pct }}" height="10" fill="{{ c.cor }}">
+      <title>{{ c.rotulo }}: {{ c.valor }} sementes</title>
+    </rect>
+    {% endfor %}
+  </svg>
+  <ul class="sem-legenda">
+    {% for c in composicao %}
+    <li><span class="sem-ponto" style="background: {{ c.cor }}"></span>{{ c.rotulo }} <b>{{ c.valor }}</b></li>
+    {% endfor %}
+  </ul>
+</section>
+
+<!-- Fontes em ordem de importancia, com valor grande e cor propria -->
+<section class="sementes-fontes" aria-label="Fontes de sementes">
+  <article class="card fonte-card" style="--cor: {{ cores.eventos }}">
+    <span class="fonte-faixa"></span>
+    <h2>Presença nos eventos</h2>
+    <p class="fonte-grande">+{{ dia_completo }}<small>/dia</small></p>
+    <p class="fonte-nota">+{{ fontes.por_evento.daily }} por evento (daily, dev e encerramento). A base de tudo.</p>
+  </article>
+
+  <article class="card fonte-card" style="--cor: {{ cores.semanas }}">
+    <span class="fonte-faixa"></span>
+    <h2>Semana fechada</h2>
+    <p class="fonte-grande">+{{ fontes.semana_fechada }}</p>
+    <p class="fonte-nota">Por semana com presença em dias suficientes. Feriado não atrapalha.</p>
+  </article>
+
+  <article class="card fonte-card" style="--cor: {{ cores.marcos }}">
+    <span class="fonte-faixa"></span>
+    <h2>Marcos de sequência</h2>
+    <div class="marcos-trilha" role="list">
+      {% for dias, bonus in fontes.marcos %}
+      <div class="marco-no" role="listitem">
+        <span class="marco-dias">{{ dias }} {{ 'dia' if dias == 1 else 'dias' }}</span>
+        <span class="marco-bonus">+{{ bonus }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    <p class="fonte-nota">Prêmio único ao alcançar cada sequência.</p>
+  </article>
+
+  <article class="card fonte-card" style="--cor: {{ cores.dia_cheio }}">
+    <span class="fonte-faixa"></span>
+    <h2>Dia cheio do time</h2>
+    <p class="fonte-grande">+{{ fontes.dia_cheio }}</p>
+    <p class="fonte-nota">Quando todo o time veio e ninguém faltou, cada presente ganha este extra.</p>
+  </article>
+
+  <article class="card fonte-card" style="--cor: {{ cores.floresceu }}">
+    <span class="fonte-faixa"></span>
+    <h2>Floresceu</h2>
+    <p class="fonte-grande">+{{ fontes.floresceu }}</p>
+    <p class="fonte-nota">Bônus único quando sua planta chega ao último estágio.</p>
+  </article>
+
+  <article class="card fonte-card" style="--cor: {{ cores.boas_vindas }}">
+    <span class="fonte-faixa"></span>
+    <h2>Boas-vindas</h2>
+    <p class="fonte-grande">+{{ fontes.boas_vindas }}</p>
+    <p class="fonte-nota">Um presente único na sua primeira presença registrada.</p>
+  </article>
+</section>
+
+<section class="card sementes-multiplica" aria-label="A sequência multiplica?">
+  <h2>E a sequência multiplica? Não.</h2>
+  <p>A sequência <b>não</b> multiplica o ganho: a daily vale +{{ fontes.por_evento.daily }} no primeiro dia e continua valendo +{{ fontes.por_evento.daily }} no quadragésimo. Os marcos ({% for dias, bonus in fontes.marcos %}{{ dias }}{% if not loop.last %}, {% endif %}{% endfor %} dias seguidos) são bônus fixos, uma vez cada.</p>
+</section>
+
+<!-- Progresso pessoal: o seletor de nomes fica aqui, junto do que ele controla -->
+{% macro progresso(pessoa, det) %}
+<div class="progresso-coluna">
+  <h3 class="progresso-nome">{{ pessoa.name }}</h3>
+  <div class="progresso-grade">
+    <div class="kpi">
+      <span class="kpi-rotulo">Sequência atual</span>
+      <span class="kpi-valor">{{ det.streak }}</span>
+      <span class="kpi-nota">melhor: {{ det.melhor_streak }} {{ 'dia' if det.melhor_streak == 1 else 'dias' }}</span>
+    </div>
+    <div class="kpi">
+      <span class="kpi-rotulo">Próximo marco</span>
+      {% if det.proximo.feito %}
+        <span class="kpi-valor">Todos!</span>
+        <span class="kpi-nota">já passou por todos os marcos</span>
+      {% else %}
+        <span class="kpi-valor">{{ det.proximo.alvo }} dias</span>
+        <span class="kpi-nota">faltam {{ det.proximo.faltam }} {{ 'dia' if det.proximo.faltam == 1 else 'dias' }} para +{{ det.proximo.bonus }}</span>
+      {% endif %}
+    </div>
+    <div class="kpi">
+      <span class="kpi-rotulo">Semanas fechadas</span>
+      <span class="kpi-valor">{{ det.ganho.semanas_fechadas }}</span>
+      <span class="kpi-nota">+{{ det.ganho.por_semanas_fechadas }} sementes</span>
+    </div>
+    <div class="kpi kpi-destaque">
+      <span class="kpi-rotulo">Total ganho</span>
+      <span class="kpi-valor">{{ det.ganho.total }}</span>
+    </div>
+  </div>
+  <ul class="fonte-lista fonte-lista-wide">
+    <li><span class="sem-ponto" style="background: {{ cores.eventos }}"></span><span>Presença nos eventos</span><b>+{{ det.ganho.por_presenca }}</b></li>
+    <li><span class="sem-ponto" style="background: {{ cores.semanas }}"></span><span>Semanas fechadas</span><b>+{{ det.ganho.por_semanas_fechadas }}</b></li>
+    <li><span class="sem-ponto" style="background: {{ cores.marcos }}"></span><span>Marcos de sequência</span><b>+{{ det.ganho.por_marcos }}</b></li>
+    <li><span class="sem-ponto" style="background: {{ cores.dia_cheio }}"></span><span>Dia cheio do time</span><b>+{{ det.ganho.por_dia_cheio }}</b></li>
+    <li><span class="sem-ponto" style="background: {{ cores.floresceu }}"></span><span>Floresceu</span><b>+{{ det.ganho.por_floresceu }}</b></li>
+    {% if 'por_boas_vindas' in det.ganho %}
+    <li><span class="sem-ponto" style="background: {{ cores.boas_vindas }}"></span><span>Boas-vindas</span><b>+{{ det.ganho.por_boas_vindas }}</b></li>
+    {% endif %}
+  </ul>
+</div>
+{% endmacro %}
+
+<section class="card sementes-progresso" aria-label="Progresso de um membro" id="progresso">
+  <h2>Acompanhar o progresso</h2>
+  <div class="quem" role="group" aria-label="Quem acompanhar">
+    <span class="quem-rotulo">Quem acompanhar?</span>
+    <div class="quem-chips">
+      {% for m in membros %}
+      <a class="quem-chip{{ ' ativo' if atual and atual.id == m.id }}" href="{{ url_for('sementes_page', m=m.id, b=comparar.id if comparar else None) }}#progresso">{{ m.name }}</a>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% if detalhe %}
+    {% if detalhe_b %}
+    <div class="progresso-comparar">
+      {{ progresso(atual, detalhe) }}
+      {{ progresso(comparar, detalhe_b) }}
+    </div>
+    <p class="fonte-nota">Comparação lado a lado, sem ranking: os números de cada pessoa, sem apontar "melhor" ou "pior".</p>
+    {% else %}
+    {{ progresso(atual, detalhe) }}
+    {% endif %}
+
+    <div class="quem quem-comparar" role="group" aria-label="Comparar com">
+      <span class="quem-rotulo">{% if detalhe_b %}Comparando com{% else %}Comparar com{% endif %}</span>
+      <div class="quem-chips">
+        {% for m in membros if not (atual and m.id == atual.id) %}
+        <a class="quem-chip{{ ' ativo' if comparar and comparar.id == m.id }}" href="{{ url_for('sementes_page', m=atual.id, b=m.id) }}#progresso">{{ m.name }}</a>
+        {% endfor %}
+      </div>
+      {% if detalhe_b %}
+      <a class="como-ganhar-link" href="{{ url_for('sementes_page', m=atual.id) }}#progresso">Sair da comparação</a>
+      {% endif %}
+    </div>
+  {% else %}
+    <p class="vazio">Escolha um nome acima para ver o progresso da pessoa: sequência, próximo marco e quanto já rendeu cada fonte. Depois dá para comparar com outra pessoa.</p>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  try {
+    var KEY = 'jardim.quemSou';
+    var tem = location.search.indexOf('m=') !== -1;
+    var salvo = localStorage.getItem(KEY);
+    if (!tem && salvo) location.replace('/sementes?m=' + encodeURIComponent(salvo) + '#progresso');
+  } catch (e) {}
+})();
+</script>
+{% endblock %}

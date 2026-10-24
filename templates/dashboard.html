@@ -143,6 +143,26 @@
   </div>
 </section>
 
+<section aria-label="Próximos marcos">
+  <h2 class="secao-titulo">Próximos marcos</h2>
+  <p class="sub sub-secao">Cada pessoa é o próximo prêmio de sequência à sua frente. <a href="{{ url_for('sementes_page') }}">Como as sementes funcionam</a>.</p>
+  <div class="prox-marcos">
+    {% for p in proximos_marcos %}
+    <a class="prox-marco" href="{{ url_for('sementes_page', m=p.id) }}" title="Ver as sementes de {{ p.name }}">
+      <span class="prox-nome">{{ p.name }}</span>
+      <div class="barra barra-meta"><div class="barra-fill barra-fill-acc" style="width: {{ p.pct }}%"></div></div>
+      <span class="prox-estado">
+        {% if p.proximo.feito %}
+          Todos os marcos alcançados
+        {% else %}
+          {{ p.streak }} de {{ p.proximo.alvo }} {{ 'dia' if p.proximo.alvo == 1 else 'dias' }}, +{{ p.proximo.bonus }} sementes
+        {% endif %}
+      </span>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+
 <div class="duas-colunas">
   <section class="card">
     <h2>Presença ao longo dos dias</h2>

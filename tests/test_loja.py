@@ -66,9 +66,9 @@ class TestSementes(LojaBase):
     def test_sementes_crescem_com_presenca(self):
         self.presencas(1, 10)
         s = self.stats(1)
-        # 10 presencas + 1 semana fechada (3) + marcos de sequencia 5 e 10 (3+5)
-        self.assertEqual(s["sementes_ganhas"], 21)
-        self.assertEqual(s["sementes"], 21)
+        # 10 presencas + 1 semana fechada (3) + marcos 5 e 10 (3+5) + boas-vindas (20)
+        self.assertEqual(s["sementes_ganhas"], 41)
+        self.assertEqual(s["sementes"], 41)
 
     def test_resposta_da_presenca_traz_sementes(self):
         r = self.post("/api/attendance", member_id=1, event_date=self.dias[0],

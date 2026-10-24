@@ -27,6 +27,12 @@ VIGOR_LEVELS = [
 # sementes por evento com presenca (um dia com os tres eventos rende 3)
 SEED_POR_EVENTO = {"daily": 1, "dev": 1, "encerramento": 1}
 
+# bonus fixos (fonte unica de verdade: usados em calcular_sementes e na aba /sementes)
+SEED_SEMANA_FECHADA = 3   # por semana fechada
+SEED_DIA_CHEIO = 1        # por dia cheio do time, para cada presente
+SEED_FLORESCEU = 20       # ao florescer (bonus unico)
+SEED_BOAS_VINDAS = 20     # ao registrar a 1a presenca (bonus unico)
+
 SEED_MILESTONES = [
     (5,  3),
     (10, 5),
@@ -279,23 +285,27 @@ def calcular_sementes(dias_letivos_lista, semanas_projeto, registros_por_data, f
         if streak_max >= limiar:
             marcos += bonus
 
-    bonus_floresceu = 20 if floresceu else 0
+    bonus_floresceu = SEED_FLORESCEU if floresceu else 0
+
+    # boas-vindas: bonus unico para quem ja registrou pelo menos uma presenca
+    por_boas_vindas = SEED_BOAS_VINDAS if dias_presentes > 0 else 0
 
     # dia cheio do time: +1 para quem veio nesse dia
-    por_dia_cheio = sum(
+    por_dia_cheio = SEED_DIA_CHEIO * sum(
         1 for d in (dias_cheios or ())
         if registros_por_data.get(d, {}).get("presente", False)
     )
 
-    total = seeds_eventos + semenas_fechadas * 3 + marcos + bonus_floresceu + por_dia_cheio
+    total = seeds_eventos + semenas_fechadas * SEED_SEMANA_FECHADA + marcos + bonus_floresceu + por_dia_cheio + por_boas_vindas
     return {
         "total": total,
         "por_presenca": seeds_eventos,
         "por_evento": por_evento,
-        "por_semanas_fechadas": semenas_fechadas * 3,
+        "por_semanas_fechadas": semenas_fechadas * SEED_SEMANA_FECHADA,
         "por_marcos": marcos,
         "por_floresceu": bonus_floresceu,
         "por_dia_cheio": por_dia_cheio,
+        "por_boas_vindas": por_boas_vindas,
         "semanas_fechadas": semenas_fechadas,
     }
 
@@ -318,6 +328,35 @@ def conquistas_membro(dias_presentes, melhor_streak, floresceu, meta):
     if floresceu:
         lista.append("floresceu")
     return lista
+
+
+def proximo_marco(streak_atual):
+    """Proximo marco de sequencia a alcancar, a partir da sequencia atual.
+
+    Retorna dict com alvo (dias do proximo marco), bonus (sementes), faltam (dias
+    que faltam) e feito (bool se ja passou do ultimo marco). Se nao ha mais marcos,
+    alvo/bonus/faltam ficam em None e feito=True. Funcao pura, sem banco.
+    """
+    for limiar, bonus in SEED_MILESTONES:
+        if streak_atual < limiar:
+            return {
+                "alvo": limiar,
+                "bonus": bonus,
+                "faltam": limiar - streak_atual,
+                "feito": False,
+            }
+    return {"alvo": None, "bonus": None, "faltam": None, "feito": True}
+
+
+def e_fundador(registros_por_data, fundador_ate):
+    """True se a pessoa teve presenca em qualquer dia ate (inclusive) fundador_ate.
+    Funcao pura. fundador_ate e uma string AAAA-MM-DD; vazio/None -> ninguem e fundador."""
+    if not fundador_ate:
+        return False
+    for data, reg in registros_por_data.items():
+        if data <= fundador_ate and reg.get("presente", False):
+            return True
+    return False
 
 
 def dia_cheio(membros_ativos_ids, registros_globais_por_data):

@@ -38,6 +38,7 @@ DEFAULT_CONFIG = {
     "num_semanas": "10",
     "sprint_semanas": "2",
     "contar_a_partir_de": "2026-10-15",
+    "fundador_ate": "2026-10-23",
 }
 
 DEFAULT_FERIADOS = [
@@ -45,6 +46,16 @@ DEFAULT_FERIADOS = [
     ("2026-11-02", "Finados"),
     ("2026-11-20", "Consciência Negra"),
 ]
+
+# cor de cada fonte de sementes (repetida nos cards e no grafico da aba /sementes)
+CORES_FONTE = {
+    "eventos": "#c6f24e",
+    "semanas": "#6db9ff",
+    "marcos": "#ff9ec4",
+    "dia_cheio": "#ffd35c",
+    "floresceu": "#4fdb9b",
+    "boas_vindas": "#ff8d76",
+}
 
 app = Flask(__name__)
 app.config.update(
@@ -396,6 +407,19 @@ def _estado_jogo_membro(db, member_id, dias_letivos_lista):
     return game.calcular_membro(dias_letivos_lista, reg, meta)
 
 
+def _dia_cheio_na_data(db, data_str, dias_letivos_lista):
+    """True se `data_str` e um dia cheio do time (todos os ativos presentes, ninguem
+    faltou) e cai em dia letivo. Usa a mesma regra de game.dia_cheio."""
+    if data_str not in set(dias_letivos_lista):
+        return False
+    ativos_ids = [
+        r["id"] for r in db.execute("SELECT id FROM members WHERE active = 1").fetchall()
+    ]
+    glob = _registros_globais(db)
+    cheios = game.dia_cheio(ativos_ids, {data_str: glob.get(data_str, {})})
+    return data_str in cheios
+
+
 def _registros_globais(db):
     """{data: {member_id: {'presente': True, ...}}} em uma unica consulta."""
     glob = {}
@@ -440,11 +464,13 @@ def get_member_stats(db, dias_letivos_lista=None):
     cheios = game.dia_cheio(ativos_ids, {d: v for d, v in glob.items() if d in dias_set})
     gastos = _gastos_por_membro(db)
     posses, equip = _posses_e_equipados(db)
+    fundador_ate = _get_config(db).get("fundador_ate", "2026-10-23")
 
     resultado = []
     for m in membros:
         reg = {d: v[m["id"]] for d, v in glob.items() if m["id"] in v}
         estado = game.calcular_membro(dias_letivos_lista, reg, meta)
+        fundador = game.e_fundador(reg, fundador_ate)
         progresso, dias_ate_proximo = game.progresso_estagio(
             estado["g"], meta, estado["estagio"]
         )
@@ -456,7 +482,8 @@ def get_member_stats(db, dias_letivos_lista=None):
             "sementes": max(ganho["total"] - gasto, 0),
             "sementes_ganhas": ganho["total"],
             "sementes_gastas": gasto,
-            "visual": catalog.montar_visual(posses.get(m["id"], set()), equip.get(m["id"], {})),
+            "visual": catalog.montar_visual(posses.get(m["id"], set()), equip.get(m["id"], {}), fundador),
+            "fundador": fundador,
             "progresso": progresso,
             "dias_ate_proximo": dias_ate_proximo,
             "chama": game.nivel_chama(estado["streak"]),
@@ -729,6 +756,7 @@ def dia(data_str):
         dias_total=len(dias_letivos_lista),
         marcos_ids=_marcos_liberados(stats_list, game.meta_floracao(len(dias_letivos_lista))),
         panorama=_panorama(db, _base_coletivo(db), request.args.get("p", "projeto")),
+        dia_cheio_inicial=_dia_cheio_na_data(db, data_str, dias_letivos_lista),
     )
 
 
@@ -996,12 +1024,28 @@ def _painel_coletivo(db, ctx):
         })
     com_registro = {d for d, v in ctx["glob"].items() if v}
     seq = game.sequencia_dias_cheios(ctx["dias"], ctx["cheios"], com_registro, hoje)
+
+    # Proximos marcos de sequencia, em ordem alfabetica (sem expor quem esta atras).
+    # So destaque positivo: barra ate o proximo marco de cada pessoa.
+    proximos_marcos = []
+    for m in sorted(ctx["ativos"], key=lambda x: x["name"].lower()):
+        prox = game.proximo_marco(m["streak"])
+        if prox["feito"]:
+            pct = 100
+        else:
+            pct = round(100 * m["streak"] / prox["alvo"]) if prox["alvo"] else 0
+        proximos_marcos.append({
+            "id": m["id"], "name": m["name"], "streak": m["streak"],
+            "proximo": prox, "pct": pct,
+        })
+
     return {
         "progresso_coletivo": progresso,
         "marcos": game.marcos_coletivos(progresso),
         "marcos_ids": _marcos_liberados(ctx["membros"], ctx["meta"]),
         "dias_cheios_seq": seq,
         "chama_time": game.nivel_chama(seq),
+        "proximos_marcos": proximos_marcos,
         "sprint_atual": n,
         "total_sprints": len(ctx["sprints"]),
         "sprint_info": ctx["sprints"][n - 1],
@@ -1280,7 +1324,7 @@ def calendario_page():
 def api_calendario():
     payload = request.get_json(force=True, silent=True) or {}
     db = get_db()
-    campos_validos = {"semana1_inicio", "num_semanas", "sprint_semanas", "contar_a_partir_de"}
+    campos_validos = {"semana1_inicio", "num_semanas", "sprint_semanas", "contar_a_partir_de", "fundador_ate"}
     for chave, valor in payload.items():
         if chave in campos_validos:
             db.execute(
@@ -1362,17 +1406,34 @@ def api_attendance():
     db.commit()
 
     dias_letivos_lista = _dias_letivos(db)
-    estado = _estado_jogo_membro(db, member_id, dias_letivos_lista)
     meta = game.meta_floracao(len(dias_letivos_lista))
+
+    # Recalcula o estado de todos os ativos de uma vez: assim o cliente atualiza o
+    # contador de sementes de cada um. Quando esta marcacao fecha o dia cheio, todos
+    # os presentes ganham +1, nao so quem foi marcado (bug corrigido na Fase 1.1).
+    todos = get_member_stats(db, dias_letivos_lista)
+    por_id = {s["id"]: s for s in todos}
+    stats = por_id.get(member_id)
+    estado = _estado_jogo_membro(db, member_id, dias_letivos_lista)
 
     progresso, dias_ate_proximo = game.progresso_estagio(
         estado["g"], meta, estado["estagio"]
     )
     extras = _extras_dia(db, [member_id], event_date, set(dias_letivos_lista))[member_id]
-    stats = _stats_membro(db, member_id, dias_letivos_lista)
+
+    # Dia cheio desta data (apos a marcacao). O cliente compara com o valor anterior
+    # que ele mesmo guarda para decidir se mostra a celebracao (Fase 1.2).
+    dia_cheio_hoje = _dia_cheio_na_data(db, event_date, dias_letivos_lista)
+
+    sementes_por_membro = [
+        {"id": s["id"], "sementes": s["sementes"], "sementes_ganhas": s["sementes_ganhas"]}
+        for s in todos
+    ]
 
     return jsonify({
         "ok": True,
+        "dia_cheio": dia_cheio_hoje,
+        "sementes_membros": sementes_por_membro,
         "jogo": {
             "id": member_id,
             "sementes": stats["sementes"],
@@ -1516,6 +1577,12 @@ def _posses_membro(db, member_id):
     return {r["item_id"] for r in rows}
 
 
+def _e_fundador_membro(db, member_id):
+    reg = _registros_membro(db, member_id)
+    fundador_ate = _get_config(db).get("fundador_ate", "2026-10-23")
+    return game.e_fundador(reg, fundador_ate)
+
+
 def _membro_ou_404(db, member_id):
     if db.execute("SELECT 1 FROM members WHERE id = ?", (member_id,)).fetchone() is None:
         abort(404)
@@ -1540,6 +1607,7 @@ def _preview(item_id):
 def _contexto_loja(db, member_id):
     stats = _stats_membro(db, member_id) if member_id else None
     possui = _posses_membro(db, member_id) if stats else set()
+    fundador = bool(stats and stats.get("fundador"))
 
     usados = {}
     if stats:
@@ -1551,8 +1619,12 @@ def _contexto_loja(db, member_id):
 
     itens = []
     for it in catalog.ITENS:
+        # Item exclusivo (Selo Fundador) so aparece para quem tem direito.
+        if it.get("exclusivo") and not fundador:
+            continue
         e = {**it, "preview": _preview(it["id"])}
-        e["possui"] = bool(it.get("padrao")) or it["id"] in possui
+        # Exclusivo liberado conta como "possui" para poder equipar (nunca foi comprado).
+        e["possui"] = bool(it.get("padrao")) or it["id"] in possui or (it.get("exclusivo") and fundador)
         e["equipado_em"] = [s for s, iid in usados.items() if iid == it["id"]]
         if stats:
             ok, motivo = catalog.pode_comprar(it["id"], stats["sementes"], possui, stats["floresceu"])
@@ -1580,12 +1652,19 @@ def _contexto_loja(db, member_id):
     return {
         "membros": [dict(m) for m in membros],
         "atual": stats,
+        "fundador": fundador,
         "compra_ativa": compra_ativa,
         "total_itens": len(catalog.ITENS),
         "itens": itens,
         "grupos": GRUPOS_LOJA,
         "plantas_liberadas": [1] + [n for n in (2, 3) if f"slot_{n}" in possui],
         "compras": compras,
+        "fontes": {
+            "por_evento": game.SEED_POR_EVENTO,
+            "semana_fechada": game.SEED_SEMANA_FECHADA,
+            "dia_cheio": game.SEED_DIA_CHEIO,
+            "marcos": game.SEED_MILESTONES,
+        },
     }
 
 
@@ -1593,6 +1672,109 @@ def _contexto_loja(db, member_id):
 def loja_page():
     db = get_db()
     return render_template("loja.html", **_contexto_loja(db, request.args.get("m", type=int)))
+
+
+def _contexto_sementes(db, member_id, compare_id=None):
+    """Dados da aba Sementes: as constantes (fonte unica dos numeros) e, se a pessoa
+    escolheu quem acompanhar, o detalhamento do ganho dela (e de uma segunda pessoa
+    para comparar lado a lado, de forma neutra)."""
+    fontes = {
+        "por_evento": game.SEED_POR_EVENTO,
+        "semana_fechada": game.SEED_SEMANA_FECHADA,
+        "dia_cheio": game.SEED_DIA_CHEIO,
+        "floresceu": game.SEED_FLORESCEU,
+        "boas_vindas": game.SEED_BOAS_VINDAS,
+        "marcos": game.SEED_MILESTONES,
+    }
+
+    # Composicao do perfil "dedicado" (3 eventos, 45 dias, time perfeito), derivada das
+    # mesmas funcoes de game.py para o grafico nunca mentir se as constantes mudarem.
+    dias = _dias_letivos(db)
+    semanas = _semanas_projeto(db)
+    regs_dedicado = {
+        d: {"presente": True, "eventos": set(game.SEED_POR_EVENTO)} for d in dias
+    }
+    ded = game.calcular_sementes(dias, semanas, regs_dedicado, True, dias_cheios=set(dias))
+    composicao = [
+        {"id": "eventos", "rotulo": "Presença nos eventos", "valor": ded["por_presenca"]},
+        {"id": "semanas", "rotulo": "Semanas fechadas", "valor": ded["por_semanas_fechadas"]},
+        {"id": "marcos", "rotulo": "Marcos de sequência", "valor": ded["por_marcos"]},
+        {"id": "dia_cheio", "rotulo": "Dia cheio do time", "valor": ded["por_dia_cheio"]},
+        {"id": "floresceu", "rotulo": "Floresceu", "valor": ded["por_floresceu"]},
+        {"id": "boas_vindas", "rotulo": "Boas-vindas", "valor": ded["por_boas_vindas"]},
+    ]
+    total_ded = ded["total"]
+    acumulado = 0
+    for c in composicao:
+        c["cor"] = CORES_FONTE[c["id"]]
+        c["pct"] = round(100 * c["valor"] / total_ded, 1) if total_ded else 0
+        c["inicio"] = round(100 * acumulado / total_ded, 3) if total_ded else 0
+        acumulado += c["valor"]
+
+    membros = db.execute(
+        "SELECT id, name FROM members WHERE active = 1 ORDER BY name COLLATE NOCASE"
+    ).fetchall()
+
+    # Dados comuns reusados para a pessoa A e a pessoa B (comparacao).
+    dias_letivos_lista = _dias_letivos(db)
+    meta = game.meta_floracao(len(dias_letivos_lista))
+    semanas_proj = _semanas_projeto(db)
+    dias_set = set(dias_letivos_lista)
+    glob = _registros_globais(db)
+    ativos_ids = [r["id"] for r in membros]
+    cheios = game.dia_cheio(ativos_ids, {d: v for d, v in glob.items() if d in dias_set})
+
+    def _detalhe_membro(mid):
+        if not mid:
+            return None, None
+        m = db.execute(
+            "SELECT id, name FROM members WHERE id = ? AND active = 1", (mid,)
+        ).fetchone()
+        if not m:
+            return None, None
+        reg = _registros_membro(db, mid)
+        estado = game.calcular_membro(dias_letivos_lista, reg, meta)
+        ganho = game.calcular_sementes(
+            dias_letivos_lista, semanas_proj, reg, estado["floresceu"], dias_cheios=cheios
+        )
+        pessoa = {"id": m["id"], "name": m["name"]}
+        det = {
+            "streak": estado["streak"],
+            "melhor_streak": estado["melhor_streak"],
+            "proximo": game.proximo_marco(estado["streak"]),
+            "ganho": ganho,
+            "floresceu": estado["floresceu"],
+        }
+        return pessoa, det
+
+    atual, detalhe = _detalhe_membro(member_id)
+    # Pessoa B (comparacao). Nunca compara alguem consigo mesmo.
+    comparar, detalhe_b = (None, None)
+    if member_id and compare_id and compare_id != member_id:
+        comparar, detalhe_b = _detalhe_membro(compare_id)
+
+    return {
+        "fontes": fontes,
+        "membros": [dict(m) for m in membros],
+        "atual": atual,
+        "detalhe": detalhe,
+        "comparar": comparar,
+        "detalhe_b": detalhe_b,
+        "composicao": composicao,
+        "total_dedicado": total_ded,
+        "cores": CORES_FONTE,
+    }
+
+
+@app.route("/sementes")
+def sementes_page():
+    db = get_db()
+    return render_template(
+        "sementes.html",
+        **_contexto_sementes(
+            db, request.args.get("m", type=int), request.args.get("b", type=int)
+        ),
+    )
 
 
 @app.route("/album")
@@ -1649,7 +1831,9 @@ def api_loja_equipar():
     if item_id is None:
         db.execute("DELETE FROM equipados WHERE member_id = ? AND slot = ?", (member_id, slot))
     else:
-        ok, motivo = catalog.pode_equipar(item_id, slot, _posses_membro(db, member_id))
+        ok, motivo = catalog.pode_equipar(
+            item_id, slot, _posses_membro(db, member_id), _e_fundador_membro(db, member_id)
+        )
         if not ok:
             return _erro(motivo)
         db.execute(

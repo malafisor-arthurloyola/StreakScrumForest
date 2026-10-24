@@ -42,7 +42,7 @@ sem deixar ninguém para trás no visual.
 
 ### 4.1 De onde vêm as sementes, explicado do zero
 
-Existem **5 jeitos** de ganhar sementes. Só o primeiro é "por evento"; os outros quatro são bônus
+Existem **6 jeitos** de ganhar sementes. Só o primeiro é "por evento"; os outros cinco são bônus
 automáticos que o sistema soma sozinho por cima.
 
 **Jeito 1: presença nos eventos (a base, o que você pediu)**
@@ -79,6 +79,14 @@ para incentivar o time a vir junto. Máximo: 45 dias cheios = **45**.
 
 **Jeito 5: Floresceu (+20)**: quando a planta chega ao estágio 10 (atingiu as 36 presenças). Bônus único.
 
+**Jeito 6: Boas-vindas (+20)**: um presente único na **primeira presença registrada** de cada pessoa
+(derivado: vale assim que `dias_presentes >= 1`). É o "bem-vindo ao jardim", para quem começa já sair
+do zero. Bônus único, não se repete.
+
+> **Selo Fundador** (não é semente): quem teve presença em qualquer dia até `fundador_ate`
+> (padrão 23/10/2026, editável na tela Calendário) ganha o selo e o acessório exclusivo "Selo Fundador".
+> É só cosmético: aparece no perfil e no álbum, não está à venda e não muda nenhum total de sementes.
+
 > Justificada ("avisou") rende 0 sementes e não quebra nenhum desses bônus.
 
 ### 4.2 A streak (sequência) multiplica o ganho? Não
@@ -100,7 +108,7 @@ Se o time preferir um multiplicador, dá para adicionar (por exemplo +1 semente 
 presença com sequência acima de 10). Isso aumentaria o total do dedicado e exigiria subir os preços
 de novo. Ver a seção 8.
 
-### 4.3 Por que o perfil dedicado chega a 265 (conta passo a passo)
+### 4.3 Por que o perfil dedicado chega a 285 (conta passo a passo)
 
 "Dedicado" = foi aos 3 eventos todos os 45 dias letivos, sem nenhuma falta, e o time inteiro também.
 
@@ -111,28 +119,32 @@ de novo. Ver a seção 8.
 | Marcos de sequência | 3 + 5 + 10 + 20 | 38 |
 | Dia cheio do time | 45 dias x 1 | 45 |
 | Floresceu | bônus único | 20 |
-| **Total** | | **265** |
+| Boas-vindas | bônus único | 20 |
+| **Total** | | **285** |
 
-Ou seja: **só 135 de 265 vêm de "estar presente em cada evento"**. As outras 130 são os bônus de
-constância e de time (Jeitos 2 a 5). Esse é o motivo de o total ser maior do que "3 sementes x 45 dias".
+Ou seja: **só 135 de 285 vêm de "estar presente em cada evento"**. As outras 150 são os bônus de
+constância, de time e de boas-vindas (Jeitos 2 a 6). Esse é o motivo de o total ser maior do que
+"3 sementes x 45 dias".
 
 ### 4.4 Totais esperados no projeto inteiro (simulação)
 
-| Perfil | Antes | Agora | Composição (agora) |
+| Perfil | Antes (5 fontes) | Agora (com boas-vindas) | Composição (agora) |
 |---|---|---|---|
-| **Dedicado**: 3 eventos, 45 dias | 175 | **265** | 135 eventos + 27 semanas + 38 marcos + 45 dia cheio + 20 floresceu |
-| **Típico**: ~88% dos dias, daily sempre, dev ~85%, encerramento ~75% | 129 | **191** | 102 eventos + 27 semanas + 18 marcos + 24 dia cheio + 20 floresceu |
-| **Só daily**: 45 dias, nunca dev nem encerramento | 175 | **175** | 45 eventos + 27 + 38 + 45 + 20 |
+| **Dedicado**: 3 eventos, 45 dias | 265 | **285** | 135 eventos + 27 semanas + 38 marcos + 45 dia cheio + 20 floresceu + 20 boas-vindas |
+| **Típico**: ~88% dos dias, daily sempre, dev ~85%, encerramento ~75% | 191 | **211** | 102 eventos + 27 semanas + 18 marcos + 24 dia cheio + 20 floresceu + 20 boas-vindas |
+| **Só daily**: 45 dias, nunca dev nem encerramento | 175 | **195** | 45 eventos + 27 + 38 + 45 + 20 + 20 boas-vindas |
 
-Leitura: quem vai a tudo ganha 51% mais que antes; quem faz só a daily fica igual. Isso é o efeito
-desejado: o dev e o encerramento passam a ter recompensa própria.
+Leitura: a boas-vindas soma +20 fixos para todo mundo que registrou ao menos uma presença. Como é
+igual para todos, não muda a ordem nem o incentivo relativo entre os perfis; só dá um empurrão inicial.
 
 ### 4.5 Curva de saldo acumulado (sem gastar), por fim de semana
 
+Os valores abaixo já incluem as boas-vindas (+20), creditadas na primeira semana com presença.
+
 | Semana | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Dedicado | 16 | 42 | 70 | 89 | 122 | 141 | 164 | 207 | 250 | 265 |
-| Típico | 13 | 31 | 51 | 63 | 82 | 100 | 115 | 133 | 160 | 191 |
+| Dedicado | 36 | 62 | 90 | 109 | 142 | 161 | 184 | 227 | 270 | 285 |
+| Típico | 33 | 51 | 71 | 83 | 102 | 120 | 135 | 153 | 180 | 211 |
 
 ## 5. Loja: preços
 
@@ -161,8 +173,8 @@ dedicado: 25% antes, 19% agora), um pouco mais exigente para dar sensação de e
 Meta de ritmo: primeira compra na primeira semana, 2ª plantinha por volta da semana 3 ou 4 e espécie
 épica no fim do projeto para o típico. O ritmo atual cumpre isso.
 
-Exemplo de orçamento típico (191): 2ª plantinha (60) + espécie rara (70) + vaso (24) + companheiro (30)
-= 184. Exemplo dedicado (265): isso tudo + uma espécie épica.
+Exemplo de orçamento típico (211): 2ª plantinha (60) + espécie rara (70) + vaso (24) + companheiro (30)
+= 184. Exemplo dedicado (285): isso tudo + uma espécie épica.
 
 ## 6. Metas coletivas
 
@@ -189,10 +201,11 @@ Exemplo de orçamento típico (191): 2ª plantinha (60) + espécie rara (70) + v
 |---|---|
 | Peso de cada evento | `SEED_POR_EVENTO` em `game.py` |
 | Multiplicador de sequência (não existe hoje) | seria código novo em `calcular_sementes` |
-| Bônus de semana (+3), dia cheio (+1), floresceu (+20) | `calcular_sementes` em `game.py` |
+| Bônus de semana, dia cheio, floresceu, boas-vindas | `SEED_SEMANA_FECHADA`, `SEED_DIA_CHEIO`, `SEED_FLORESCEU`, `SEED_BOAS_VINDAS` em `game.py` |
 | Marcos de sequência | `SEED_MILESTONES` em `game.py` |
 | Preços | `catalog.py` (campo `preco`) |
 | Meta de floração (80%) | `meta_floracao` em `game.py` |
+| Fundador (data limite) | `fundador_ate` na tela Calendário |
 | Calendário e feriados | tela Calendário |
 
 Ao mexer em qualquer valor, rode `python -m unittest discover tests`. Os testes de faixa de preço e de
@@ -202,3 +215,7 @@ total esperado (`tests/test_catalog.py`, `tests/test_game.py`) avisam se o equil
 
 - **Fase B**: sementes por dia de presença (+1), semana, marcos, dia cheio e floresceu; preços de 6 a 60.
 - **Sementes por evento**: +1 para cada um de daily, dev e encerramento; preços dobrados (12 a 120).
+- **Fase 1 (sementes e dia cheio)**: as fontes de bônus viraram constantes nomeadas em `game.py`
+  (fonte única, sem números mágicos); nova aba `/sementes`; card "Próximos marcos" no Painel; e a 6ª
+  fonte, **boas-vindas (+20)**, bônus único na primeira presença (dedicado 265 -> 285, típico 191 -> 211,
+  só daily 175 -> 195). Selo/acessório **Fundador** (cosmético, não rende semente), ligado a `fundador_ate`.

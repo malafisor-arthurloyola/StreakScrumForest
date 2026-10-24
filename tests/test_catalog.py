@@ -159,5 +159,34 @@ class TestMontarVisual(unittest.TestCase):
         self.assertEqual([e["slot"] for e in v["extras"]], [2, 3])
 
 
+class TestFundador(unittest.TestCase):
+    """Fase 1.5: Selo Fundador e um acessorio exclusivo (preco 0, flag exclusivo)."""
+
+    def test_item_existe_e_e_exclusivo(self):
+        it = catalog.item("selo_fundador")
+        self.assertIsNotNone(it)
+        self.assertEqual(it["preco"], 0)
+        self.assertTrue(it["exclusivo"])
+        self.assertEqual(it["tipo"], "acessorio")
+
+    def test_nao_pode_ser_comprado(self):
+        ok, motivo = catalog.pode_comprar("selo_fundador", saldo=999, possui=set(), floresceu=True)
+        self.assertFalse(ok)
+        self.assertIn("exclusivo", motivo.lower())
+
+    def test_so_fundador_equipa(self):
+        ok, _ = catalog.pode_equipar("selo_fundador", "acessorio", possui=set(), fundador=True)
+        self.assertTrue(ok)
+        ok, motivo = catalog.pode_equipar("selo_fundador", "acessorio", possui=set(), fundador=False)
+        self.assertFalse(ok)
+
+    def test_visual_mantem_selo_so_para_fundador(self):
+        equip = {"acessorio": "selo_fundador"}
+        v_fund = catalog.montar_visual(set(), equip, fundador=True)
+        self.assertEqual(v_fund["acessorio"], "selo_fundador")
+        v_nao = catalog.montar_visual(set(), equip, fundador=False)
+        self.assertIsNone(v_nao["acessorio"])
+
+
 if __name__ == "__main__":
     unittest.main()

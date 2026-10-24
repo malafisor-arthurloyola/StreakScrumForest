@@ -38,11 +38,12 @@
   <div class="kpi">
     <span class="kpi-rotulo">Como ganhar mais</span>
     <ul class="como-ganhar">
-      <li><b>+1</b> por dia de presença</li>
-      <li><b>+3</b> por semana fechada</li>
-      <li><b>+1</b> em dia cheio do time</li>
-      <li><b>+3 a +20</b> em marcos de sequência</li>
+      <li><b>+{{ fontes.por_evento.daily }}</b> por evento com presença</li>
+      <li><b>+{{ fontes.semana_fechada }}</b> por semana fechada</li>
+      <li><b>+{{ fontes.dia_cheio }}</b> em dia cheio do time</li>
+      <li><b>+{{ fontes.marcos[0][1] }} a +{{ fontes.marcos[-1][1] }}</b> em marcos de sequência</li>
     </ul>
+    <a class="como-ganhar-link" href="{{ url_for('sementes_page', m=atual.id if atual else None) }}">Ver todas as fontes</a>
   </div>
 </section>
 

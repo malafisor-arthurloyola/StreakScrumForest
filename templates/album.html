@@ -6,7 +6,7 @@
 {% set tenho = itens | selectattr('possui') | list | length %}
 <header class="pagina-cab">
   <div>
-    <h1>Coleção</h1>
+    <h1>Coleção{% if fundador %} <span class="chip chip-fundador" title="Esteve no jardim desde o começo">Fundador</span>{% endif %}</h1>
     <p class="sub">
       {% if atual %}{{ atual.name }} tem {{ tenho }} de {{ total_itens }} itens. Os que ainda faltam aparecem como silhueta.{% else %}Escolha seu nome na Loja para ver a sua coleção.{% endif %}
     </p>

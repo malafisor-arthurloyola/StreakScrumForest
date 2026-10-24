@@ -420,7 +420,8 @@ class TestSementesDiaCheio(unittest.TestCase):
         regs = {dia: {"presente": True} for dia in self.dias}
         r = calcular_sementes(self.dias, self.semanas, regs, True, dias_cheios=set(self.dias))
         self.assertGreaterEqual(r["total"], 150)
-        self.assertLessEqual(r["total"], 190)
+        # inclui as boas-vindas (+20) a partir da Fase 1.5
+        self.assertLessEqual(r["total"], 210)
 
     def test_total_tipico(self):
         # ~88%: uma ausencia a cada 8 dias (2 faltas e 3 avisos), faltas espalhadas
@@ -646,12 +647,15 @@ class TestSementesPorEvento(unittest.TestCase):
         regs = self._tudo(("daily", "dev", "encerramento"))
         r = calcular_sementes(self.dias, self.semanas, regs, True, dias_cheios=set(self.dias))
         self.assertEqual(r["por_presenca"], 135)
-        self.assertEqual(r["total"], 265)
+        # 265 das 5 fontes antigas + 20 de boas-vindas (Fase 1.5) = 285
+        self.assertEqual(r["total"], 285)
+        self.assertEqual(r["por_boas_vindas"], 20)
 
-    def test_so_daily_continua_no_total_antigo(self):
+    def test_so_daily_com_boas_vindas(self):
         regs = self._tudo(("daily",))
         r = calcular_sementes(self.dias, self.semanas, regs, True, dias_cheios=set(self.dias))
-        self.assertEqual(r["total"], 175)
+        # 175 das fontes antigas + 20 de boas-vindas (Fase 1.5) = 195
+        self.assertEqual(r["total"], 195)
 
     def test_crescimento_nao_depende_de_eventos(self):
         meta = meta_floracao(len(self.dias))

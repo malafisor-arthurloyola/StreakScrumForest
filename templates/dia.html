@@ -39,7 +39,8 @@
 {% if not linhas %}
   <p class="vazio">Nenhum membro ativo ainda. Cadastre o grupo em <a href="{{ url_for('membros_page') }}">Membros</a>.</p>
 {% else %}
-<section class="registro" aria-label="Registro de presença">
+<section class="registro" aria-label="Registro de presença"
+         data-dia-data="{{ data_str }}" data-dia-cheio-inicial="{{ 'true' if dia_cheio_inicial else 'false' }}">
   <div class="registro-topo">
     <h2>Quem veio?</h2>
     <div class="todos">

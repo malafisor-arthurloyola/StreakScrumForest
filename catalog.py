@@ -82,6 +82,11 @@ ITENS = [
     {"id": "chapeu", "tipo": "acessorio", "nome": "Chapéu de palha", "preco": 24, "raridade": "comum",
      "desc": "Proteção solar para o vaso."},
 
+    # acessorio exclusivo: nao esta a venda; so quem foi Fundador pode usar
+    {"id": "selo_fundador", "tipo": "acessorio", "nome": "Selo Fundador", "preco": 0,
+     "raridade": "lendaria", "exclusivo": True,
+     "desc": "Para quem esteve no jardim desde o começo. Não está à venda."},
+
     # plantas extras no canteiro
     {"id": "slot_2", "tipo": "slot", "nome": "Segunda plantinha", "preco": 60, "raridade": "rara",
      "desc": "Uma plantinha companheira ao lado da principal. Ela cresce junto, um pouco menor."},
@@ -117,6 +122,8 @@ def pode_comprar(item_id, saldo, possui, floresceu):
     i = item(item_id)
     if i is None:
         return False, "Item desconhecido."
+    if i.get("exclusivo"):
+        return False, "Item exclusivo: não está à venda."
     if i.get("padrao") or i["preco"] == 0:
         return False, "Este item já é seu."
     if item_id in possui:
@@ -133,8 +140,9 @@ def pode_comprar(item_id, saldo, possui, floresceu):
     return True, ""
 
 
-def pode_equipar(item_id, slot, possui):
-    """Retorna (ok, motivo). Itens padrao podem ser usados sempre."""
+def pode_equipar(item_id, slot, possui, fundador=False):
+    """Retorna (ok, motivo). Itens padrao podem ser usados sempre. Itens exclusivos
+    (como o Selo Fundador) so podem ser usados por quem tem direito (fundador=True)."""
     i = item(item_id)
     if i is None:
         return False, "Item desconhecido."
@@ -146,6 +154,10 @@ def pode_equipar(item_id, slot, possui):
     exigido = EXIGE_SLOT.get(slot)
     if exigido and exigido not in possui:
         return False, f"Antes, compre: {item(exigido)['nome']}."
+    if i.get("exclusivo"):
+        if not fundador:
+            return False, "Selo exclusivo de quem foi Fundador."
+        return True, ""
     if not _e_padrao(item_id) and item_id not in possui:
         return False, "Você ainda não tem este item."
     return True, ""
@@ -155,27 +167,27 @@ def _folha(especie_id):
     return (item(especie_id) or {}).get("folha", "p-folha")
 
 
-def _valido(item_id, slot, possui):
-    return bool(item_id) and pode_equipar(item_id, slot, possui)[0]
+def _valido(item_id, slot, possui, fundador=False):
+    return bool(item_id) and pode_equipar(item_id, slot, possui, fundador)[0]
 
 
-def montar_visual(possui, equipados):
+def montar_visual(possui, equipados, fundador=False):
     """Resolve o que aparece no canteiro de um membro.
 
-    Item equipado que nao e mais valido (compra desfeita, por exemplo) e ignorado,
-    voltando ao padrao do tipo.
+    Item equipado que nao e mais valido (compra desfeita, ou selo exclusivo de quem
+    nao e fundador) e ignorado, voltando ao padrao do tipo.
     """
     esp = equipados.get("especie")
-    if not _valido(esp, "especie", possui):
+    if not _valido(esp, "especie", possui, fundador):
         esp = padrao("especie")["id"]
     vaso = equipados.get("vaso")
-    if not _valido(vaso, "vaso", possui):
+    if not _valido(vaso, "vaso", possui, fundador):
         vaso = padrao("vaso")["id"]
     comp = equipados.get("companheiro")
-    if not _valido(comp, "companheiro", possui):
+    if not _valido(comp, "companheiro", possui, fundador):
         comp = None
     acess = equipados.get("acessorio")
-    if not _valido(acess, "acessorio", possui):
+    if not _valido(acess, "acessorio", possui, fundador):
         acess = None
 
     extras = []
@@ -183,7 +195,7 @@ def montar_visual(possui, equipados):
         if f"slot_{n}" not in possui:
             continue
         e = equipados.get(f"especie_{n}")
-        if not _valido(e, f"especie_{n}", possui):
+        if not _valido(e, f"especie_{n}", possui, fundador):
             e = padrao("especie")["id"]
         extras.append({"slot": n, "especie": e, "folha": _folha(e)})
 

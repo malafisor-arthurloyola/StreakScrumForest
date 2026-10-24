@@ -42,6 +42,10 @@
         <label for="contar_a_partir_de">Contar presenças a partir de</label>
         <input type="date" id="contar_a_partir_de" name="contar_a_partir_de" value="{{ cfg.contar_a_partir_de }}">
       </div>
+      <div class="campo">
+        <label for="fundador_ate">Fundador: presença até</label>
+        <input type="date" id="fundador_ate" name="fundador_ate" value="{{ cfg.fundador_ate }}">
+      </div>
       <button type="submit" class="btn btn-primary">Salvar período</button>
     </form>
   </section>
@@ -74,7 +78,7 @@
 document.getElementById('form-config').addEventListener('submit', function (e) {
   e.preventDefault();
   var payload = {};
-  ['semana1_inicio', 'num_semanas', 'sprint_semanas', 'contar_a_partir_de'].forEach(function (k) {
+  ['semana1_inicio', 'num_semanas', 'sprint_semanas', 'contar_a_partir_de', 'fundador_ate'].forEach(function (k) {
     payload[k] = document.getElementById(k).value;
   });
   fetch('/api/calendario', {
