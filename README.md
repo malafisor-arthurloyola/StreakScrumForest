@@ -204,6 +204,20 @@ gratuito antes de começar.
   dura 30 dias e cai se você trocar o código. `/sair` encerra a sessão.
 - O código e o `SECRET_KEY` ficam **só no servidor**, nunca neste repositório nem em conversas.
 
+**O que são os códigos e variáveis (e onde pegar cada um)**
+
+Você **não pega** esses valores em lugar nenhum: você mesmo **inventa** (ou gera) e escreve no arquivo WSGI do
+servidor (aba **Web**, link *WSGI configuration file*). Nenhum deles vai para o GitHub nem para conversas.
+
+| Variável | O que é, em linguagem simples | De onde vem |
+|---|---|---|
+| `ACCESS_CODE` | A "senha do portão": o código que **o grupo todo** digita na tela `/entrar` para ver o site. | Você inventa (uma frase fácil de falar) e combina com o time. |
+| `ADMIN_CODE` | A senha **só do administrador**, para mexer no que é de todos (presença de todos, ata, membros, calendário) quando você não está no computador do sistema. Diferente do `ACCESS_CODE`. | Você inventa e não conta para ninguém. |
+| `SECRET_KEY` | Um texto longo e aleatório que o servidor usa para **assinar os cookies de login**, para ninguém falsificar um login. Ninguém digita isso. Se trocar, todo mundo é deslogado. | Você gera com `python -c "import secrets; print(secrets.token_urlsafe(48))"` e cola. |
+| `STRIKES_DB` | O **caminho do arquivo do banco** no servidor (`/home/SEUUSUARIO/dados/strikes.db`). | É o caminho onde você enviou o arquivo (passo 3). |
+| `ADMIN_LOCAL` | Em `0`, nenhum acesso é tratado como "o computador do sistema". Use sempre `0` no servidor. | Fixo: `0`. |
+| `COOKIE_SECURE` | Em `1`, o login só trafega por HTTPS. | Fixo: `1`. |
+
 **Passo a passo**
 
 1. Crie a conta gratuita no PythonAnywhere (você mesmo, com seu e-mail).
@@ -217,8 +231,9 @@ gratuito antes de começar.
    mkdir -p ~/dados
    ```
 3. **Banco de dados**: ele fica numa pasta fora do repositório (`~/dados`), para o `git pull`
-   nunca sobrescrevê-lo. Suba **uma única vez** o seu banco atual: na aba **Files**, envie o
-   arquivo `data/strikes.db` do seu computador para `/home/SEUUSUARIO/dados/strikes.db`.
+   nunca sobrescrevê-lo. Suba **uma única vez** o seu banco atual: na aba **Files**, **clique na pasta `dados/`** (para ficar dentro dela) e só então use *Upload a file* com o
+   `data/strikes.db` do seu computador. Ele precisa ficar em `/home/SEUUSUARIO/dados/strikes.db`; se subir sem entrar na
+   pasta, o arquivo cai na pasta inicial: mova com `mv ~/strikes.db ~/dados/strikes.db` no Bash.
    Nunca suba de novo por cima depois que o site estiver em uso.
 4. Na aba **Web**, clique em *Add a new web app* e escolha *Manual configuration* (Python 3.10 ou
    mais novo). Em *Virtualenv*, informe `/home/SEUUSUARIO/venv-jardim`.
