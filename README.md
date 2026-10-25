@@ -230,6 +230,8 @@ gratuito antes de começar.
    os.environ["STRIKES_DB"] = "/home/SEUUSUARIO/dados/strikes.db"
    os.environ["ACCESS_CODE"] = "escolha-um-codigo-que-o-grupo-saiba"
    os.environ["SECRET_KEY"] = "um-texto-aleatorio-bem-longo-so-seu"
+   os.environ["ADMIN_CODE"] = "codigo-so-do-administrador-diferente-do-acesso"
+   os.environ["ADMIN_LOCAL"] = "0"
    os.environ["COOKIE_SECURE"] = "1"
 
    from wsgi import application
@@ -245,6 +247,15 @@ gratuito antes de começar.
    desejado por cima de `~/dados/strikes.db` e dê Reload.
 9. **Manter no ar**: contas gratuitas pedem que, de tempos em tempos (a cada ~3 meses), você entre na
    aba **Web** e clique no botão para estender a validade do app.
+
+**Administrador no site publicado:** quem não está no computador do sistema só altera o que é de todos se
+for o **Scrum do dia** (relator, entrando em *Meu jardim* com o PIN) ou entrar com o `ADMIN_CODE` (link
+"Sou o admin" no topo). Use um `ADMIN_CODE` **diferente** do `ACCESS_CODE` e só passe para quem vai
+administrar. `ADMIN_LOCAL=0` garante que nenhum acesso seja tratado como "o computador". Veja a seção
+[Quem pode alterar o quê](#quem-pode-alterar-o-quê-administrador-x-visitante).
+
+**O banco não vai mais para o GitHub:** `data/*.db` está no `.gitignore` (o banco tem nomes, presenças e os
+PINs em hash). Suba o banco só pela aba Files, como no passo 3, e nunca o publique.
 
 **Trocar o código de acesso**: edite o `ACCESS_CODE` no arquivo WSGI e dê Reload; quem estava logado
 precisa entrar de novo.

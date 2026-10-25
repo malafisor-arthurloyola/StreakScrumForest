@@ -5,3 +5,6 @@ data/backups/
 server.log
 .claude/
 .agents/
+data/*.db
+data/*.db-wal
+data/*.db-shm
