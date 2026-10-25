@@ -1706,3 +1706,14 @@ body[data-admin="0"] .so-admin { display: none !important; }
   .topbar-acoes { gap: 6px; min-width: 0; }
   .selo-admin, .link-topo { padding: 0 8px; }
 }
+
+/* ===== Fase 5: quanto rende + minha linha na ata ===== */
+.rende-bloco { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; margin: 10px auto 4px; padding: 10px 14px; border-radius: 14px; background: var(--s2); max-width: 520px; }
+.rende-item { display: inline-flex; align-items: baseline; gap: 6px; color: var(--ink2); font-size: 0.92rem; }
+.rende-item b { color: var(--acc); font-size: 1.05rem; }
+.rende-total { color: var(--ink); }
+.rende-total b { color: var(--acc); }
+.rende-mais, .rende-igual { color: var(--ink2); font-weight: 700; }
+.presenca-form-titulo { font-weight: 700; margin: 0 0 4px; }
+.ata-linha-minha { border-left-color: var(--acc) !important; box-shadow: 0 0 0 1px var(--acc) inset; }
+.ata-selo-eu { font-size: 0.72rem; font-weight: 700; color: var(--acc-ink); background: var(--acc); padding: 1px 7px; border-radius: 999px; }

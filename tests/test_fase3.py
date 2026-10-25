@@ -273,7 +273,7 @@ class TestPresencaDataEFala(Fase3Base):
         h = self.client.get(f"/presenca/daily/{cod}").get_data(as_text=True)
         self.assertIn(str(date.today().year), h)
         self.assertIn("Marcar presença", h)
-        self.assertIn("Marcar e preencher", h)
+        self.assertIn("Preencher a", h)
         self.assertIn("+1 semente", h)
 
     def test_dev_nao_tem_opcao_de_preencher(self):
@@ -281,7 +281,7 @@ class TestPresencaDataEFala(Fase3Base):
         cod = appmod.codigo_do_evento(HOJE, "dev")
         h = self.client.get(f"/presenca/dev/{cod}").get_data(as_text=True)
         self.assertIn("Marcar presença", h)
-        self.assertNotIn("Marcar e preencher", h)
+        self.assertNotIn('id="pf-feito"', h)
 
     def test_marcar_e_preencher_grava_presenca_e_fala(self):
         mid = self.ids()[0]
@@ -310,7 +310,7 @@ class TestPresencaDataEFala(Fase3Base):
         cod = appmod.codigo_do_evento(HOJE, "daily")
         self.client.post(f"/presenca/daily/{cod}", json={})
         h = self.client.get(f"/presenca/daily/{cod}").get_data(as_text=True)
-        self.assertIn("já registrada", h)
+        self.assertIn("já está registrada", h)
         self.assertIn("Preencher a", h)
         self.client.post(f"/presenca/daily/{cod}", json={"fala": {"feito": "depois eu escrevi", "planejado": ""}})
         self.assertEqual(self._fala(mid)[0], "depois eu escrevi")

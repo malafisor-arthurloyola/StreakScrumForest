@@ -411,6 +411,14 @@ Substitui o Google Docs: a ata da daily e do fechamento do dia, pronta para entr
 
 A formatação fica em `ata_fmt.py` (módulo puro e testável): rótulos exatos em EN/pt, `Present:` automático, "None" quando vazio e as etiquetas de card.
 
+## Preencher a daily sem atrito (branch `feature/daily-melhor`)
+
+Ajustes para tornar o preenchimento da daily mais fácil (nenhuma regra de semente muda).
+
+- **Presença e fala em sequência**: na tela de presença (`/presenca/<evento>/<código>`), depois de **"Marcar presença"** a tela **não some** — mostra "Presença registrada" e **mantém** o botão/formulário "Preencher a Daily" para a pessoa preencher na hora ou voltar depois (pelo mesmo QR ou por "Meu jardim"). Salvar a fala também garante a presença. No Dev (sem ata), só presença.
+- **Cada um edita a própria linha na ata**: em `/ata/<data>/<tipo>`, quem está logado com o PIN e **não** é relator/admin vê **só a sua própria linha** editável (destacada, com o selo "você"); as demais ficam só de leitura. Isso salva por `POST /api/ata/minha-fala` (que valida que é a própria pessoa); o `POST /api/ata/salvar` continua **403** para quem não é relator/admin. O auto-salvar (pausa de 1,2 s + ao sair do campo) e a atualização automática a cada 4 s continuam valendo, sem sobrescrever o que você está digitando.
+- **Quanto rende, sem promessa falsa**: na tela de presença e em "Minha fala" há um bloco **"Quanto rende"** lido das constantes de `game.py` (nunca número fixo no HTML): "Marcar presença +N", "Preencher a Daily/Day Closing +M", "juntos +(N+M) hoje". Depois de salvar, aparece o que foi ganho de fato ("Você ganhou +1 pela presença e +1 pela fala"). Editar a fala **não** rende de novo e apagar todo o texto remove o bônus (é derivado) — dito em uma linha discreta.
+
 ## Como testar uma branch (`feature/deploy`, `feature/coletivo`, `feature/loja-sementes`, `feature/jardim-vivo` ou `redesign/visual`)
 
 Use sempre uma **cópia** do banco para não alterar os dados reais do grupo.

@@ -17,14 +17,18 @@
 
 {% if not pode_editar %}
 <div class="aviso-leitura aviso-relator">
-  <p>Você está só vendo esta ata. Quem edita é o relator (Scrum) ou quem está no computador do sistema.
+  {% if eu_id %}
+  <p>Você pode editar <b>a sua própria linha</b> abaixo (ela salva sozinha). As demais são só leitura —
+  quem edita a ata toda é o relator (Scrum) ou quem está no computador do sistema.
   {% if relator_nome %}O relator desta ata é <b>{{ relator_nome }}</b>.{% endif %}</p>
-  {% if not eu_id %}
-  <a class="btn btn-primary" href="{{ url_for('eu_page', next=request.full_path.rstrip('?')) }}">Sou o relator: entrar com o PIN</a>
-  {% elif not relator_nome %}
+  {% if not relator_nome %}
   <button type="button" class="btn btn-primary" id="assumir-relator">Assumir como relator desta ata</button>
   {% endif %}
-  <p class="ata-dica">Para preencher a sua própria fala, use o QR ou <a href="{{ url_for('eu_page') }}">Meu jardim</a>.</p>
+  {% else %}
+  <p>Você está só vendo esta ata. Quem edita é o relator (Scrum) ou quem está no computador do sistema.
+  {% if relator_nome %}O relator desta ata é <b>{{ relator_nome }}</b>.{% endif %}</p>
+  <a class="btn btn-primary" href="{{ url_for('eu_page', next=request.full_path.rstrip('?')) }}">Entrar com o meu PIN para editar a minha fala</a>
+  {% endif %}
 </div>
 {% endif %}
 
@@ -48,9 +52,10 @@
 
 <section class="ata-falas" aria-label="Falas">
   {% for l in linhas %}
-  <article class="ata-linha" data-member-id="{{ l.id }}" data-status="{{ l.status }}">
+  {% set minha = (not pode_editar) and eu_id and (l.id == eu_id) %}
+  <article class="ata-linha{{ ' ata-linha-minha' if minha }}" data-member-id="{{ l.id }}" data-status="{{ l.status }}"{{ ' data-minha="1"' if minha }}>
     <div class="ata-linha-topo">
-      <h3 class="ata-nome">{{ l.name }} <span class="ata-selo-relator" {{ 'hidden' if not l.e_relator }}>relator</span></h3>
+      <h3 class="ata-nome">{{ l.name }}{% if minha %} <span class="ata-selo-eu">você</span>{% endif %} <span class="ata-selo-relator" {{ 'hidden' if not l.e_relator }}>relator</span></h3>
       <div class="ata-status" role="group" aria-label="Situação de {{ l.name }}">
         <button type="button" class="ata-st st-presente" data-st="presente" aria-pressed="{{ 'true' if l.status == 'presente' else 'false' }}" {{ 'disabled' if not pode_editar }}>Presente</button>
         <button type="button" class="ata-st st-aviso" data-st="justificada" aria-pressed="{{ 'true' if l.status == 'justificada' else 'false' }}" {{ 'disabled' if not pode_editar }}>Avisou</button>
@@ -59,14 +64,14 @@
     <div class="ata-dois">
       <div class="ata-campo">
         <label>{{ 'Done' if tipo == 'daily' else 'Completed today' }} <span class="ata-rot-pt">{{ rot_feito | lower }}</span></label>
-        <textarea class="ata-texto" data-campo="feito" data-member-id="{{ l.id }}" rows="2" placeholder="Escreva aqui o que {{ l.name }} falou" {{ 'disabled' if not pode_editar }}>{{ l.feito }}</textarea>
-        {% if tipo == 'daily' and l.planejado_ontem and pode_editar %}
+        <textarea class="ata-texto" data-campo="feito" data-member-id="{{ l.id }}" rows="2" placeholder="{{ 'Escreva aqui a sua fala' if minha else 'Escreva aqui o que ' ~ l.name ~ ' falou' }}" {{ 'disabled' if not (pode_editar or minha) }}>{{ l.feito }}</textarea>
+        {% if tipo == 'daily' and l.planejado_ontem and (pode_editar or minha) %}
         <button type="button" class="btn btn-ghost btn-ontem" data-member-id="{{ l.id }}" data-ontem="{{ l.planejado_ontem }}">usar o que ficou planejado ontem</button>
         {% endif %}
       </div>
       <div class="ata-campo">
         <label>{{ 'Doing' if tipo == 'daily' else 'Carried over' }} <span class="ata-rot-pt">{{ rot_planejado | lower }}</span></label>
-        <textarea class="ata-texto" data-campo="planejado" data-member-id="{{ l.id }}" rows="2" {{ 'disabled' if not pode_editar }}>{{ l.planejado }}</textarea>
+        <textarea class="ata-texto" data-campo="planejado" data-member-id="{{ l.id }}" rows="2" {{ 'disabled' if not (pode_editar or minha) }}>{{ l.planejado }}</textarea>
       </div>
     </div>
   </article>
@@ -153,13 +158,36 @@
       .catch(function () { mostrarToast('Sem conexão.', 'info'); return null; });
   }
 
-  // texto: salva sozinho enquanto digita (pausa de 1,2 s) e ao sair do campo
-  raiz.querySelectorAll(PODE_EDITAR ? '.ata-texto' : '.nenhum').forEach(function (t) {
+  // Salvar SÓ a própria fala (visitante logado não-relator): /api/ata/minha-fala.
+  function salvarMinha(campo, valor, aoTerminar) {
+    return fetch('/api/ata/minha-fala', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: DATA, tipo: TIPO, campo: campo, valor: valor }),
+    })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (!(res.ok && res.j.ok)) { mostrarToast((res.j && res.j.erro) || 'Não salvou.', 'info'); return null; }
+        if (aoTerminar) aoTerminar(res.j);
+        return res.j;
+      })
+      .catch(function () { mostrarToast('Sem conexão.', 'info'); return null; });
+  }
+
+  // texto: salva sozinho enquanto digita (pausa de 1,2 s) e ao sair do campo.
+  // Editores salvam qualquer linha; o visitante logado salva so a sua (minha-fala).
+  raiz.querySelectorAll('.ata-texto:not([disabled])').forEach(function (t) {
     var chave = t.dataset.campo + t.dataset.memberId;
+    var ehMinha = t.closest('.ata-linha').dataset.minha === '1';
+    function persistir(v, aoTerminar) {
+      if (PODE_EDITAR) return salvar(t.dataset.campo, v, t.dataset.memberId, aoTerminar);
+      if (ehMinha) return salvarMinha(t.dataset.campo, v, aoTerminar);
+      return null;
+    }
     function enviar() {
       clearTimeout(timers[chave]);
       var v = t.value;
-      salvar(t.dataset.campo, v, t.dataset.memberId, function () { if (t.value === v) delete t.dataset.sujo; });
+      persistir(v, function () { if (t.value === v) delete t.dataset.sujo; });
     }
     t.addEventListener('input', function () {
       t.dataset.sujo = '1';
@@ -197,13 +225,14 @@
   if (quadro && PODE_EDITAR) quadro.addEventListener('change', function () { salvar('quadro_atualizado', quadro.checked); });
 
   // botao "usar planejado de ontem": acrescenta ao campo Done (nunca sobrescreve)
-  raiz.querySelectorAll(PODE_EDITAR ? '.btn-ontem' : '.nenhum').forEach(function (b) {
+  raiz.querySelectorAll('.btn-ontem').forEach(function (b) {
     b.addEventListener('click', function () {
       var ta = raiz.querySelector('.ata-texto[data-campo="feito"][data-member-id="' + b.dataset.memberId + '"]');
-      if (!ta) return;
+      if (!ta || ta.disabled) return;
       ta.value = ta.value.trim() ? (ta.value.trim() + '\n' + b.dataset.ontem) : b.dataset.ontem;
       ta.focus();
-      salvar('feito', ta.value, b.dataset.memberId);
+      if (PODE_EDITAR) salvar('feito', ta.value, b.dataset.memberId);
+      else if (ta.closest('.ata-linha').dataset.minha === '1') salvarMinha('feito', ta.value);
     });
   });
 

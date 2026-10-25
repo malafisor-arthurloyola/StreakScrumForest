@@ -19,28 +19,41 @@
   {% else %}
     <div class="presenca-planta" id="presenca-planta">{{ conjunto(eu, 150) }}</div>
     <h1>{{ evento_nome }}</h1>
-    <p class="sub">Olá, <b>{{ eu.name }}</b>. {% if ja %}Sua presença de hoje já está registrada.{% else %}Confirme sua presença de hoje.{% endif %}</p>
+    <p class="sub">Olá, <b>{{ eu.name }}</b>. <span id="presenca-sub">{% if ja %}Sua presença de hoje já está registrada.{% else %}Confirme sua presença de hoje.{% endif %}</span></p>
+
+    {# Quanto rende: lido das constantes de game.py (nunca fixo no HTML) #}
+    <div class="rende-bloco" aria-label="Quanto rende">
+      <span class="rende-item">Marcar presença <b>+{{ rende_presenca }}</b></span>
+      {% if tem_ata %}
+      <span class="rende-mais">+</span>
+      <span class="rende-item">Preencher a {{ evento_nome }} <b>+{{ rende_ata }}</b></span>
+      <span class="rende-igual">=</span>
+      <span class="rende-item rende-total">juntos <b>+{{ rende_presenca + rende_ata }}</b> hoje</span>
+      {% endif %}
+    </div>
 
     <div class="presenca-acoes" id="presenca-acoes"
-         data-url="{{ url_for('presenca_page', evento=evento, codigo=codigo) }}">
+         data-url="{{ url_for('presenca_page', evento=evento, codigo=codigo) }}"
+         data-ja="{{ '1' if ja else '0' }}">
       <button type="button" class="btn btn-primary presenca-btn" id="presenca-so" {{ 'disabled' if ja }}>
-        {{ 'Presença já registrada' if ja else 'Marcar presença' }}
+        {{ 'Presença registrada' if ja else 'Marcar presença' }}
       </button>
       {% if tem_ata %}
-      <button type="button" class="btn btn-ghost presenca-btn presenca-btn-mais" id="presenca-abrir">
-        {{ 'Preencher' if ja else 'Marcar e preencher' }} a {{ evento_nome }} <span class="presenca-mais">+1 semente</span>
+      <button type="button" class="btn btn-ghost presenca-btn presenca-btn-mais" id="presenca-abrir" aria-expanded="false">
+        Preencher a {{ evento_nome }} <span class="presenca-mais">+{{ rende_ata }} semente</span>
       </button>
       {% endif %}
     </div>
 
     {% if tem_ata %}
     <form class="presenca-form card" id="presenca-form" hidden>
+      <p class="presenca-form-titulo">Sua fala na {{ evento_nome }} de hoje</p>
       <label for="pf-feito">{{ rot_feito }}</label>
       <textarea id="pf-feito" rows="3" placeholder="Pode citar cards, como #123">{{ fala_atual.feito }}</textarea>
       <label for="pf-plan">{{ rot_planejado }}</label>
       <textarea id="pf-plan" rows="3">{{ fala_atual.planejado }}</textarea>
-      <button type="submit" class="btn btn-primary presenca-btn" id="pf-enviar">{{ 'Salvar na ata' if ja else 'Salvar e marcar presença' }}</button>
-      <p class="presenca-nota">Sua fala vai direto para a ata do dia e rende +1 semente.</p>
+      <button type="submit" class="btn btn-primary presenca-btn" id="pf-enviar">Salvar minha fala</button>
+      <p class="presenca-nota">Rende +{{ rende_ata }} semente uma vez por ata — editar depois não dá de novo, e apagar tudo remove o bônus. Pode voltar e completar quando quiser.</p>
     </form>
     {% endif %}
 
@@ -56,10 +69,12 @@
   var acoes = document.getElementById('presenca-acoes');
   if (!acoes) return;
   var URL_POST = acoes.dataset.url;
+  var jaPresente = acoes.dataset.ja === '1';
   var soBtn = document.getElementById('presenca-so');
   var abrir = document.getElementById('presenca-abrir');
   var form = document.getElementById('presenca-form');
   var ok = document.getElementById('presenca-ok');
+  var sub = document.getElementById('presenca-sub');
 
   function enviar(corpo, botoes) {
     botoes.forEach(function (b) { if (b) b.disabled = true; });
@@ -70,9 +85,9 @@
     })
       .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
       .then(function (res) {
+        botoes.forEach(function (b) { if (b) b.disabled = false; });
         if (!res.ok || !res.j.ok) {
           mostrarToast((res.j && res.j.erro) || 'Não deu certo.', 'info');
-          botoes.forEach(function (b) { if (b) b.disabled = false; });
           return null;
         }
         return res.j;
@@ -84,25 +99,38 @@
       });
   }
 
-  function concluir(j, comFala) {
-    acoes.hidden = true;
-    if (form) form.hidden = true;
-    ok.hidden = false;
-    ok.textContent = comFala ? 'Presença registrada e fala enviada para a ata. +1 semente!' : 'Presença registrada!';
+  function marcarPresenteNaTela() {
+    // a presenca ficou registrada: o botao vira estado "feito", mas NADA some.
+    jaPresente = true;
+    if (soBtn) { soBtn.disabled = true; soBtn.textContent = 'Presença registrada'; }
+    if (sub) sub.textContent = 'Sua presença de hoje está registrada.';
     var planta = document.getElementById('presenca-planta');
     if (planta) { var svg = planta.querySelector('.planta'); if (svg) svg.classList.add('regando'); }
-    mostrarToast(comFala ? 'Fala enviada para a ata' : 'Presença registrada!', 'sucesso');
   }
 
-  if (soBtn && !soBtn.disabled) {
+  function feedback(j, comFala) {
+    var partes = [];
+    if (j.ganhou_presenca) partes.push('+' + j.rende_presenca + ' pela presença');
+    if (comFala && j.ganhou_ata) partes.push('+' + j.rende_ata + ' pela fala');
+    ok.hidden = false;
+    if (partes.length) ok.textContent = 'Você ganhou ' + partes.join(' e ') + '!';
+    else if (comFala) ok.textContent = 'Fala salva na ata. (O bônus já tinha sido contado.)';
+    else ok.textContent = 'Tudo certo por aqui.';
+    mostrarToast(comFala ? 'Fala salva na ata' : 'Presença registrada!', 'sucesso');
+  }
+
+  if (soBtn) {
     soBtn.addEventListener('click', function () {
-      enviar({}, [soBtn, abrir]).then(function (j) { if (j) concluir(j, false); });
+      if (jaPresente) return;
+      enviar({}, [soBtn]).then(function (j) { if (j) { marcarPresenteNaTela(); feedback(j, false); } });
     });
   }
   if (abrir && form) {
     abrir.addEventListener('click', function () {
-      form.hidden = !form.hidden;
-      if (!form.hidden) document.getElementById('pf-feito').focus();
+      var mostrar = form.hidden;
+      form.hidden = !mostrar;
+      abrir.setAttribute('aria-expanded', mostrar ? 'true' : 'false');
+      if (mostrar) document.getElementById('pf-feito').focus();
     });
     form.addEventListener('submit', function (ev) {
       ev.preventDefault();
@@ -110,8 +138,11 @@
       var plan = document.getElementById('pf-plan').value.trim();
       if (!feito && !plan) { mostrarToast('Escreva alguma coisa ou use só “Marcar presença”.', 'info'); return; }
       var enviarBtn = document.getElementById('pf-enviar');
-      enviar({ fala: { feito: feito, planejado: plan } }, [enviarBtn, soBtn, abrir]).then(function (j) {
-        if (j) concluir(j, true);
+      enviar({ fala: { feito: feito, planejado: plan } }, [enviarBtn]).then(function (j) {
+        if (!j) return;
+        marcarPresenteNaTela();        // salvar a fala tambem garante a presenca
+        feedback(j, true);
+        enviarBtn.textContent = 'Salvar alterações';   // continua editavel, volta depois
       });
     });
   }

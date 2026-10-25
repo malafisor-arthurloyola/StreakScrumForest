@@ -302,7 +302,7 @@ class TestRelatorEscreveDeQualquerAparelho(PapeisBase):
     def test_pagina_do_relator_vem_editavel_e_a_do_visitante_oferece_entrar(self):
         a = self.ids()[0]
         visitante = self.get(f"/ata/{DATA}/daily").get_data(as_text=True)
-        self.assertIn("Sou o relator: entrar com o PIN", visitante)
+        self.assertIn("Entrar com o meu PIN", visitante)
         self.entrar_como(a)
         logado = self.get(f"/ata/{DATA}/daily").get_data(as_text=True)
         self.assertIn("Assumir como relator desta ata", logado)

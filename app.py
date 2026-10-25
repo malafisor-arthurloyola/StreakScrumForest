@@ -2415,6 +2415,14 @@ def presenca_page(evento, codigo):
         fala = p.get("fala") if isinstance(p.get("fala"), dict) else None
         feito = (fala.get("feito") or "").strip() if fala else ""
         planejado = (fala.get("planejado") or "").strip() if fala else ""
+        # tinha a fala preenchida antes? (para dizer se o bonus de ata e novo)
+        ja_tinha_fala = False
+        if tipo_ata:
+            f0 = db.execute(
+                "SELECT feito, planejado FROM ata_falas WHERE data = ? AND tipo = ? AND member_id = ?",
+                (hoje, tipo_ata, membro["id"]),
+            ).fetchone()
+            ja_tinha_fala = bool(f0 and ((f0["feito"] or "").strip() or (f0["planejado"] or "").strip()))
         # marca presente (idempotente, so o proprio membro, so hoje, nunca "faltou")
         if not ja:
             _definir_status(db, membro["id"], hoje, evento, "presente")
@@ -2423,8 +2431,15 @@ def presenca_page(evento, codigo):
             _salvar_fala(db, hoje, tipo_ata, membro["id"], feito, planejado)
             ganhou_ata = True
         db.commit()
-        return jsonify({"ok": True, "ganhou_ata": ganhou_ata,
-                        "sementes": _stats_membro(db, membro["id"])["sementes"]})
+        return jsonify({
+            "ok": True,
+            "ganhou_presenca": not ja,          # presenca e nova neste POST?
+            "ganhou_ata": ganhou_ata and not ja_tinha_fala,  # bonus de ata e novo?
+            "tem_fala": ganhou_ata or ja_tinha_fala,
+            "rende_presenca": game.SEED_POR_EVENTO.get(evento, 0),
+            "rende_ata": game.SEED_ATA,
+            "sementes": _stats_membro(db, membro["id"])["sementes"],
+        })
 
     fala_atual = {"feito": "", "planejado": ""}
     if tipo_ata:
@@ -2436,7 +2451,8 @@ def presenca_page(evento, codigo):
     return render_template(
         "presenca.html", estado="ok", codigo=codigo, eu=_stats_membro(db, membro["id"]),
         ja=ja, tem_ata=bool(tipo_ata), fala_atual=fala_atual,
-        rot_feito=rot_feito, rot_planejado=rot_planejado, **base,
+        rot_feito=rot_feito, rot_planejado=rot_planejado,
+        rende_presenca=game.SEED_POR_EVENTO.get(evento, 0), rende_ata=game.SEED_ATA, **base,
     )
 
 
