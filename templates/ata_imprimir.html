@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}{{ titulo }} — {{ data_str[8:10] }}/{{ data_str[5:7] }} · Exportar{% endblock %}
+
+{% block content %}
+<header class="pagina-cab nao-imprime">
+  <div>
+    <h1>Exportar ata</h1>
+    <p class="sub">Página pronta para copiar para o Google Docs ou salvar em PDF (imprimir).</p>
+  </div>
+  <div class="date-nav">
+    <a class="btn btn-ghost" href="{{ url_for('ata_page', data_str=data_str, tipo=tipo) }}">← Voltar a editar</a>
+    <a class="btn btn-ghost" href="{{ url_for('ata_imprimir', data_str=data_str, tipo=tipo, idioma='en' if idioma != 'en' else 'pt') }}">{{ 'Ver em português' if idioma == 'en' else 'Ver em inglês' }}</a>
+    <button type="button" class="btn btn-primary" id="btn-copiar">Copiar para o Google Docs</button>
+    <button type="button" class="btn btn-ghost" onclick="window.print()">Imprimir / PDF</button>
+  </div>
+</header>
+
+<article class="ata-doc card" id="ata-doc">{{ html_ata | safe }}</article>
+
+<!-- versao texto puro para o fallback de copia e para quem quiser so o texto -->
+<textarea id="ata-texto-puro" class="nao-imprime" hidden>{{ texto }}</textarea>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var btn = document.getElementById('btn-copiar');
+  var doc = document.getElementById('ata-doc');
+  var txt = document.getElementById('ata-texto-puro');
+  if (!btn) return;
+
+  function fallbackSelecao() {
+    // seleciona o HTML renderizado e usa execCommand como ultimo recurso
+    var range = document.createRange();
+    range.selectNode(doc);
+    var sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    try { document.execCommand('copy'); mostrarToast('Copiado! Cole no Google Docs.', 'sucesso'); }
+    catch (e) { mostrarToast('Selecione o texto e copie manualmente.', 'info'); }
+    sel.removeAllRanges();
+  }
+
+  btn.addEventListener('click', function () {
+    var html = doc.innerHTML;
+    var texto = txt.value;
+    if (navigator.clipboard && window.ClipboardItem) {
+      var item = new ClipboardItem({
+        'text/html': new Blob([html], { type: 'text/html' }),
+        'text/plain': new Blob([texto], { type: 'text/plain' }),
+      });
+      navigator.clipboard.write([item])
+        .then(function () { mostrarToast('Copiado! Cole no Google Docs.', 'sucesso'); })
+        .catch(function () { fallbackSelecao(); });
+    } else if (navigator.clipboard) {
+      navigator.clipboard.writeText(texto)
+        .then(function () { mostrarToast('Copiado (texto). Cole no Google Docs.', 'sucesso'); })
+        .catch(function () { fallbackSelecao(); });
+    } else {
+      fallbackSelecao();
+    }
+  });
+})();
+</script>
+{% endblock %}

@@ -42,7 +42,7 @@ sem deixar ninguém para trás no visual.
 
 ### 4.1 De onde vêm as sementes, explicado do zero
 
-Existem **6 jeitos** de ganhar sementes. Só o primeiro é "por evento"; os outros cinco são bônus
+Existem **7 jeitos** de ganhar sementes. Só o primeiro é "por evento"; os outros seis são bônus
 automáticos que o sistema soma sozinho por cima.
 
 **Jeito 1: presença nos eventos (a base, o que você pediu)**
@@ -83,6 +83,13 @@ para incentivar o time a vir junto. Máximo: 45 dias cheios = **45**.
 (derivado: vale assim que `dias_presentes >= 1`). É o "bem-vindo ao jardim", para quem começa já sair
 do zero. Bônus único, não se repete.
 
+**Jeito 7: Ata da daily (adubo, +1 por ata)**: cada ata (a **Daily** e o **Day Closing** do dia) em que
+a pessoa deixa a fala registrada — texto não vazio em "feito" **ou** em "planejado" — rende **+1**. Não
+avalia conteúdo nem tamanho: escreveu, ganhou. Como há 2 atas por dia, o máximo é **+2 por pessoa por
+dia**. O **relator** (quem redige a ata) ganha **+1 por ata que redigiu**, à parte (bônus de relator).
+Impedimentos são texto livre e **nunca rendem semente** (senão viraria exploit). A planta fica
+"adubada" no dia (brilho e flores extras), mas isso é só visual: o crescimento continua por presença.
+
 > **Selo Fundador** (não é semente): quem teve presença em qualquer dia até `fundador_ate`
 > (padrão 23/10/2026, editável na tela Calendário) ganha o selo e o acessório exclusivo "Selo Fundador".
 > É só cosmético: aparece no perfil e no álbum, não está à venda e não muda nenhum total de sementes.
@@ -108,9 +115,10 @@ Se o time preferir um multiplicador, dá para adicionar (por exemplo +1 semente 
 presença com sequência acima de 10). Isso aumentaria o total do dedicado e exigiria subir os preços
 de novo. Ver a seção 8.
 
-### 4.3 Por que o perfil dedicado chega a 285 (conta passo a passo)
+### 4.3 Por que o perfil dedicado chega a 375 (conta passo a passo)
 
-"Dedicado" = foi aos 3 eventos todos os 45 dias letivos, sem nenhuma falta, e o time inteiro também.
+"Dedicado" = foi aos 3 eventos todos os 45 dias letivos, sem nenhuma falta, o time inteiro também, e
+deixou a fala registrada nas duas atas de cada dia.
 
 | Origem | Conta | Sementes |
 |---|---|---|
@@ -120,22 +128,24 @@ de novo. Ver a seção 8.
 | Dia cheio do time | 45 dias x 1 | 45 |
 | Floresceu | bônus único | 20 |
 | Boas-vindas | bônus único | 20 |
-| **Total** | | **285** |
+| Ata da daily (adubo) | 45 dias x 2 atas x 1 | 90 |
+| **Total** | | **375** |
 
-Ou seja: **só 135 de 285 vêm de "estar presente em cada evento"**. As outras 150 são os bônus de
-constância, de time e de boas-vindas (Jeitos 2 a 6). Esse é o motivo de o total ser maior do que
-"3 sementes x 45 dias".
+O total **375** é sem contar o bônus de relator (quem redige ganha +1 por ata, à parte, conforme o
+rodízio). Impedimentos não entram. Só 135 de 375 vêm de "estar presente em cada evento"; o resto são
+os bônus de constância, de time, de boas-vindas e de ata (Jeitos 2 a 7).
 
 ### 4.4 Totais esperados no projeto inteiro (simulação)
 
-| Perfil | Antes (5 fontes) | Agora (com boas-vindas) | Composição (agora) |
+| Perfil | Fase 3 (sem ata) | Agora (com ata) | Composição (agora) |
 |---|---|---|---|
-| **Dedicado**: 3 eventos, 45 dias | 265 | **285** | 135 eventos + 27 semanas + 38 marcos + 45 dia cheio + 20 floresceu + 20 boas-vindas |
-| **Típico**: ~88% dos dias, daily sempre, dev ~85%, encerramento ~75% | 191 | **211** | 102 eventos + 27 semanas + 18 marcos + 24 dia cheio + 20 floresceu + 20 boas-vindas |
-| **Só daily**: 45 dias, nunca dev nem encerramento | 175 | **195** | 45 eventos + 27 + 38 + 45 + 20 + 20 boas-vindas |
+| **Dedicado**: 3 eventos, 45 dias, 2 atas/dia | 285 | **375** | 135 eventos + 27 semanas + 38 marcos + 45 dia cheio + 20 floresceu + 20 boas-vindas + 90 ata |
+| **Típico**: ~88% dos dias, dev ~85%, enc. ~75%, fala em ~1,5 ata/dia | 211 | **~275** | 211 de antes + ~64 de ata (≈ 43 dias x 1,5) |
+| **Só daily**: 45 dias, nunca dev/enc., fala só na daily | 195 | **240** | 195 de antes + 45 (só a daily) |
 
-Leitura: a boas-vindas soma +20 fixos para todo mundo que registrou ao menos uma presença. Como é
-igual para todos, não muda a ordem nem o incentivo relativo entre os perfis; só dá um empurrão inicial.
+Leitura: a ata vira a maior fonte de "esforço extra" depois dos eventos. Cada pessoa controla quanto
+ganha dela só escrevendo a própria fala; o relator ganha um pouquinho a mais pelo trabalho de redigir.
+O bônus de relator não entra nos totais acima porque depende do rodízio (quem relata quantas vezes).
 
 ### 4.5 Curva de saldo acumulado (sem gastar), por fim de semana
 
@@ -202,10 +212,12 @@ Exemplo de orçamento típico (211): 2ª plantinha (60) + espécie rara (70) + v
 | Peso de cada evento | `SEED_POR_EVENTO` em `game.py` |
 | Multiplicador de sequência (não existe hoje) | seria código novo em `calcular_sementes` |
 | Bônus de semana, dia cheio, floresceu, boas-vindas | `SEED_SEMANA_FECHADA`, `SEED_DIA_CHEIO`, `SEED_FLORESCEU`, `SEED_BOAS_VINDAS` em `game.py` |
+| Bônus de ata e de relator | `SEED_ATA`, `SEED_RELATOR` em `game.py` |
 | Marcos de sequência | `SEED_MILESTONES` em `game.py` |
 | Preços | `catalog.py` (campo `preco`) |
 | Meta de floração (80%) | `meta_floracao` em `game.py` |
 | Fundador (data limite) | `fundador_ate` na tela Calendário |
+| Idioma da exportação da ata / link do GitLab | `idioma_ata`, `gitlab_base_url` (config) |
 | Calendário e feriados | tela Calendário |
 
 Ao mexer em qualquer valor, rode `python -m unittest discover tests`. Os testes de faixa de preço e de
@@ -219,3 +231,7 @@ total esperado (`tests/test_catalog.py`, `tests/test_game.py`) avisam se o equil
   (fonte única, sem números mágicos); nova aba `/sementes`; card "Próximos marcos" no Painel; e a 6ª
   fonte, **boas-vindas (+20)**, bônus único na primeira presença (dedicado 265 -> 285, típico 191 -> 211,
   só daily 175 -> 195). Selo/acessório **Fundador** (cosmético, não rende semente), ligado a `fundador_ate`.
+- **Fase 4 (ata da daily)**: 7ª fonte, **ata (adubo, +1 por ata com fala)** — a Daily e o Day Closing
+  de cada dia, máximo +2 por pessoa por dia; o relator ganha +1 por ata que redige (à parte). Impedimento
+  nunca rende semente. Dedicado 285 -> 375 (sem contar o bônus de relator). Constantes `SEED_ATA` e
+  `SEED_RELATOR` em `game.py`.

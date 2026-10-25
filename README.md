@@ -27,6 +27,100 @@ Pre-requisito: Python 3.9+ instalado.
    python app.py
    ```
 5. Abra no navegador: [http://localhost:5000](http://localhost:5000)
+6. Para rodar os testes (sempre com um banco de teste, nunca o real):
+   ```powershell
+   $env:STRIKES_DB = "$env:TEMP\strikes-teste.db"   # PowerShell
+   python -m unittest discover tests
+   ```
+   Detalhes e os comandos para cmd/Linux na seção [Testes](#testes).
+
+## Quem pode alterar o quê (administrador x visitante)
+
+O site é aberto a quem tem o código de acesso do grupo, mas **só o administrador altera o que é de
+todos**. Os demais veem todas as abas (Hoje, Painel, Histórico, Ata, Membros, Calendário...) sem poder
+mudar nada.
+
+**Quem é administrador**
+- **Quem está no computador onde o sistema roda** (abrindo `http://localhost:5000`). Vale sozinho, sem login.
+- **O Scrum (relator) do dia**: quem foi escolhido como relator da ata de hoje e entrou no celular com o PIN
+  em **Meu jardim**.
+- **Quem entra com o código de administrador** (`ADMIN_CODE`, uma variável de ambiente no servidor): útil quando
+  o site está publicado. Link "Sou o admin" no topo. Nunca coloque o código no repositório.
+
+O administrador vê o selo **Administrador** no topo. No servidor publicado, o "computador" não existe (todos
+entram de fora), então use o `ADMIN_CODE` ou o Scrum do dia. Para desligar o modo "computador" mesmo em
+localhost, defina `ADMIN_LOCAL=0`.
+
+**O que só o administrador faz:** marcar presença/avisou/faltou de qualquer pessoa e "todos presentes",
+editar a ata e escolher o relator, mostrar o **QR de presença** (botões na tela Hoje e na Ata), adicionar,
+editar, desativar ou excluir membros, resetar PIN, mudar o calendário e os feriados, definir as metas da
+sprint e baixar o banco.
+
+**O relator escreve a ata de qualquer aparelho, inclusive de um PC.** Na ata, quem ainda não é o relator vê "Sou o relator: entrar com o PIN" (volta para a ata depois) e, se a ata ainda não tem relator, "Assumir como relator desta ata". O relator de uma ata edita **aquela** ata (de hoje ou de outro dia), sem precisar estar no computador do sistema. Ninguém toma o lugar de outro relator.
+
+**O que cada pessoa faz sozinha (sem ser admin):** marcar a **própria** presença pelo QR, preencher a
+**própria** fala da daily em Meu jardim ou pelo QR, e usar a **própria loja** (compra, equipa, desfaz) depois de
+entrar com o PIN. O administrador também pode escolher um perfil na Loja e comprar por ele.
+
+## Guia de teste (com banco de demonstração)
+
+Para experimentar o site **sem risco para os dados reais** (`data/strikes.db`), use um banco de
+mentira. O passo a passo, a partir da pasta do projeto:
+
+**1. Ative o ambiente virtual**
+
+```powershell
+venv\Scripts\Activate.ps1      # PowerShell
+```
+```cmd
+venv\Scripts\activate          :: Prompt (cmd)
+```
+Se der erro de permissão no PowerShell: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
+Para sair: `deactivate`.
+
+**2. Crie o banco de demonstração** (7 pessoas da equipe, 3 convidados, histórico de presenças,
+atas de exemplo e o PIN `1234` para a Arthur):
+
+```powershell
+python scripts/criar_banco_demo.py C:\temp\jardim-demo.db
+```
+O script **recusa** gravar em `data/` (o banco real) e só recria um arquivo existente com `--forcar`.
+
+**3. Rode o site apontando para ele**
+
+```powershell
+$env:STRIKES_DB = "C:\temp\jardim-demo.db"     # PowerShell
+python app.py
+```
+```cmd
+set STRIKES_DB=C:\temp\jardim-demo.db           :: Prompt (cmd)
+python app.py
+```
+Abra [http://localhost:5000](http://localhost:5000). Se esquecer o `STRIKES_DB`, o site usa o banco real:
+confira sempre antes de marcar presenças de teste. A variável vale só para aquele terminal.
+
+**4. O que testar** (a data de hoje precisa ser dia letivo para marcar presença; veja Calendário)
+
+| Quero testar | Como |
+|---|---|
+| Jardim, convidados, tooltips | `/` (Hoje) e `/dashboard`; alterne "Ocultos / Em faixa / No fundo do jardim" |
+| Dia cheio e animação | em Hoje, marque todos da equipe presentes (botão "Todos presentes") |
+| Aba Sementes e marcos | `/sementes`, `/dashboard` (Próximos marcos) |
+| Página pessoal e PIN | `/eu`: entre como Arthur com `1234`, ou crie um PIN para outra pessoa |
+| QR de presença | abra `/qr/daily` no computador; escaneie com o celular na mesma Wi-Fi (veja "Acessar de outro aparelho") ou abra a URL mostrada no navegador do celular |
+| Ata da daily | `/ata/AAAA-MM-DD/daily` (modo relator), depois "Ver / exportar" e "Copiar para o Google Docs" |
+| Ata da sprint | `/ata/sprint/1` |
+| Convidados fora do time | em Membros, troque alguém entre equipe e convidado e veja o dia cheio e o jardim coletivo |
+
+**5. Zerar o teste:** apague o arquivo (`del C:\temp\jardim-demo.db`) e rode o passo 2 de novo, ou
+use `--forcar`. O banco real não é tocado em nenhum momento.
+
+**6. Rodar os testes automáticos** (já usam um banco temporário próprio, não tocam no real):
+
+```powershell
+python -m unittest discover tests
+```
+Ao fim deve aparecer `OK` (hoje são 385 testes). Detalhes na seção [Testes](#testes).
 
 ## Visual
 
@@ -184,6 +278,34 @@ Pessoas de fora do time podem participar do jardim sem entrar nas contas da equi
 - **Onde aparecem**: na tela Hoje, os convidados ficam numa seção "Convidados" separada (marcam presença normalmente) e no jardim há 3 modos, escolhidos acima da cena e lembrados no navegador: **No fundo do jardim** (padrão: plantas pequenas atrás do time, nas frestas entre os vasos), **Em faixa** (faixa própria sob o jardim, com a sequência e o foguinho de cada um) ou **Ocultos**. Ao passar o mouse (ou tocar, no celular) num convidado sobe um cartão com sequência, estágio e sementes e o link para o perfil (`/membro/ID`, que mostra a nota "convidado"). O jardim também ganhou colinas altas com pinheiros e árvores, flores, cerca de madeira ao fundo, terra com pedrinhas, borda de canteiro em madeira e placas discretas de madeira escura com textura bem leve com nome, sequência e estágio. No modo "no fundo", os convidados ficam num terraço verde atrás do time, cada um com uma plaquinha de nome. Posição: primeiro centralizados na fileira, depois em ordem alfabética, ocupando frestas consecutivas entre os vasos do time.
 - **Exemplo**: com 7 de equipe e 2 convidados, um dia com os 7 presentes (e os convidados ausentes) continua sendo "dia cheio"; adicionar ou reclassificar um convidado não muda o progresso coletivo nem as metas.
 
+## Celular pessoal, PIN e QR de presença (branch `feature/acesso-pessoal`)
+
+Cada pessoa passa a ter uma página pessoal no celular e pode marcar presença escaneando um QR.
+
+- **Página pessoal (`/eu`)**: feita para o celular (mobile-first, alvos de toque grandes). Mostra a planta, as sementes, o progresso (sequência, dias presentes, próximo estágio) e a Loja para comprar e equipar. Convidados também entram e têm a página igual.
+- **Login por PIN**: no primeiro acesso a pessoa escolhe o nome e cria um PIN de 4 dígitos; depois entra com nome + PIN. O aparelho lembra por 30 dias (cookie de sessão assinado, HttpOnly, SameSite=Lax). O PIN é guardado só como hash com sal (scrypt da stdlib), nunca em texto. Há limite de tentativas: 5 erros bloqueiam por 10 minutos, por IP e por membro. O PIN protege contra um colega marcar presença ou gastar sementes no nome de outro (o site já é protegido pelo código de acesso do grupo).
+- **Reset de PIN**: na tela Membros, o dono pode resetar o PIN de alguém (a pessoa cria um novo no próximo acesso). Um selo "PIN ✓" mostra quem já tem PIN.
+- **QR de presença (`/qr/<evento>`)**: o dono/relator abre `/qr/daily`, `/qr/dev` ou `/qr/encerramento`: a tela mostra a **data por extenso** em destaque, o nome do evento e um QR grande (Python puro, sem biblioteca externa). Quem escaneia cai em `/presenca/<evento>/<código>`, que mostra de novo a data e oferece **duas opções**: **"Marcar presença"** (só a presença) ou **"Marcar e preencher a Daily (+1 semente)"**, que abre dois campos (o que fez / o que vai fazer) e já grava a fala na ata, com a presença. Quem já estava marcado ainda pode preencher a fala depois. O Dev não tem ata, então só marca presença. Só marca o próprio membro, só hoje, e nunca marca "faltou".
+- **Código que expira**: o código é um HMAC de `SECRET_KEY` sobre `data|evento|janela de 10 min`. Vale a janela atual e a anterior (para não "virar" na troca de janela) — depois disso expira. Código de outro evento ou de outro dia não funciona. A tela do QR se atualiza sozinha para o código não expirar enquanto está aberta.
+- **Convidados**: entram na página pessoal e no QR normalmente; a presença por QR vale para eles, mas continua fora de todas as métricas do time.
+
+O gerador de QR é próprio (`qr_puro.py`): modo byte, correção de erro nível M, Reed-Solomon, máscaras e SVG. Não foi preciso adicionar nenhuma dependência (o `requirements.txt` não muda).
+
+## Ata da daily (branch `feature/acesso-pessoal`, sobre a Fase 3)
+
+Substitui o Google Docs: a ata da daily e do fechamento do dia, pronta para entregar à professora.
+
+- **Dois documentos por dia**, mapeados nos eventos: `daily` → **Daily** e o encerramento → **Day Closing** (`fechamento`). A tela é em português; a exportação sai em **inglês por padrão** (config `idioma_ata`, com opção `pt` — muda na tela Calendário).
+- **Modo relator** (`/ata/<data>/<tipo>`): escolha o **relator (Scrum)** nos botões do topo (um toque marca, outro desmarca). A tela lista **todos os membros da equipe** (convidados ficam de fora), cada um com os botões **Presente** e **Avisou** e os campos de fala. **Relatar a fala de alguém já marca essa pessoa como presente** no evento da ata (Daily → `daily`, Day Closing → `encerramento`), a menos que ela tenha avisado. O `Present:` do documento é de quem está presente naquele evento, e quem avisou sai numa linha `Excused:`. A tela **atualiza sozinha** a cada poucos segundos: quem marca presença ou preenche a própria fala pelo celular aparece ali sem recarregar. Salva sozinho enquanto digita. Em "Done" há um botão opcional "usar o que ficou planejado ontem".
+- **Fala própria no celular**: em `/eu`, quem está logado vê "Minha fala de hoje" e escreve a própria parte (Done/Doing). O relator vê o que já veio preenchido e completa. Ninguém é obrigado.
+- **Cards `#123`**: viram etiqueta no texto; não exigem nem geram link (config opcional `gitlab_base_url`; a integração real com o GitLab fica fora de escopo).
+- **Impedimentos**: texto livre por ata, aparecem no relatório até serem marcados como resolvidos (lista "Blockers abertos/resolvidos" na ata da sprint). Impedimento **nunca rende semente**.
+- **Recompensa (adubo)**: +1 semente por pessoa por ata (Daily e Day Closing) em que a fala esteja preenchida (feito ou planejado), sem avaliar conteúdo nem tamanho — máximo +2 por dia. O relator ganha +1 por ata que redige. A planta fica "adubada" (brilho e flores extras), só visual. Dedicado passa de 285 para ~375 (ver `docs/BALANCEAMENTO.md`).
+- **Exportação**: página imprimível (`/ata/<data>/<tipo>/imprimir`, com `@media print` para salvar em PDF) e botão **"Copiar para o Google Docs"** (copia HTML + texto puro no modelo exato, com `Present:` automático).
+- **Ata da sprint** (`/ata/sprint/<n>`, linkada do Resumo da Sprint): todas as dailies e fechamentos da sprint em ordem, os cards citados agrupados, os impedimentos abertos e resolvidos e o panorama de presença — para a Review e a Retro.
+
+A formatação fica em `ata_fmt.py` (módulo puro e testável): rótulos exatos em EN/pt, `Present:` automático, "None" quando vazio e as etiquetas de card.
+
 ## Como testar uma branch (`feature/deploy`, `feature/coletivo`, `feature/loja-sementes`, `feature/jardim-vivo` ou `redesign/visual`)
 
 Use sempre uma **cópia** do banco para não alterar os dados reais do grupo.
@@ -313,9 +435,42 @@ Em Calendario voce define:
 
 ## Testes
 
-```bash
-venv\Scripts\python -m unittest discover tests
+Antes de tudo, **ative o ambiente virtual** (a partir da pasta do projeto):
+
+```powershell
+venv\Scripts\Activate.ps1      # PowerShell
+venv\Scripts\activate          # Prompt (cmd)
 ```
+
+Depois rode a suíte. **Sempre aponte `STRIKES_DB` para um arquivo de teste** para não tocar no banco
+real — os testes criam e apagam dados:
+
+```powershell
+# PowerShell
+$env:STRIKES_DB = "$env:TEMP\strikes-teste.db"
+python -m unittest discover tests
+```
+
+```cmd
+:: Prompt (cmd)
+set STRIKES_DB=%TEMP%\strikes-teste.db
+python -m unittest discover tests
+```
+
+```bash
+# Linux/macOS (ou WSL)
+STRIKES_DB=/tmp/strikes-teste.db python -m unittest discover tests
+```
+
+Sem ativar o venv, use o Python dele direto: `venv\Scripts\python -m unittest discover tests`.
+Ao fim deve aparecer algo como `Ran 385 tests ... OK`.
+
+> Para **testar o site no navegador** sem risco, use o mesmo truque: defina `STRIKES_DB` para uma
+> cópia antes de `python app.py`. Sem isso, o app usa o banco real (`data/strikes.db`).
+> ```powershell
+> $env:STRIKES_DB = "C:\temp\jardim-teste.db"
+> python app.py
+> ```
 
 ## Estrutura do projeto
 

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Entrar como administrador · Jardim da Equipe{% endblock %}
+{% block content %}
+<section class="presenca-tela" aria-label="Entrar como administrador">
+  <h1>Entrar como administrador</h1>
+  {% if not configurado %}
+  <p class="sub">O código de administrador não está configurado neste servidor. No computador do sistema, o modo administrador já vale sozinho; o Scrum do dia também tem acesso ao entrar no celular com o PIN.</p>
+  {% else %}
+  <p class="sub">Digite o código de administrador. Ele libera marcar a presença de todos, editar a ata, os membros e o calendário.</p>
+  <form method="post" action="{{ url_for('admin_entrar') }}" class="presenca-form card">
+    <input type="hidden" name="next" value="{{ destino }}">
+    <label for="adm-codigo">Código de administrador</label>
+    <input type="password" id="adm-codigo" name="codigo" autocomplete="off" autofocus required>
+    {% if erro %}<p class="eu-pin-erro">{{ erro }}</p>{% endif %}
+    <button type="submit" class="btn btn-primary presenca-btn">Entrar</button>
+  </form>
+  {% endif %}
+  <a class="btn btn-ghost presenca-btn" href="{{ destino }}">Voltar</a>
+</section>
+{% endblock %}

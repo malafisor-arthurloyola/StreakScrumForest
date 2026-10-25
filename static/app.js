@@ -287,9 +287,18 @@ function atualizarSemana(jogo) {
   });
 }
 
+/* Papel: quem so ve (celular de quem nao e o Scrum do dia) nao altera dados compartilhados.
+   O servidor tambem recusa (403); aqui so evitamos o clique e desabilitamos os formularios. */
+var EH_ADMIN = document.body.dataset.admin === '1';
+if (!EH_ADMIN) {
+  document.querySelectorAll('[data-admin-form] input, [data-admin-form] select, [data-admin-form] textarea')
+    .forEach(function (el) { el.disabled = true; });
+}
+
 document.querySelectorAll('.status-toggle').forEach(function (wrapper) {
   wrapper.querySelectorAll('.btn-status').forEach(function (btn) {
     btn.addEventListener('click', function () {
+      if (!EH_ADMIN) { mostrarToast('Só o Scrum do dia ou quem está no computador marca presença de todos.', 'info'); return; }
       var jaAtivo = btn.classList.contains('active');
       var novoStatus = jaAtivo ? null : btn.dataset.status;
 
@@ -469,4 +478,42 @@ document.querySelectorAll('.status-toggle').forEach(function (wrapper) {
   aplicar(salvo);
   botoes.forEach(function (b) { b.addEventListener('click', function () { aplicar(b.dataset.modo); }); });
   window.addEventListener('load', posicionarFundo);
+})();
+
+/* QR de presenca como pop-up (modal). O botao .btn-qr-modal abre o modal buscando o
+   fragmento do /qr/<evento>?fragmento=1; se o fetch falhar, segue o link normal. */
+(function () {
+  var modal = document.getElementById('qr-modal');
+  if (!modal) return;
+  var corpo = document.getElementById('qr-modal-corpo');
+  var fechar = document.getElementById('qr-modal-fechar');
+
+  function abrir() { modal.hidden = false; modal.setAttribute('aria-hidden', 'false'); }
+  function fecharModal() { modal.hidden = true; modal.setAttribute('aria-hidden', 'true'); }
+
+  function carregar(evento) {
+    corpo.innerHTML = '<p class="vazio">Carregando…</p>';
+    fetch('/qr/' + evento + '?fragmento=1')
+      .then(function (r) { if (!r.ok) throw new Error(); return r.text(); })
+      .then(function (html) {
+        corpo.innerHTML = html;
+        // os botoes de trocar evento dentro do modal recarregam o fragmento, sem sair
+        corpo.querySelectorAll('[data-qr-evento]').forEach(function (a) {
+          a.addEventListener('click', function (e) { e.preventDefault(); carregar(a.dataset.qrEvento); });
+        });
+      })
+      .catch(function () { mostrarToast('Abrindo a página do QR…', 'info'); window.location.href = '/qr/' + evento; });
+  }
+
+  document.querySelectorAll('.btn-qr-modal').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      abrir();
+      carregar('daily');
+    });
+  });
+
+  if (fechar) fechar.addEventListener('click', fecharModal);
+  modal.addEventListener('click', function (e) { if (e.target === modal) fecharModal(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !modal.hidden) fecharModal(); });
 })();

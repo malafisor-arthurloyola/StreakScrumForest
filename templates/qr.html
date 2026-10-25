@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}QR da {{ evento_nome }} · Jardim da Equipe{% endblock %}
+
+{% block content %}
+<section class="qr-tela" aria-label="QR de presença">
+  <header class="qr-cab">
+    <p class="qr-data">{{ data_extenso | capitalize }}</p>
+    <h1>{{ evento_nome }}</h1>
+    <p class="sub">Presença por QR: cada um escaneia com o celular e marca a própria presença.</p>
+  </header>
+
+  <div class="qr-quadro">
+    {{ svg_qr | safe }}
+  </div>
+
+  <div class="qr-codigo-bloco">
+    <span class="qr-codigo-rotulo">No celular (mesma Wi-Fi), abra:</span>
+    <code class="qr-codigo">{{ url }}</code>
+    <p class="qr-dica">Escaneie o QR ou digite o endereço acima no navegador do celular. O código muda a cada ~10 minutos e vale só para hoje; reabra esta tela se expirar.</p>
+  </div>
+
+  <div class="qr-eventos" aria-label="Trocar de evento">
+    {% for chave, label in [('daily','Daily'),('dev','Presença no Dev'),('encerramento','Encerramento')] %}
+    <a class="btn {{ 'btn-primary' if chave == evento else 'btn-ghost' }}" href="{{ url_for('qr_page', evento=chave) }}">{{ label }}</a>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Atualiza sozinho de tempos em tempos para o codigo nao expirar na tela.
+  setTimeout(function () { window.location.reload(); }, 9 * 60 * 1000);
+</script>
+{% endblock %}

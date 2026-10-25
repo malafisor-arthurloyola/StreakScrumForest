@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Ata da Sprint {{ n }} · Jardim da Equipe{% endblock %}
+
+{% block content %}
+<header class="pagina-cab">
+  <div>
+    <h1>Ata da Sprint {{ n }}</h1>
+    <p class="sub">{{ sprint.inicio[8:10] }}/{{ sprint.inicio[5:7] }} a {{ sprint.fim[8:10] }}/{{ sprint.fim[5:7] }} · todas as dailies e fechamentos, para a Review e a Retro.</p>
+  </div>
+  <div class="date-nav nao-imprime">
+    <a class="btn btn-ghost" href="{{ url_for('sprint_page', n=n) }}">← Resumo da Sprint</a>
+    <a class="btn btn-ghost" href="{{ url_for('ata_sprint_page', n=n, idioma='en' if idioma != 'en' else 'pt') }}">{{ 'Ver em português' if idioma == 'en' else 'Ver em inglês' }}</a>
+    <button type="button" class="btn btn-primary" onclick="window.print()">Imprimir / PDF</button>
+  </div>
+</header>
+
+<section class="card" aria-label="Impedimentos">
+  <h2>{{ 'Blockers' if idioma == 'en' else 'Impedimentos' }}</h2>
+  <h3 class="ata-sub">{{ 'Abertos' }} ({{ bloqueios_abertos | length }})</h3>
+  {% if bloqueios_abertos %}
+  <ul class="ata-bloq-lista">
+    {% for b in bloqueios_abertos %}
+    <li><span class="ata-bloq-dia">{{ b.data[8:10] }}/{{ b.data[5:7] }} · {{ b.tipo }}</span> {{ b.texto }}</li>
+    {% endfor %}
+  </ul>
+  {% else %}<p class="vazio">Nenhum impedimento em aberto.</p>{% endif %}
+
+  <h3 class="ata-sub">Resolvidos ({{ bloqueios_resolvidos | length }})</h3>
+  {% if bloqueios_resolvidos %}
+  <ul class="ata-bloq-lista resolvidos">
+    {% for b in bloqueios_resolvidos %}
+    <li><span class="ata-bloq-dia">{{ b.data[8:10] }}/{{ b.data[5:7] }} · {{ b.tipo }}</span> {{ b.texto }}</li>
+    {% endfor %}
+  </ul>
+  {% else %}<p class="vazio">Nada marcado como resolvido.</p>{% endif %}
+</section>
+
+<section class="card" aria-label="Cards citados">
+  <h2>Cards citados</h2>
+  {% if cards %}
+  <ul class="ata-cards-lista">
+    {% for c in cards %}
+    <li><span class="card-tag">#{{ c.num }}</span> <span class="ata-cards-docs">{{ c.docs | join(', ') }}</span></li>
+    {% endfor %}
+  </ul>
+  {% else %}<p class="vazio">Nenhum card citado nesta sprint.</p>{% endif %}
+</section>
+
+<section class="card" aria-label="Panorama de presença">
+  <h2>Panorama de presença</h2>
+  {% if presentes_por_dia %}
+  <ul class="ata-panorama">
+    {% for p in presentes_por_dia %}
+    <li><span class="ata-bloq-dia">{{ p.data[8:10] }}/{{ p.data[5:7] }}</span> {{ p.nomes | join(', ') }}</li>
+    {% endfor %}
+  </ul>
+  {% else %}<p class="vazio">Nenhuma presença registrada na sprint ainda.</p>{% endif %}
+</section>
+
+<section aria-label="Documentos">
+  <h2 class="secao-titulo">Dailies e fechamentos</h2>
+  {% if documentos %}
+    {% for doc in documentos %}
+    <article class="ata-doc card">{{ doc.html | safe }}</article>
+    {% endfor %}
+  {% else %}
+  <p class="vazio">Nenhuma ata preenchida nesta sprint ainda. Abra uma daily em <a href="{{ url_for('dia', data_str=sprint.inicio) }}">Hoje</a> e registre.</p>
+  {% endif %}
+</section>
+{% endblock %}

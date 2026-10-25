@@ -9,6 +9,7 @@
   </div>
 </header>
 
+{% if not admin %}<p class="aviso-leitura">Só o administrador altera o calendário. Aqui você só vê.</p>{% endif %}
 <section class="resumo-cal">
   <div class="kpi kpi-destaque">
     <span class="kpi-rotulo">Dias letivos</span>
@@ -25,7 +26,7 @@
 <div class="duas-colunas">
   <section class="card">
     <h2>Período</h2>
-    <form id="form-config" class="config-form">
+    <form id="form-config" class="config-form" data-admin-form>
       <div class="campo">
         <label for="semana1_inicio">Início da semana 1</label>
         <input type="date" id="semana1_inicio" name="semana1_inicio" value="{{ cfg.semana1_inicio }}">
@@ -46,7 +47,7 @@
         <label for="fundador_ate">Fundador: presença até</label>
         <input type="date" id="fundador_ate" name="fundador_ate" value="{{ cfg.fundador_ate }}">
       </div>
-      <button type="submit" class="btn btn-primary">Salvar período</button>
+      <button type="submit" class="btn btn-primary so-admin">Salvar período</button>
     </form>
   </section>
 
@@ -58,13 +59,13 @@
       <li>
         <span class="feriado-data">{{ f.data[8:10] }}/{{ f.data[5:7] }}</span>
         <span class="feriado-nome">{{ f.nome }}</span>
-        <button type="button" class="btn btn-ghost btn-remover-feriado" data-data="{{ f.data }}">Remover</button>
+        <button type="button" class="btn btn-ghost btn-remover-feriado so-admin" data-data="{{ f.data }}">Remover</button>
       </li>
       {% else %}
       <li class="vazio">Nenhum feriado cadastrado.</li>
       {% endfor %}
     </ul>
-    <form id="form-feriado" class="feriado-form">
+    <form id="form-feriado" class="feriado-form so-admin">
       <input type="date" id="data-feriado" required aria-label="Data do feriado">
       <input type="text" id="nome-feriado" placeholder="Nome do feriado" required aria-label="Nome do feriado">
       <button type="submit" class="btn btn-primary">Adicionar</button>

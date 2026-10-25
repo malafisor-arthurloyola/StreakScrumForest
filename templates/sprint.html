@@ -15,7 +15,8 @@
   <div class="date-nav nao-imprime">
     {% if n > 1 %}<a class="btn btn-ghost" href="{{ url_for('sprint_page', n=n - 1) }}">Sprint {{ n - 1 }}</a>{% endif %}
     {% if n < total_sprints %}<a class="btn btn-ghost" href="{{ url_for('sprint_page', n=n + 1) }}">Sprint {{ n + 1 }}</a>{% endif %}
-    <button type="button" class="btn btn-primary" onclick="window.print()">Imprimir ou salvar em PDF</button>
+    <a class="btn btn-primary" href="{{ url_for('ata_sprint_page', n=n) }}">Ata da Sprint</a>
+    <button type="button" class="btn btn-ghost" onclick="window.print()">Imprimir ou salvar em PDF</button>
   </div>
 </header>
 

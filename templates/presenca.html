@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% from "_planta.html" import conjunto %}
+{% block title %}Presença · {{ evento_nome }}{% endblock %}
+
+{% block content %}
+<section class="presenca-tela" aria-label="Confirmar presença">
+  <p class="presenca-data">{{ data_extenso | capitalize }}</p>
+
+  {% if estado == 'sem_login' %}
+    <h1>{{ evento_nome }}</h1>
+    <p class="sub">Entre primeiro no seu jardim com o seu PIN. Depois escaneie o QR de novo.</p>
+    <a class="btn btn-primary presenca-btn" href="{{ url_for('eu_page') }}">Abrir meu jardim</a>
+
+  {% elif estado == 'expirado' %}
+    <h1>Código expirado</h1>
+    <p class="sub">Este QR da {{ evento_nome }} não vale mais. Peça para reabrirem o QR e escaneie de novo.</p>
+    <a class="btn btn-ghost presenca-btn" href="{{ url_for('eu_page') }}">Ir para o meu jardim</a>
+
+  {% else %}
+    <div class="presenca-planta" id="presenca-planta">{{ conjunto(eu, 150) }}</div>
+    <h1>{{ evento_nome }}</h1>
+    <p class="sub">Olá, <b>{{ eu.name }}</b>. {% if ja %}Sua presença de hoje já está registrada.{% else %}Confirme sua presença de hoje.{% endif %}</p>
+
+    <div class="presenca-acoes" id="presenca-acoes"
+         data-url="{{ url_for('presenca_page', evento=evento, codigo=codigo) }}">
+      <button type="button" class="btn btn-primary presenca-btn" id="presenca-so" {{ 'disabled' if ja }}>
+        {{ 'Presença já registrada' if ja else 'Marcar presença' }}
+      </button>
+      {% if tem_ata %}
+      <button type="button" class="btn btn-ghost presenca-btn presenca-btn-mais" id="presenca-abrir">
+        {{ 'Preencher' if ja else 'Marcar e preencher' }} a {{ evento_nome }} <span class="presenca-mais">+1 semente</span>
+      </button>
+      {% endif %}
+    </div>
+
+    {% if tem_ata %}
+    <form class="presenca-form card" id="presenca-form" hidden>
+      <label for="pf-feito">{{ rot_feito }}</label>
+      <textarea id="pf-feito" rows="3" placeholder="Pode citar cards, como #123">{{ fala_atual.feito }}</textarea>
+      <label for="pf-plan">{{ rot_planejado }}</label>
+      <textarea id="pf-plan" rows="3">{{ fala_atual.planejado }}</textarea>
+      <button type="submit" class="btn btn-primary presenca-btn" id="pf-enviar">{{ 'Salvar na ata' if ja else 'Salvar e marcar presença' }}</button>
+      <p class="presenca-nota">Sua fala vai direto para a ata do dia e rende +1 semente.</p>
+    </form>
+    {% endif %}
+
+    <p class="presenca-ok" id="presenca-ok" hidden></p>
+    <a class="btn btn-ghost presenca-btn" href="{{ url_for('eu_page') }}">Ver meu jardim</a>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var acoes = document.getElementById('presenca-acoes');
+  if (!acoes) return;
+  var URL_POST = acoes.dataset.url;
+  var soBtn = document.getElementById('presenca-so');
+  var abrir = document.getElementById('presenca-abrir');
+  var form = document.getElementById('presenca-form');
+  var ok = document.getElementById('presenca-ok');
+
+  function enviar(corpo, botoes) {
+    botoes.forEach(function (b) { if (b) b.disabled = true; });
+    return fetch(URL_POST, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(corpo),
+    })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (!res.ok || !res.j.ok) {
+          mostrarToast((res.j && res.j.erro) || 'Não deu certo.', 'info');
+          botoes.forEach(function (b) { if (b) b.disabled = false; });
+          return null;
+        }
+        return res.j;
+      })
+      .catch(function () {
+        mostrarToast('Sem conexão com o servidor.', 'info');
+        botoes.forEach(function (b) { if (b) b.disabled = false; });
+        return null;
+      });
+  }
+
+  function concluir(j, comFala) {
+    acoes.hidden = true;
+    if (form) form.hidden = true;
+    ok.hidden = false;
+    ok.textContent = comFala ? 'Presença registrada e fala enviada para a ata. +1 semente!' : 'Presença registrada!';
+    var planta = document.getElementById('presenca-planta');
+    if (planta) { var svg = planta.querySelector('.planta'); if (svg) svg.classList.add('regando'); }
+    mostrarToast(comFala ? 'Fala enviada para a ata' : 'Presença registrada!', 'sucesso');
+  }
+
+  if (soBtn && !soBtn.disabled) {
+    soBtn.addEventListener('click', function () {
+      enviar({}, [soBtn, abrir]).then(function (j) { if (j) concluir(j, false); });
+    });
+  }
+  if (abrir && form) {
+    abrir.addEventListener('click', function () {
+      form.hidden = !form.hidden;
+      if (!form.hidden) document.getElementById('pf-feito').focus();
+    });
+    form.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var feito = document.getElementById('pf-feito').value.trim();
+      var plan = document.getElementById('pf-plan').value.trim();
+      if (!feito && !plan) { mostrarToast('Escreva alguma coisa ou use só “Marcar presença”.', 'info'); return; }
+      var enviarBtn = document.getElementById('pf-enviar');
+      enviar({ fala: { feito: feito, planejado: plan } }, [enviarBtn, soBtn, abrir]).then(function (j) {
+        if (j) concluir(j, true);
+      });
+    });
+  }
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,13 @@
+<div class="qr-quadro">
+  {{ svg_qr | safe }}
+</div>
+<div class="qr-codigo-bloco">
+  <span class="qr-codigo-rotulo">No celular (mesma Wi-Fi), abra:</span>
+  <code class="qr-codigo">{{ url }}</code>
+  <p class="qr-dica">Escaneie o QR ou digite o endereço no navegador do celular. O código muda a cada ~10 minutos e vale só para hoje.</p>
+</div>
+<div class="qr-eventos" data-qr-eventos>
+  {% for chave, label in [('daily','Daily'),('dev','Presença no Dev'),('encerramento','Encerramento')] %}
+  <a class="btn {{ 'btn-primary' if chave == evento else 'btn-ghost' }}" href="{{ url_for('qr_page', evento=chave) }}" data-qr-evento="{{ chave }}">{{ label }}</a>
+  {% endfor %}
+</div>

@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+{% block title %}{{ titulo }} — {{ data_str[8:10] }}/{{ data_str[5:7] }} · Ata{% endblock %}
+
+{% block content %}
+<header class="pagina-cab">
+  <div>
+    <h1>{{ titulo }} <span class="ata-data">{{ data_str[8:10] }}/{{ data_str[5:7] }}</span></h1>
+    <p class="sub">{{ data_extenso | capitalize }} · A exportação sai em {{ 'inglês' if idioma_ata == 'en' else 'português' }} (muda na tela Calendário).</p>
+  </div>
+  <div class="date-nav nao-imprime">
+    <a class="btn {{ 'btn-primary' if tipo == 'daily' else 'btn-ghost' }}" href="{{ url_for('ata_page', data_str=data_str, tipo='daily') }}">Daily</a>
+    <a class="btn {{ 'btn-primary' if tipo == 'fechamento' else 'btn-ghost' }}" href="{{ url_for('ata_page', data_str=data_str, tipo='fechamento') }}">Day Closing</a>
+    <a class="btn btn-ghost" href="{{ url_for('ata_imprimir', data_str=data_str, tipo=tipo) }}">Ver / exportar</a>
+    {% if admin %}<a class="btn btn-primary btn-qr-modal" href="{{ url_for('qr_page', evento=evento_qr) }}">QR de presença</a>{% endif %}
+  </div>
+</header>
+
+{% if not pode_editar %}
+<div class="aviso-leitura aviso-relator">
+  <p>Você está só vendo esta ata. Quem edita é o relator (Scrum) ou quem está no computador do sistema.
+  {% if relator_nome %}O relator desta ata é <b>{{ relator_nome }}</b>.{% endif %}</p>
+  {% if not eu_id %}
+  <a class="btn btn-primary" href="{{ url_for('eu_page', next=request.full_path.rstrip('?')) }}">Sou o relator: entrar com o PIN</a>
+  {% elif not relator_nome %}
+  <button type="button" class="btn btn-primary" id="assumir-relator">Assumir como relator desta ata</button>
+  {% endif %}
+  <p class="ata-dica">Para preencher a sua própria fala, use o QR ou <a href="{{ url_for('eu_page') }}">Meu jardim</a>.</p>
+</div>
+{% endif %}
+
+<div id="ata-raiz" data-ata-data="{{ data_str }}" data-ata-tipo="{{ tipo }}" data-pode-editar="{{ '1' if pode_editar else '0' }}">
+
+<section class="card ata-relator" aria-labelledby="ata-relator-titulo">
+  <h2 id="ata-relator-titulo">Quem é o relator (Scrum)?</h2>
+  <p class="ata-dica">É quem digita pelo time hoje. Aparece em “Scrum:” na ata. Toque de novo no nome para desmarcar.</p>
+  <div class="ata-relator-chips" role="radiogroup" aria-label="Relator">
+    {% for l in linhas %}
+    <button type="button" class="chip-relator{{ ' ativo' if l.e_relator }}" role="radio" aria-checked="{{ 'true' if l.e_relator else 'false' }}"
+            data-relator="{{ l.id }}" {{ 'disabled' if not pode_editar }}>{{ l.name }}</button>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="ata-resumo" aria-live="polite">
+  <span><b id="ata-n-presentes">{{ n_presentes }}</b> de {{ linhas | length }} presentes</span>
+  <span id="ata-resumo-aviso" {{ 'hidden' if not n_avisos }}><b id="ata-n-avisos">{{ n_avisos }}</b> avisaram</span>
+</section>
+
+<section class="ata-falas" aria-label="Falas">
+  {% for l in linhas %}
+  <article class="ata-linha" data-member-id="{{ l.id }}" data-status="{{ l.status }}">
+    <div class="ata-linha-topo">
+      <h3 class="ata-nome">{{ l.name }} <span class="ata-selo-relator" {{ 'hidden' if not l.e_relator }}>relator</span></h3>
+      <div class="ata-status" role="group" aria-label="Situação de {{ l.name }}">
+        <button type="button" class="ata-st st-presente" data-st="presente" aria-pressed="{{ 'true' if l.status == 'presente' else 'false' }}" {{ 'disabled' if not pode_editar }}>Presente</button>
+        <button type="button" class="ata-st st-aviso" data-st="justificada" aria-pressed="{{ 'true' if l.status == 'justificada' else 'false' }}" {{ 'disabled' if not pode_editar }}>Avisou</button>
+      </div>
+    </div>
+    <div class="ata-dois">
+      <div class="ata-campo">
+        <label>{{ 'Done' if tipo == 'daily' else 'Completed today' }} <span class="ata-rot-pt">{{ rot_feito | lower }}</span></label>
+        <textarea class="ata-texto" data-campo="feito" data-member-id="{{ l.id }}" rows="2" placeholder="Escreva aqui o que {{ l.name }} falou" {{ 'disabled' if not pode_editar }}>{{ l.feito }}</textarea>
+        {% if tipo == 'daily' and l.planejado_ontem and pode_editar %}
+        <button type="button" class="btn btn-ghost btn-ontem" data-member-id="{{ l.id }}" data-ontem="{{ l.planejado_ontem }}">usar o que ficou planejado ontem</button>
+        {% endif %}
+      </div>
+      <div class="ata-campo">
+        <label>{{ 'Doing' if tipo == 'daily' else 'Carried over' }} <span class="ata-rot-pt">{{ rot_planejado | lower }}</span></label>
+        <textarea class="ata-texto" data-campo="planejado" data-member-id="{{ l.id }}" rows="2" {{ 'disabled' if not pode_editar }}>{{ l.planejado }}</textarea>
+      </div>
+    </div>
+  </article>
+  {% endfor %}
+</section>
+
+<p class="ata-dica ata-dica-final">Relatar a fala de alguém já marca essa pessoa como <b>presente</b> neste evento. Se ela avisou que não vem, toque em <b>Avisou</b>. Quem preenche a própria fala pelo QR aparece aqui sozinho.</p>
+
+<section class="ata-rodape card" aria-label="Impedimentos e quadro">
+  <div class="ata-campo">
+    <label for="ata-bloqueios">{{ 'Blockers' if tipo == 'daily' else 'New blockers' }}</label>
+    <textarea id="ata-bloqueios" data-campo="bloqueios" rows="2" placeholder="texto livre; pode citar #123. Deixe vazio para 'None'." {{ 'disabled' if not pode_editar }}>{{ bloqueios }}</textarea>
+  </div>
+  {% if tipo == 'fechamento' %}
+  <label class="ata-switch">
+    <input type="checkbox" id="ata-quadro" data-campo="quadro_atualizado" {{ 'checked' if quadro_atualizado }} {{ 'disabled' if not pode_editar }}>
+    <span>Board updated (quadro atualizado)</span>
+  </label>
+  {% endif %}
+</section>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var raiz = document.getElementById('ata-raiz');
+  if (!raiz) return;
+  var DATA = raiz.dataset.ataData, TIPO = raiz.dataset.ataTipo;
+  var PODE_EDITAR = raiz.dataset.podeEditar === '1';
+  var timers = {};
+
+  function linha(id) { return raiz.querySelector('.ata-linha[data-member-id="' + id + '"]'); }
+
+  function contar() {
+    var pres = 0, av = 0;
+    raiz.querySelectorAll('.ata-linha').forEach(function (l) {
+      if (l.dataset.status === 'presente') pres++;
+      else if (l.dataset.status === 'justificada') av++;
+    });
+    document.getElementById('ata-n-presentes').textContent = pres;
+    document.getElementById('ata-n-avisos').textContent = av;
+    document.getElementById('ata-resumo-aviso').hidden = av === 0;
+  }
+
+  function aplicarStatus(id, st) {
+    var l = linha(id);
+    if (!l) return;
+    l.dataset.status = st || '';
+    l.querySelectorAll('.ata-st').forEach(function (b) {
+      b.setAttribute('aria-pressed', b.dataset.st === st ? 'true' : 'false');
+    });
+    contar();
+  }
+
+  function aplicarRelator(id) {
+    raiz.querySelectorAll('.chip-relator').forEach(function (c) {
+      var ativo = String(id || '') === c.dataset.relator;
+      c.classList.toggle('ativo', ativo);
+      c.setAttribute('aria-checked', ativo ? 'true' : 'false');
+    });
+    raiz.querySelectorAll('.ata-linha').forEach(function (l) {
+      var selo = l.querySelector('.ata-selo-relator');
+      if (selo) selo.hidden = String(id || '') !== l.dataset.memberId;
+    });
+  }
+
+  function salvar(campo, valor, memberId, aoTerminar) {
+    var corpo = { data: DATA, tipo: TIPO, campo: campo, valor: valor };
+    if (memberId != null) corpo.member_id = memberId;
+    return fetch('/api/ata/salvar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(corpo),
+    })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (!(res.ok && res.j.ok)) { mostrarToast((res.j && res.j.erro) || 'Não salvou.', 'info'); return null; }
+        if (memberId != null && res.j.status) aplicarStatus(memberId, res.j.status);
+        if (aoTerminar) aoTerminar(res.j);
+        return res.j;
+      })
+      .catch(function () { mostrarToast('Sem conexão.', 'info'); return null; });
+  }
+
+  // texto: salva sozinho enquanto digita (pausa de 1,2 s) e ao sair do campo
+  raiz.querySelectorAll(PODE_EDITAR ? '.ata-texto' : '.nenhum').forEach(function (t) {
+    var chave = t.dataset.campo + t.dataset.memberId;
+    function enviar() {
+      clearTimeout(timers[chave]);
+      var v = t.value;
+      salvar(t.dataset.campo, v, t.dataset.memberId, function () { if (t.value === v) delete t.dataset.sujo; });
+    }
+    t.addEventListener('input', function () {
+      t.dataset.sujo = '1';
+      clearTimeout(timers[chave]);
+      timers[chave] = setTimeout(enviar, 1200);
+    });
+    t.addEventListener('blur', function () { if (t.dataset.sujo) enviar(); });
+  });
+
+  // situacao: Presente / Avisou (toque de novo limpa)
+  raiz.querySelectorAll(PODE_EDITAR ? '.ata-st' : '.nenhum').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var l = b.closest('.ata-linha');
+      var novo = l.dataset.status === b.dataset.st ? '' : b.dataset.st;
+      aplicarStatus(l.dataset.memberId, novo);
+      salvar('status', novo, l.dataset.memberId);
+    });
+  });
+
+  // relator: escolha unica
+  raiz.querySelectorAll(PODE_EDITAR ? '.chip-relator' : '.nenhum').forEach(function (c) {
+    c.addEventListener('click', function () {
+      var novo = c.classList.contains('ativo') ? '' : c.dataset.relator;
+      aplicarRelator(novo);
+      salvar('relator', novo);
+    });
+  });
+
+  var bloq = document.getElementById('ata-bloqueios');
+  if (bloq && PODE_EDITAR) {
+    bloq.addEventListener('input', function () { bloq.dataset.sujo = '1'; });
+    bloq.addEventListener('blur', function () { salvar('bloqueios', bloq.value, null, function () { delete bloq.dataset.sujo; }); });
+  }
+  var quadro = document.getElementById('ata-quadro');
+  if (quadro && PODE_EDITAR) quadro.addEventListener('change', function () { salvar('quadro_atualizado', quadro.checked); });
+
+  // botao "usar planejado de ontem": acrescenta ao campo Done (nunca sobrescreve)
+  raiz.querySelectorAll(PODE_EDITAR ? '.btn-ontem' : '.nenhum').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var ta = raiz.querySelector('.ata-texto[data-campo="feito"][data-member-id="' + b.dataset.memberId + '"]');
+      if (!ta) return;
+      ta.value = ta.value.trim() ? (ta.value.trim() + '\n' + b.dataset.ontem) : b.dataset.ontem;
+      ta.focus();
+      salvar('feito', ta.value, b.dataset.memberId);
+    });
+  });
+
+  // atualiza sozinho: quem marca presenca ou preenche a fala pelo celular aparece aqui
+  function atualizar() {
+    if (document.hidden) return;
+    fetch('/api/ata/estado?data=' + encodeURIComponent(DATA) + '&tipo=' + encodeURIComponent(TIPO))
+      .then(function (r) { return r.json(); })
+      .then(function (e) {
+        if (!e || !e.ok) return;
+        e.linhas.forEach(function (x) {
+          aplicarStatus(x.id, x.status);
+          ['feito', 'planejado'].forEach(function (campo) {
+            var ta = raiz.querySelector('.ata-texto[data-campo="' + campo + '"][data-member-id="' + x.id + '"]');
+            if (ta && document.activeElement !== ta && !ta.dataset.sujo && ta.value !== x[campo]) ta.value = x[campo];
+          });
+        });
+        aplicarRelator(e.relator_id);
+        if (bloq && document.activeElement !== bloq && !bloq.dataset.sujo && bloq.value !== e.bloqueios) bloq.value = e.bloqueios;
+        if (quadro && document.activeElement !== quadro) quadro.checked = !!e.quadro_atualizado;
+      })
+      .catch(function () {});
+  }
+  var assumir = document.getElementById('assumir-relator');
+  if (assumir) {
+    assumir.addEventListener('click', function () {
+      assumir.disabled = true;
+      fetch('/api/ata/assumir', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: DATA, tipo: TIPO }),
+      })
+        .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+        .then(function (res) {
+          if (res.ok && res.j.ok) { location.reload(); return; }
+          mostrarToast((res.j && res.j.erro) || 'Não deu certo.', 'info');
+          assumir.disabled = false;
+        })
+        .catch(function () { mostrarToast('Sem conexão.', 'info'); assumir.disabled = false; });
+    });
+  }
+
+  setInterval(atualizar, 4000);
+  contar();
+})();
+</script>
+{% endblock %}

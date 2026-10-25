@@ -16,6 +16,8 @@ from flask import (
 
 import catalog
 import game
+import qr_puro
+import ata_fmt
 
 BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = Path(os.environ.get("STRIKES_DB", BASE_DIR / "data" / "strikes.db"))
@@ -39,6 +41,8 @@ DEFAULT_CONFIG = {
     "sprint_semanas": "2",
     "contar_a_partir_de": "2026-10-15",
     "fundador_ate": "2026-10-23",
+    "idioma_ata": "en",
+    "gitlab_base_url": "",
 }
 
 DEFAULT_FERIADOS = [
@@ -65,6 +69,8 @@ app.config.update(
     SESSION_COOKIE_SECURE=os.environ.get("COOKIE_SECURE") == "1",
     PERMANENT_SESSION_LIFETIME=timedelta(days=30),
 )
+# app.secret_key e definido mais abaixo (apos _segredo), para a sessao assinada funcionar
+# tanto com o codigo de acesso do grupo quanto com o login pessoal por PIN (/eu).
 
 
 # ------------------------------------------------------------ codigo de acesso
@@ -97,6 +103,109 @@ def _ip():
     return encaminhado.split(",")[0].strip() or request.remote_addr or "?"
 
 
+def _ip_lan():
+    """IP da maquina na rede local, para o celular abrir o site. Nao faz conexao real:
+    o connect UDP so escolhe a interface de saida. Retorna None se nao der para descobrir."""
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("8.8.8.8", 80))
+        return s.getsockname()[0]
+    except OSError:
+        return None
+    finally:
+        s.close()
+
+
+# A sessao assinada (codigo de acesso e login pessoal por PIN) precisa de uma chave
+# sempre definida, inclusive sem ACCESS_CODE. _segredo() e deterministico.
+app.secret_key = _segredo()
+
+
+# ------------------------------------------------------------ PIN pessoal (/eu)
+# Guardamos apenas o hash do PIN com sal aleatorio (scrypt da stdlib), nunca o PIN.
+PIN_MAX_ERROS = 5
+PIN_BLOQUEIO_SEG = 600
+PIN_TENTATIVAS = {}  # chave -> {"erros": int, "bloqueado_ate": float}
+
+
+def criar_pin_hash(pin):
+    """Retorna (hash_hex, salt_hex) para um PIN de 4 digitos. scrypt e da stdlib."""
+    salt = os.urandom(16)
+    h = hashlib.scrypt(pin.encode("utf-8"), salt=salt, n=16384, r=8, p=1, dklen=32)
+    return h.hex(), salt.hex()
+
+
+def verificar_pin(pin, hash_hex, salt_hex):
+    if not hash_hex or not salt_hex:
+        return False
+    try:
+        salt = bytes.fromhex(salt_hex)
+        h = hashlib.scrypt(pin.encode("utf-8"), salt=salt, n=16384, r=8, p=1, dklen=32)
+    except (ValueError, TypeError):
+        return False
+    return hmac.compare_digest(h.hex(), hash_hex)
+
+
+def _pin_valido(pin):
+    return isinstance(pin, str) and len(pin) == 4 and pin.isdigit()
+
+
+def _pin_bloqueado(chaves):
+    agora = time.time()
+    for k in chaves:
+        est = PIN_TENTATIVAS.get(k)
+        if est and est["bloqueado_ate"] > agora:
+            return True
+    return False
+
+
+def _pin_registrar_erro(chaves):
+    agora = time.time()
+    for k in chaves:
+        est = PIN_TENTATIVAS.get(k, {"erros": 0, "bloqueado_ate": 0})
+        est["erros"] += 1
+        if est["erros"] >= PIN_MAX_ERROS:
+            est["erros"] = 0
+            est["bloqueado_ate"] = agora + PIN_BLOQUEIO_SEG
+        PIN_TENTATIVAS[k] = est
+
+
+def _pin_limpar(chaves):
+    for k in chaves:
+        PIN_TENTATIVAS.pop(k, None)
+
+
+# ------------------------------------------------------------ codigo do QR de presenca
+# O codigo do evento do dia e um HMAC curto de SECRET_KEY sobre data|evento|janela de
+# 10 min. Aceitamos a janela atual e a anterior, para o QR nao "virar" na troca de janela.
+JANELA_QR_SEG = 600
+
+
+def _codigo_evento(data_str, evento, janela):
+    msg = f"{data_str}|{evento}|{janela}".encode("utf-8")
+    assinatura = hmac.new(_segredo().encode("utf-8"), msg, hashlib.sha256).hexdigest()
+    # codigo curto e legivel: evento + 8 hex. A data/evento sao recuperados por tentativa.
+    return assinatura[:10]
+
+
+def codigo_do_evento(data_str, evento, agora=None):
+    """Codigo atual do evento naquele dia (janela de 10 min)."""
+    agora = agora if agora is not None else time.time()
+    janela = int(agora // JANELA_QR_SEG)
+    return _codigo_evento(data_str, evento, janela)
+
+
+def verificar_codigo_evento(codigo, data_str, evento, agora=None):
+    """True se `codigo` corresponde ao evento/dia na janela atual ou na anterior."""
+    agora = agora if agora is not None else time.time()
+    janela = int(agora // JANELA_QR_SEG)
+    for j in (janela, janela - 1):
+        if hmac.compare_digest(codigo, _codigo_evento(data_str, evento, j)):
+            return True
+    return False
+
+
 def _destino_seguro(destino):
     if destino and destino.startswith("/") and not destino.startswith("//"):
         return destino
@@ -118,6 +227,131 @@ def guarda_de_acesso():
             and request.headers.get("X-Requested-With") != "fetch":
         return jsonify({"ok": False, "erro": "Pedido inválido."}), 403
     return None
+
+
+# ------------------------------------------------------------ papeis: administrador x visitante
+# Quem pode ALTERAR o que e compartilhado (presenca de todos, ata, membros, calendario,
+# metas, QR, download do banco):
+#   - quem esta no computador onde o site roda (acesso local, em localhost);
+#   - o Scrum (relator) de HOJE, entrando no celular com o PIN;
+#   - quem entrou com o ADMIN_CODE (para quando o site esta publicado).
+# Os demais so VEEM. Cada pessoa continua dona da propria loja, da propria fala e da propria
+# presenca (via /eu e QR).
+ENDPOINTS_ADMIN = {
+    "api_metas", "api_calendario", "api_feriados", "api_attendance", "api_marcar_todos",
+    "api_add_membro", "api_editar_membro", "api_excluir_membro",
+    "qr_page", "baixar_banco",
+}
+MSG_SO_ADMIN = "Só o administrador (o Scrum do dia ou quem está no computador) pode fazer isso."
+
+
+def _requisicao_local():
+    """True se o pedido vem do proprio computador (localhost), sem proxy no meio.
+    ADMIN_LOCAL=0 desliga isso (ex.: se o site rodar num servidor compartilhado)."""
+    if os.environ.get("ADMIN_LOCAL", "1") == "0":
+        return False
+    if request.headers.get("X-Forwarded-For") or request.headers.get("X-Real-IP"):
+        return False
+    if request.remote_addr not in ("127.0.0.1", "::1"):
+        return False
+    host = request.host
+    host = host[1:host.index("]")] if host.startswith("[") else host.split(":")[0]
+    return host in ("localhost", "127.0.0.1", "::1")
+
+
+def _papel_admin():
+    """'codigo' | 'computador' | 'scrum' | None (visitante)."""
+    if session.get("admin"):
+        return "codigo"
+    if _requisicao_local():
+        return "computador"
+    mid = _eu_id()
+    if mid is not None:
+        hoje = date.today().isoformat()
+        r = get_db().execute(
+            "SELECT 1 FROM atas WHERE data = ? AND relator_id = ? LIMIT 1", (hoje, mid)
+        ).fetchone()
+        if r:
+            return "scrum"
+    return None
+
+
+def eh_admin():
+    return _papel_admin() is not None
+
+
+def _pode_editar_ata(db, data_str, tipo):
+    """Edita a ata: o administrador, ou o relator DAQUELA ata (logado com o PIN, em qualquer
+    aparelho, inclusive no PC), seja ela de hoje ou de outro dia."""
+    if eh_admin():
+        return True
+    mid = _eu_id()
+    if mid is None:
+        return False
+    r = db.execute("SELECT relator_id FROM atas WHERE data = ? AND tipo = ?", (data_str, tipo)).fetchone()
+    return bool(r and r["relator_id"] == mid)
+
+
+@app.before_request
+def guarda_de_admin():
+    if request.endpoint in ENDPOINTS_ADMIN and not eh_admin():
+        if request.path.startswith("/api/") or request.method != "GET":
+            return jsonify({"ok": False, "erro": MSG_SO_ADMIN}), 403
+        return render_template("so_admin.html"), 403
+    return None
+
+
+@app.context_processor
+def contexto_papel():
+    try:
+        papel = _papel_admin()
+    except Exception:
+        papel = None
+    return {
+        "admin": papel is not None,
+        "papel_admin": papel,
+        "admin_codigo_ativo": bool(os.environ.get("ADMIN_CODE")),
+        "eu_id": _eu_id(),
+    }
+
+
+@app.route("/admin/entrar", methods=["GET", "POST"])
+def admin_entrar():
+    codigo = os.environ.get("ADMIN_CODE", "")
+    destino = _destino_seguro(request.values.get("next"))
+    erro, status = None, 200
+    if request.method == "POST":
+        if not codigo:
+            erro, status = "O código de administrador não está configurado neste servidor.", 400
+        else:
+            chave = "adm:" + _ip()
+            agora = time.time()
+            estado = TENTATIVAS.get(chave, {"erros": 0, "bloqueado_ate": 0})
+            if estado["bloqueado_ate"] > agora:
+                erro, status = "Muitas tentativas. Tente de novo em alguns minutos.", 429
+            else:
+                tentativa = (request.form.get("codigo") or "").encode("utf-8")
+                if hmac.compare_digest(tentativa, codigo.encode("utf-8")):
+                    TENTATIVAS.pop(chave, None)
+                    session["admin"] = True
+                    session.permanent = True
+                    return redirect(destino)
+                estado["erros"] += 1
+                if estado["erros"] >= MAX_ERROS:
+                    estado["erros"] = 0
+                    estado["bloqueado_ate"] = agora + BLOQUEIO_SEG
+                    erro, status = "Muitas tentativas. Tente de novo em alguns minutos.", 429
+                else:
+                    erro, status = "Código incorreto.", 401
+                TENTATIVAS[chave] = estado
+    return render_template("admin_entrar.html", erro=erro, destino=destino,
+                           configurado=bool(codigo)), status
+
+
+@app.route("/admin/sair")
+def admin_sair():
+    session.pop("admin", None)
+    return redirect(url_for("home"))
 
 
 @app.route("/entrar", methods=["GET", "POST"])
@@ -320,6 +554,27 @@ def init_db():
             alvo INTEGER NOT NULL,
             criada_em TEXT NOT NULL DEFAULT (datetime('now'))
         );
+
+        CREATE TABLE IF NOT EXISTS atas (
+            data TEXT NOT NULL,
+            tipo TEXT NOT NULL CHECK (tipo IN ('daily', 'fechamento')),
+            relator_id INTEGER REFERENCES members(id),
+            bloqueios TEXT NOT NULL DEFAULT '',
+            bloqueios_resolvidos INTEGER NOT NULL DEFAULT 0,
+            quadro_atualizado INTEGER NOT NULL DEFAULT 0,
+            atualizada_em TEXT NOT NULL DEFAULT (datetime('now')),
+            PRIMARY KEY (data, tipo)
+        );
+
+        CREATE TABLE IF NOT EXISTS ata_falas (
+            data TEXT NOT NULL,
+            tipo TEXT NOT NULL CHECK (tipo IN ('daily', 'fechamento')),
+            member_id INTEGER NOT NULL REFERENCES members(id),
+            feito TEXT NOT NULL DEFAULT '',
+            planejado TEXT NOT NULL DEFAULT '',
+            atualizada_em TEXT NOT NULL DEFAULT (datetime('now')),
+            PRIMARY KEY (data, tipo, member_id)
+        );
     """)
     db.commit()
 
@@ -353,11 +608,20 @@ def _migrar_membros_tipo(db):
     """Adiciona members.tipo ('equipe' | 'convidado') de forma aditiva e idempotente.
     Convidados ficam fora de tudo que e coletivo; o default mantem todo mundo na equipe."""
     colunas = {r["name"] for r in db.execute("PRAGMA table_info(members)").fetchall()}
-    if "tipo" in colunas:
-        return
-    db.execute(
-        "ALTER TABLE members ADD COLUMN tipo TEXT NOT NULL DEFAULT 'equipe'"
-    )
+    if "tipo" not in colunas:
+        db.execute(
+            "ALTER TABLE members ADD COLUMN tipo TEXT NOT NULL DEFAULT 'equipe'"
+        )
+    _migrar_membros_pin(db)
+
+
+def _migrar_membros_pin(db):
+    """Adiciona members.pin_hash e pin_salt (aditivo, idempotente). Guardamos so o hash."""
+    colunas = {r["name"] for r in db.execute("PRAGMA table_info(members)").fetchall()}
+    if "pin_hash" not in colunas:
+        db.execute("ALTER TABLE members ADD COLUMN pin_hash TEXT")
+    if "pin_salt" not in colunas:
+        db.execute("ALTER TABLE members ADD COLUMN pin_salt TEXT")
 
 
 def _get_config(db):
@@ -475,6 +739,39 @@ def _e_equipe(membro_row):
     return (tipo or "equipe") == "equipe"
 
 
+def _contagem_atas(db, dias_letivos_lista):
+    """Por membro: numero de atas (em DIA LETIVO) com a fala preenchida (feito OU
+    planejado nao vazio) e numero de atas que a pessoa redigiu (relator). Base do adubo.
+    Fim de semana, feriado ou dia fora do periodo nao rende: a recompensa so conta
+    atas cujas datas sao dias letivos, igual ao resto do jogo."""
+    com_fala, relatadas = {}, {}
+    if not dias_letivos_lista:
+        return com_fala, relatadas
+    marc = ",".join("?" * len(dias_letivos_lista))
+    for r in db.execute(
+        f"SELECT member_id, COUNT(*) AS n FROM ata_falas "
+        f"WHERE data IN ({marc}) AND (TRIM(feito) <> '' OR TRIM(planejado) <> '') "
+        f"GROUP BY member_id",
+        tuple(dias_letivos_lista),
+    ).fetchall():
+        com_fala[r["member_id"]] = r["n"]
+    for r in db.execute(
+        f"SELECT relator_id, COUNT(*) AS n FROM atas "
+        f"WHERE relator_id IS NOT NULL AND data IN ({marc}) GROUP BY relator_id",
+        tuple(dias_letivos_lista),
+    ).fetchall():
+        relatadas[r["relator_id"]] = r["n"]
+    return com_fala, relatadas
+
+
+def _coluna(row, nome):
+    """Le uma coluna opcional de um sqlite3.Row sem quebrar se ela nao existir."""
+    try:
+        return row[nome]
+    except (KeyError, IndexError):
+        return None
+
+
 def get_member_stats(db, dias_letivos_lista=None):
     if dias_letivos_lista is None:
         dias_letivos_lista = _dias_letivos(db)
@@ -491,6 +788,7 @@ def get_member_stats(db, dias_letivos_lista=None):
     gastos = _gastos_por_membro(db)
     posses, equip = _posses_e_equipados(db)
     fundador_ate = _get_config(db).get("fundador_ate", "2026-10-23")
+    atas_com_fala, atas_relatadas = _contagem_atas(db, dias_letivos_lista)
 
     resultado = []
     for m in membros:
@@ -501,7 +799,9 @@ def get_member_stats(db, dias_letivos_lista=None):
             estado["g"], meta, estado["estagio"]
         )
         ganho = game.calcular_sementes(
-            dias_letivos_lista, semanas, reg, estado["floresceu"], dias_cheios=cheios
+            dias_letivos_lista, semanas, reg, estado["floresceu"], dias_cheios=cheios,
+            atas_com_fala=atas_com_fala.get(m["id"], 0),
+            atas_relatadas=atas_relatadas.get(m["id"], 0),
         )
         gasto = gastos.get(m["id"], 0)
         resultado.append({
@@ -517,6 +817,7 @@ def get_member_stats(db, dias_letivos_lista=None):
             "name": m["name"],
             "active": bool(m["active"]),
             "convidado": not _e_equipe(m),
+            "tem_pin": bool(_coluna(m, "pin_hash")),
             "estagio": estado["estagio"],
             "estagio_nome": game.STAGE_NAMES[estado["estagio"]],
             "floresceu": estado["floresceu"],
@@ -1539,6 +1840,31 @@ def api_marcar_todos():
     return jsonify({"ok": True, "membros": membros})
 
 
+@app.route("/api/dia/<data_str>/estado")
+def api_dia_estado(data_str):
+    """Estado leve do dia para o Hoje atualizar sozinho (polling): sementes de cada
+    ativo, status de cada celula (membro x evento) e se o dia esta cheio. Nunca dispara
+    a celebracao — o cliente so atualiza numeros/estados."""
+    try:
+        date.fromisoformat(data_str)
+    except ValueError:
+        abort(404)
+    db = get_db()
+    dias_letivos_lista = _dias_letivos(db)
+    membros = get_member_stats(db, dias_letivos_lista)
+    sementes = [{"id": m["id"], "sementes": m["sementes"]} for m in membros if m["active"]]
+    registros = db.execute(
+        "SELECT member_id, event_type, status FROM attendance WHERE event_date = ?", (data_str,)
+    ).fetchall()
+    celulas = [{"member_id": r["member_id"], "evento": r["event_type"], "status": r["status"]}
+               for r in registros]
+    return jsonify({
+        "sementes_membros": sementes,
+        "celulas": celulas,
+        "dia_cheio": _dia_cheio_na_data(db, data_str, dias_letivos_lista),
+    })
+
+
 @app.route("/api/membros", methods=["POST"])
 def api_add_membro():
     payload = request.get_json(force=True, silent=True) or {}
@@ -1575,6 +1901,11 @@ def api_editar_membro(member_id):
         if tipo not in ("equipe", "convidado"):
             abort(400)
         db.execute("UPDATE members SET tipo = ? WHERE id = ?", (tipo, member_id))
+    if payload.get("resetar_pin"):
+        # o dono reseta o PIN: a pessoa cria um novo no proximo acesso ao /eu
+        db.execute(
+            "UPDATE members SET pin_hash = NULL, pin_salt = NULL WHERE id = ?", (member_id,)
+        )
     db.commit()
     return jsonify({"ok": True})
 
@@ -1727,7 +2058,15 @@ def _contexto_loja(db, member_id):
 @app.route("/loja")
 def loja_page():
     db = get_db()
-    return render_template("loja.html", **_contexto_loja(db, request.args.get("m", type=int)))
+    m = request.args.get("m", type=int)
+    eu = _eu_id()
+    if m is None and eu is not None:
+        return redirect(url_for("loja_page", m=eu))
+    ctx = _contexto_loja(db, m)
+    # Qualquer um pode ver a loja/colecao de alguem. Compra e equipa a propria pessoa
+    # (logada com o PIN) ou o administrador, que escolhe o perfil.
+    ctx["pode_agir"] = m is not None and ((eu is not None and eu == m) or eh_admin())
+    return render_template("loja.html", **ctx)
 
 
 def _contexto_sementes(db, member_id, compare_id=None):
@@ -1833,6 +2172,666 @@ def sementes_page():
     )
 
 
+# ------------------------------------------------------------ pagina pessoal /eu
+def _eu_id():
+    try:
+        return int(session.get("eu"))
+    except (TypeError, ValueError):
+        return None
+
+
+def _eu_membro(db):
+    mid = _eu_id()
+    if mid is None:
+        return None
+    return db.execute("SELECT * FROM members WHERE id = ? AND active = 1", (mid,)).fetchone()
+
+
+def _chaves_pin(member_id):
+    return [f"ip:{_ip()}", f"m:{member_id}"]
+
+
+@app.route("/eu")
+def eu_page():
+    db = get_db()
+    membro = _eu_membro(db)
+    if membro is None:
+        # Nao logado: lista de nomes, indicando quem ja tem PIN.
+        pessoas = db.execute(
+            "SELECT id, name, (pin_hash IS NOT NULL) AS tem_pin, "
+            "COALESCE(tipo, 'equipe') AS tipo FROM members WHERE active = 1 "
+            "ORDER BY name COLLATE NOCASE"
+        ).fetchall()
+        return render_template("eu_login.html", pessoas=[dict(p) for p in pessoas])
+
+    stats = _stats_membro(db, membro["id"])
+    ctx = _contexto_loja(db, membro["id"])
+
+    # Fala propria do dia: so aparece se a pessoa tem presenca hoje. Ela edita so a dela.
+    hoje = date.today().isoformat()
+    tem_presenca_hoje = db.execute(
+        "SELECT 1 FROM attendance WHERE member_id = ? AND event_date = ? AND status = 'presente' LIMIT 1",
+        (membro["id"], hoje),
+    ).fetchone() is not None
+    minhas_falas = []
+    if tem_presenca_hoje:
+        for tipo, rotulo, rot_feito, rot_planejado in (
+            ("daily", "Daily", "O que fiz", "O que vou fazer"),
+            ("fechamento", "Day Closing", "Concluí hoje", "Ficou para depois"),
+        ):
+            f = db.execute(
+                "SELECT feito, planejado FROM ata_falas WHERE data = ? AND tipo = ? AND member_id = ?",
+                (hoje, tipo, membro["id"]),
+            ).fetchone()
+            minhas_falas.append({
+                "tipo": tipo, "rotulo": rotulo,
+                "rot_feito": rot_feito, "rot_planejado": rot_planejado,
+                "feito": f["feito"] if f else "", "planejado": f["planejado"] if f else "",
+            })
+
+    return render_template(
+        "eu.html", eu=stats, hoje=hoje, minhas_falas=minhas_falas, **ctx
+    )
+
+
+@app.route("/eu/criar", methods=["POST"])
+def eu_criar_pin():
+    db = get_db()
+    p = request.get_json(force=True, silent=True) or {}
+    try:
+        member_id = int(p.get("member_id"))
+    except (TypeError, ValueError):
+        return _erro("Pessoa inválida.")
+    pin = str(p.get("pin") or "")
+    pin2 = str(p.get("pin2") or "")
+    membro = db.execute("SELECT * FROM members WHERE id = ? AND active = 1", (member_id,)).fetchone()
+    if membro is None:
+        return _erro("Pessoa inválida.")
+    if membro["pin_hash"]:
+        return _erro("Esta pessoa já tem um PIN. Entre com ele.")
+    if not _pin_valido(pin):
+        return _erro("O PIN deve ter 4 dígitos.")
+    if pin != pin2:
+        return _erro("Os dois PINs não batem.")
+    h, s = criar_pin_hash(pin)
+    db.execute("UPDATE members SET pin_hash = ?, pin_salt = ? WHERE id = ?", (h, s, member_id))
+    db.commit()
+    session["eu"] = member_id
+    session.permanent = True
+    return jsonify({"ok": True})
+
+
+@app.route("/eu/entrar", methods=["POST"])
+def eu_entrar():
+    db = get_db()
+    p = request.get_json(force=True, silent=True) or {}
+    try:
+        member_id = int(p.get("member_id"))
+    except (TypeError, ValueError):
+        return _erro("Pessoa inválida.")
+    pin = str(p.get("pin") or "")
+    chaves = _chaves_pin(member_id)
+    if _pin_bloqueado(chaves):
+        return _erro("Muitas tentativas. Tente de novo em alguns minutos.", 429)
+    membro = db.execute("SELECT * FROM members WHERE id = ? AND active = 1", (member_id,)).fetchone()
+    if membro is None or not membro["pin_hash"]:
+        return _erro("Pessoa inválida ou sem PIN.")
+    if not verificar_pin(pin, membro["pin_hash"], membro["pin_salt"]):
+        _pin_registrar_erro(chaves)
+        return _erro("PIN incorreto.", 401)
+    _pin_limpar(chaves)
+    session["eu"] = member_id
+    session.permanent = True
+    return jsonify({"ok": True})
+
+
+@app.route("/eu/sair")
+def eu_sair():
+    session.pop("eu", None)
+    return redirect(url_for("eu_page"))
+
+
+# ------------------------------------------------------------ QR de presenca
+EVENT_NOMES = dict(EVENTS)
+
+
+@app.route("/qr/<evento>")
+def qr_page(evento):
+    if evento not in EVENT_KEYS:
+        abort(404)
+    hoje = date.today().isoformat()
+    codigo = codigo_do_evento(hoje, evento)
+    caminho = url_for("presenca_page", evento=evento, codigo=codigo)
+    # Preferimos o IP da maquina na rede local, para o celular (mesma Wi-Fi) abrir direto.
+    # Se nao der para descobrir, caimos no host do proprio pedido.
+    # So usa o IP da rede local quando o site foi aberto em localhost (rodando no PC do dono).
+    # Em producao (PythonAnywhere), o IP da maquina seria interno e o QR nao abriria no celular.
+    host_so = request.host.split(":")[0]
+    ip_lan = _ip_lan() if host_so in ("localhost", "127.0.0.1", "[::1]", "::1") else None
+    porta = request.host.split(":")[-1] if ":" in request.host else "5000"
+    if ip_lan:
+        base = f"http://{ip_lan}:{porta}"
+    else:
+        base = request.host_url.rstrip("/")
+    url = base + caminho
+    svg_qr = qr_puro.svg(url, modulo=8, borda=4)
+    template = "qr_fragmento.html" if request.args.get("fragmento") else "qr.html"
+    return render_template(
+        template,
+        evento=evento,
+        evento_nome=EVENT_NOMES.get(evento, evento),
+        codigo=codigo,
+        url=url,
+        caminho=caminho,
+        svg_qr=svg_qr,
+        hoje=hoje,
+        data_extenso=_data_completa(hoje),
+    )
+
+
+def _data_completa(data_str):
+    """'quinta, 22 de outubro de 2026' a partir de AAAA-MM-DD."""
+    d = date.fromisoformat(data_str)
+    return f"{_data_extenso(d)} de {d.year}"
+
+
+# Evento do dia <-> tipo de ata (a Daily e o Day Closing; o Dev nao tem ata)
+ATA_EVENTO = {"daily": "daily", "fechamento": "encerramento"}
+EVENTO_ATA = {v: k for k, v in ATA_EVENTO.items()}
+ATA_ROTULOS_FALA = {
+    "daily": ("O que fiz desde ontem", "O que vou fazer hoje"),
+    "fechamento": ("O que concluí hoje", "O que fica para amanhã"),
+}
+
+
+def _salvar_fala(db, data_str, tipo, member_id, feito=None, planejado=None):
+    """Grava (upsert) a fala de uma pessoa na ata; so os campos informados mudam."""
+    _garantir_ata(db, data_str, tipo)
+    db.execute(
+        "INSERT INTO ata_falas (data, tipo, member_id, feito, planejado, atualizada_em) "
+        "VALUES (?, ?, ?, '', '', datetime('now')) ON CONFLICT (data, tipo, member_id) DO NOTHING",
+        (data_str, tipo, member_id),
+    )
+    if feito is not None:
+        db.execute("UPDATE ata_falas SET feito = ?, atualizada_em = datetime('now') "
+                   "WHERE data = ? AND tipo = ? AND member_id = ?", (feito, data_str, tipo, member_id))
+    if planejado is not None:
+        db.execute("UPDATE ata_falas SET planejado = ?, atualizada_em = datetime('now') "
+                   "WHERE data = ? AND tipo = ? AND member_id = ?", (planejado, data_str, tipo, member_id))
+
+
+def _definir_status(db, member_id, data_str, evento, status):
+    """Define (ou apaga, se status vazio) a presenca da pessoa naquele evento do dia."""
+    if status in (None, ""):
+        db.execute("DELETE FROM attendance WHERE member_id = ? AND event_date = ? AND event_type = ?",
+                   (member_id, data_str, evento))
+        return
+    db.execute(
+        """
+        INSERT INTO attendance (member_id, event_date, event_type, status, updated_at)
+        VALUES (?, ?, ?, ?, datetime('now'))
+        ON CONFLICT (member_id, event_date, event_type)
+        DO UPDATE SET status = excluded.status, updated_at = excluded.updated_at
+        """,
+        (member_id, data_str, evento, status),
+    )
+
+
+def _status_do_evento(db, data_str, evento):
+    return {r["member_id"]: r["status"] for r in db.execute(
+        "SELECT member_id, status FROM attendance WHERE event_date = ? AND event_type = ?",
+        (data_str, evento)).fetchall()}
+
+
+@app.route("/presenca/<evento>/<codigo>", methods=["GET", "POST"])
+def presenca_page(evento, codigo):
+    if evento not in EVENT_KEYS:
+        abort(404)
+    db = get_db()
+    membro = _eu_membro(db)
+    hoje = date.today().isoformat()
+    valido = verificar_codigo_evento(codigo, hoje, evento)
+    base = dict(evento=evento, evento_nome=EVENT_NOMES.get(evento, evento),
+                data_extenso=_data_completa(hoje), hoje=hoje)
+
+    if not membro:
+        # precisa estar logado no /eu para marcar a propria presenca
+        destino = request.full_path.rstrip("?")
+        return render_template("presenca.html", estado="sem_login", destino=destino, **base)
+
+    if not valido:
+        return render_template("presenca.html", estado="expirado",
+                               eu=_stats_membro(db, membro["id"]), **base)
+
+    tipo_ata = EVENTO_ATA.get(evento)           # None para o Dev (nao tem ata)
+    ja_row = db.execute(
+        "SELECT status FROM attendance WHERE member_id = ? AND event_date = ? AND event_type = ?",
+        (membro["id"], hoje, evento),
+    ).fetchone()
+    ja = bool(ja_row and ja_row["status"] == "presente")
+
+    if request.method == "POST":
+        p = request.get_json(force=True, silent=True) or {}
+        fala = p.get("fala") if isinstance(p.get("fala"), dict) else None
+        feito = (fala.get("feito") or "").strip() if fala else ""
+        planejado = (fala.get("planejado") or "").strip() if fala else ""
+        # marca presente (idempotente, so o proprio membro, so hoje, nunca "faltou")
+        if not ja:
+            _definir_status(db, membro["id"], hoje, evento, "presente")
+        ganhou_ata = False
+        if tipo_ata and (feito or planejado):
+            _salvar_fala(db, hoje, tipo_ata, membro["id"], feito, planejado)
+            ganhou_ata = True
+        db.commit()
+        return jsonify({"ok": True, "ganhou_ata": ganhou_ata,
+                        "sementes": _stats_membro(db, membro["id"])["sementes"]})
+
+    fala_atual = {"feito": "", "planejado": ""}
+    if tipo_ata:
+        f = db.execute("SELECT feito, planejado FROM ata_falas WHERE data = ? AND tipo = ? AND member_id = ?",
+                       (hoje, tipo_ata, membro["id"])).fetchone()
+        if f:
+            fala_atual = {"feito": f["feito"], "planejado": f["planejado"]}
+    rot_feito, rot_planejado = ATA_ROTULOS_FALA.get(tipo_ata, ("", ""))
+    return render_template(
+        "presenca.html", estado="ok", codigo=codigo, eu=_stats_membro(db, membro["id"]),
+        ja=ja, tem_ata=bool(tipo_ata), fala_atual=fala_atual,
+        rot_feito=rot_feito, rot_planejado=rot_planejado, **base,
+    )
+
+
+# ------------------------------------------------------------ Ata da daily (Fase 4)
+ATA_TIPOS = ("daily", "fechamento")
+
+
+def _presentes_no_dia(db, data_str):
+    """Membros ativos com qualquer presenca registrada no dia (qualquer evento),
+    em ordem alfabetica. Base do 'Present:' automatico e das linhas da ata."""
+    rows = db.execute(
+        """
+        SELECT DISTINCT m.id, m.name
+        FROM members m
+        JOIN attendance a ON a.member_id = m.id
+        WHERE a.event_date = ? AND a.status = 'presente' AND m.active = 1
+        ORDER BY m.name COLLATE NOCASE
+        """,
+        (data_str,),
+    ).fetchall()
+    return [{"id": r["id"], "name": r["name"]} for r in rows]
+
+
+def _carregar_ata(db, data_str, tipo):
+    """Cabecalho da ata (relator, bloqueios, quadro) ou None se ainda nao existe."""
+    return db.execute(
+        "SELECT * FROM atas WHERE data = ? AND tipo = ?", (data_str, tipo)
+    ).fetchone()
+
+
+def _falas_da_ata(db, data_str, tipo):
+    """{member_id: {'feito', 'planejado'}} do que ja foi preenchido."""
+    out = {}
+    for r in db.execute(
+        "SELECT member_id, feito, planejado FROM ata_falas WHERE data = ? AND tipo = ?",
+        (data_str, tipo),
+    ).fetchall():
+        out[r["member_id"]] = {"feito": r["feito"], "planejado": r["planejado"]}
+    return out
+
+
+def _membros_da_ata(db):
+    """Membros ATIVOS da EQUIPE (convidados ficam fora da ata), em ordem alfabetica."""
+    rows = db.execute(
+        "SELECT id, name FROM members WHERE active = 1 AND COALESCE(tipo, 'equipe') = 'equipe' "
+        "ORDER BY name COLLATE NOCASE"
+    ).fetchall()
+    return [{"id": r["id"], "name": r["name"]} for r in rows]
+
+
+def _ata_para_fmt(db, data_str, tipo):
+    """Monta o dict que o ata_fmt espera. 'Present' = quem esta presente NO EVENTO da ata
+    (Daily -> daily, Day Closing -> encerramento); quem avisou vai em 'Excused'."""
+    cab = _carregar_ata(db, data_str, tipo)
+    membros = _membros_da_ata(db)
+    status = _status_do_evento(db, data_str, ATA_EVENTO[tipo])
+    falas_map = _falas_da_ata(db, data_str, tipo)
+    relator_nome = None
+    if cab and cab["relator_id"]:
+        r = db.execute("SELECT name FROM members WHERE id = ?", (cab["relator_id"],)).fetchone()
+        relator_nome = r["name"] if r else None
+    present, excused, falas = [], [], []
+    for m in membros:
+        st = status.get(m["id"])
+        f = falas_map.get(m["id"], {})
+        tem_texto = bool((f.get("feito") or "").strip() or (f.get("planejado") or "").strip())
+        if st == "presente":
+            present.append(m["name"])
+        elif st == "justificada":
+            excused.append(m["name"])
+        if st == "presente" or tem_texto:
+            falas.append({"nome": m["name"], "feito": f.get("feito", ""), "planejado": f.get("planejado", "")})
+    return {
+        "tipo": tipo,
+        "data": data_str,
+        "relator": relator_nome,
+        "present": present,
+        "excused": excused,
+        "falas": falas,
+        "bloqueios": cab["bloqueios"] if cab else "",
+        "quadro_atualizado": bool(cab["quadro_atualizado"]) if cab else False,
+    }
+
+
+def _dia_util_anterior(db, data_str):
+    """Dia letivo imediatamente anterior a data_str (para 'usar planejado de ontem')."""
+    dias = _dias_letivos(db)
+    anteriores = [d for d in dias if d < data_str]
+    return anteriores[-1] if anteriores else None
+
+
+def _garantir_ata(db, data_str, tipo):
+    """Cria a linha de cabecalho da ata se ainda nao existe (idempotente)."""
+    if _carregar_ata(db, data_str, tipo) is None:
+        db.execute("INSERT OR IGNORE INTO atas (data, tipo) VALUES (?, ?)", (data_str, tipo))
+        db.commit()
+
+
+def _linhas_da_ata(db, data_str, tipo):
+    """Todos os membros da equipe, com status no evento da ata e a fala (se houver)."""
+    status = _status_do_evento(db, data_str, ATA_EVENTO[tipo])
+    falas_map = _falas_da_ata(db, data_str, tipo)
+    cab = _carregar_ata(db, data_str, tipo)
+    relator_id = cab["relator_id"] if cab else None
+    ontem = _dia_util_anterior(db, data_str)
+    planejado_ontem = {}
+    if ontem and tipo == "daily":
+        for r in db.execute(
+            "SELECT member_id, planejado FROM ata_falas WHERE data = ? AND tipo = 'daily'", (ontem,)
+        ).fetchall():
+            if (r["planejado"] or "").strip():
+                planejado_ontem[r["member_id"]] = r["planejado"]
+    linhas = []
+    for m in _membros_da_ata(db):
+        f = falas_map.get(m["id"], {})
+        linhas.append({
+            "id": m["id"], "name": m["name"], "status": status.get(m["id"]) or "",
+            "feito": f.get("feito", ""), "planejado": f.get("planejado", ""),
+            "planejado_ontem": planejado_ontem.get(m["id"], ""),
+            "e_relator": m["id"] == relator_id,
+        })
+    return linhas
+
+
+@app.route("/ata/<data_str>/<tipo>")
+def ata_page(data_str, tipo):
+    if tipo not in ATA_TIPOS:
+        abort(404)
+    try:
+        d = date.fromisoformat(data_str)
+    except ValueError:
+        abort(404)
+    db = get_db()
+    cfg = _get_config(db)
+    cab = _carregar_ata(db, data_str, tipo)
+    linhas = _linhas_da_ata(db, data_str, tipo)
+    relator_nome = next((l["name"] for l in linhas if l["e_relator"]), None)
+    return render_template(
+        "ata.html",
+        pode_editar=_pode_editar_ata(db, data_str, tipo),
+        relator_nome=relator_nome,
+        data_str=data_str,
+        data_extenso=_data_completa(data_str),
+        tipo=tipo,
+        titulo="Daily" if tipo == "daily" else "Day Closing",
+        evento_nome=EVENT_NOMES.get(ATA_EVENTO[tipo], ATA_EVENTO[tipo]),
+        linhas=linhas,
+        n_presentes=sum(1 for l in linhas if l["status"] == "presente"),
+        n_avisos=sum(1 for l in linhas if l["status"] == "justificada"),
+        relator_id=cab["relator_id"] if cab else None,
+        bloqueios=cab["bloqueios"] if cab else "",
+        quadro_atualizado=bool(cab["quadro_atualizado"]) if cab else False,
+        idioma_ata=cfg.get("idioma_ata", "en"),
+        rot_feito=ATA_ROTULOS_FALA[tipo][0], rot_planejado=ATA_ROTULOS_FALA[tipo][1],
+        evento_qr=ATA_EVENTO[tipo],
+    )
+
+
+@app.route("/api/ata/estado")
+def api_ata_estado():
+    """Estado atual da ata (para a tela do relator atualizar sozinha quando alguem
+    marca presenca ou preenche a propria fala pelo celular)."""
+    data_str = request.args.get("data", "")
+    tipo = request.args.get("tipo", "")
+    try:
+        date.fromisoformat(data_str)
+    except ValueError:
+        return _erro("Data inválida.")
+    if tipo not in ATA_TIPOS:
+        return _erro("Tipo inválido.")
+    db = get_db()
+    cab = _carregar_ata(db, data_str, tipo)
+    linhas = _linhas_da_ata(db, data_str, tipo)
+    return jsonify({
+        "ok": True,
+        "relator_id": cab["relator_id"] if cab else None,
+        "bloqueios": cab["bloqueios"] if cab else "",
+        "quadro_atualizado": bool(cab["quadro_atualizado"]) if cab else False,
+        "linhas": [{"id": l["id"], "status": l["status"], "feito": l["feito"],
+                    "planejado": l["planejado"], "e_relator": l["e_relator"]} for l in linhas],
+    })
+
+
+@app.route("/api/ata/salvar", methods=["POST"])
+def api_ata_salvar():
+    p = request.get_json(force=True, silent=True) or {}
+    data_str = p.get("data")
+    tipo = p.get("tipo")
+    campo = p.get("campo")
+    try:
+        date.fromisoformat(data_str or "")
+    except (TypeError, ValueError):
+        return _erro("Data inválida.")
+    if tipo not in ATA_TIPOS:
+        return _erro("Tipo inválido.")
+
+    db = get_db()
+    if not _pode_editar_ata(db, data_str, tipo):
+        return _erro(MSG_SO_ADMIN, 403)
+    _garantir_ata(db, data_str, tipo)
+    resposta = {"ok": True}
+
+    if campo in ("feito", "planejado"):
+        mid = _int_ou_none(p.get("member_id"))
+        if mid is None:
+            return _erro("Pessoa inválida.")
+        texto = (p.get("valor") or "")
+        _salvar_fala(db, data_str, tipo, mid, **{campo: texto})
+        # relatar a fala de alguem conta como presenca (a menos que ele tenha avisado)
+        if texto.strip():
+            evento = ATA_EVENTO[tipo]
+            atual = _status_do_evento(db, data_str, evento).get(mid)
+            if atual not in ("presente", "justificada"):
+                _definir_status(db, mid, data_str, evento, "presente")
+                resposta["status"] = "presente"
+    elif campo == "status":
+        mid = _int_ou_none(p.get("member_id"))
+        valor = p.get("valor") or ""
+        if mid is None or valor not in ("", "presente", "justificada"):
+            return _erro("Pedido inválido.")
+        _definir_status(db, mid, data_str, ATA_EVENTO[tipo], valor)
+        resposta["status"] = valor
+    elif campo == "relator":
+        mid = _int_ou_none(p.get("valor"))
+        db.execute(
+            "UPDATE atas SET relator_id = ?, atualizada_em = datetime('now') WHERE data = ? AND tipo = ?",
+            (mid, data_str, tipo),
+        )
+    elif campo == "bloqueios":
+        db.execute(
+            "UPDATE atas SET bloqueios = ?, atualizada_em = datetime('now') WHERE data = ? AND tipo = ?",
+            (p.get("valor") or "", data_str, tipo),
+        )
+    elif campo == "bloqueios_resolvidos":
+        db.execute(
+            "UPDATE atas SET bloqueios_resolvidos = ?, atualizada_em = datetime('now') WHERE data = ? AND tipo = ?",
+            (1 if p.get("valor") else 0, data_str, tipo),
+        )
+    elif campo == "quadro_atualizado":
+        db.execute(
+            "UPDATE atas SET quadro_atualizado = ?, atualizada_em = datetime('now') WHERE data = ? AND tipo = ?",
+            (1 if p.get("valor") else 0, data_str, tipo),
+        )
+    else:
+        return _erro("Campo inválido.")
+    db.commit()
+    return jsonify(resposta)
+
+
+@app.route("/api/ata/assumir", methods=["POST"])
+def api_ata_assumir():
+    """Quem entrou no proprio jardim (PIN) vira o relator da ata, se ainda nao ha um.
+    Assim o relator escreve a ata de qualquer aparelho, inclusive de um PC."""
+    db = get_db()
+    membro = _eu_membro(db)
+    if membro is None:
+        return _erro("Entre no seu jardim (com o PIN) para assumir a ata.", 401)
+    p = request.get_json(force=True, silent=True) or {}
+    data_str, tipo = p.get("data"), p.get("tipo")
+    try:
+        date.fromisoformat(data_str or "")
+    except (TypeError, ValueError):
+        return _erro("Data inválida.")
+    if tipo not in ATA_TIPOS:
+        return _erro("Tipo inválido.")
+    if (membro["tipo"] if "tipo" in membro.keys() else "equipe") != "equipe":
+        return _erro("Só a equipe relata a ata.", 403)
+    _garantir_ata(db, data_str, tipo)
+    cab = _carregar_ata(db, data_str, tipo)
+    if cab["relator_id"] and cab["relator_id"] != membro["id"]:
+        r = db.execute("SELECT name FROM members WHERE id = ?", (cab["relator_id"],)).fetchone()
+        return _erro(f"Já existe relator nesta ata: {r['name'] if r else 'outra pessoa'}.", 409)
+    db.execute("UPDATE atas SET relator_id = ?, atualizada_em = datetime('now') WHERE data = ? AND tipo = ?",
+               (membro["id"], data_str, tipo))
+    db.commit()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/ata/minha-fala", methods=["POST"])
+def api_ata_minha_fala():
+    """A propria pessoa (logada no /eu) edita so a sua fala do dia. Nao mexe em outros."""
+    db = get_db()
+    membro = _eu_membro(db)
+    if membro is None:
+        return _erro("Entre no seu jardim primeiro.", 401)
+    p = request.get_json(force=True, silent=True) or {}
+    data_str = p.get("data")
+    tipo = p.get("tipo")
+    campo = p.get("campo")
+    try:
+        date.fromisoformat(data_str or "")
+    except (TypeError, ValueError):
+        return _erro("Data inválida.")
+    if tipo not in ATA_TIPOS or campo not in ("feito", "planejado"):
+        return _erro("Pedido inválido.")
+    _garantir_ata(db, data_str, tipo)
+    db.execute(
+        """
+        INSERT INTO ata_falas (data, tipo, member_id, feito, planejado, atualizada_em)
+        VALUES (?, ?, ?, '', '', datetime('now'))
+        ON CONFLICT (data, tipo, member_id) DO NOTHING
+        """,
+        (data_str, tipo, membro["id"]),
+    )
+    db.execute(
+        f"UPDATE ata_falas SET {campo} = ?, atualizada_em = datetime('now') "
+        "WHERE data = ? AND tipo = ? AND member_id = ?",
+        (p.get("valor") or "", data_str, tipo, membro["id"]),
+    )
+    db.commit()
+    return jsonify({"ok": True})
+
+
+@app.route("/ata/<data_str>/<tipo>/imprimir")
+def ata_imprimir(data_str, tipo):
+    if tipo not in ATA_TIPOS:
+        abort(404)
+    try:
+        date.fromisoformat(data_str)
+    except ValueError:
+        abort(404)
+    db = get_db()
+    cfg = _get_config(db)
+    idioma = request.args.get("idioma") or cfg.get("idioma_ata", "en")
+    gitlab = cfg.get("gitlab_base_url", "")
+    ata = _ata_para_fmt(db, data_str, tipo)
+    texto = ata_fmt.montar_texto(ata, idioma)
+    html_ata = ata_fmt.montar_html(ata, idioma, gitlab)
+    return render_template(
+        "ata_imprimir.html",
+        data_str=data_str, tipo=tipo, idioma=idioma,
+        texto=texto, html_ata=html_ata,
+        titulo="Daily" if tipo == "daily" else "Day Closing",
+    )
+
+
+@app.route("/ata/sprint/<int:n>")
+def ata_sprint_page(n):
+    db = get_db()
+    sprints = _cfg_sprints(db)
+    if not 1 <= n <= len(sprints):
+        abort(404)
+    cfg = _get_config(db)
+    idioma = request.args.get("idioma") or cfg.get("idioma_ata", "en")
+    gitlab = cfg.get("gitlab_base_url", "")
+    sp = sprints[n - 1]
+    dias = [d for d in _dias_letivos(db) if sp["inicio"] <= d <= sp["fim"]]
+
+    documentos = []        # atas em ordem (dia, tipo)
+    cards = {}             # numero -> lista de ("DD/MM Tipo", quem/contexto)
+    bloqueios_abertos = []
+    bloqueios_resolvidos = []
+    presentes_por_dia = []
+
+    for d in dias:
+        presentes_por_dia.append({"data": d, "nomes": [p["name"] for p in _presentes_no_dia(db, d)]})
+        for tipo in ATA_TIPOS:
+            cab = _carregar_ata(db, d, tipo)
+            falas = _falas_da_ata(db, d, tipo)
+            tem_fala = any((f.get("feito") or f.get("planejado") or "").strip() for f in falas.values())
+            if cab is None and not tem_fala:
+                continue
+            ata = _ata_para_fmt(db, d, tipo)
+            documentos.append({
+                "data": d, "tipo": tipo,
+                "titulo": ata_fmt.ROTULOS[idioma if idioma in ata_fmt.ROTULOS else "en"][tipo]["titulo"],
+                "html": ata_fmt.montar_html(ata, idioma, gitlab),
+            })
+            # cards citados (nas falas e nos bloqueios)
+            rotulo_doc = f"{d[8:10]}/{d[5:7]} {tipo}"
+            textos = [ (f.get('feito') or '') + ' ' + (f.get('planejado') or '') for f in falas.values() ]
+            textos.append(cab["bloqueios"] if cab else "")
+            for num in ata_fmt.cards_no_texto(" ".join(textos)):
+                cards.setdefault(num, [])
+                if rotulo_doc not in cards[num]:
+                    cards[num].append(rotulo_doc)
+            # impedimentos: abertos vs resolvidos
+            if cab and (cab["bloqueios"] or "").strip():
+                item = {"data": d, "tipo": tipo, "texto": cab["bloqueios"]}
+                if cab["bloqueios_resolvidos"]:
+                    bloqueios_resolvidos.append(item)
+                else:
+                    bloqueios_abertos.append(item)
+
+    cards_ordenados = [{"num": k, "docs": v} for k, v in sorted(cards.items(), key=lambda kv: int(kv[0]))]
+
+    return render_template(
+        "ata_sprint.html",
+        n=n, sprint=sp, total_sprints=len(sprints), idioma=idioma,
+        documentos=documentos, cards=cards_ordenados,
+        bloqueios_abertos=bloqueios_abertos, bloqueios_resolvidos=bloqueios_resolvidos,
+        presentes_por_dia=[p for p in presentes_por_dia if p["nomes"]],
+    )
+
+
 @app.route("/album")
 def album_page():
     db = get_db()
@@ -1852,9 +2851,21 @@ def _erro(msg, status=400):
     return jsonify({"ok": False, "erro": msg}), status
 
 
+def _so_o_dono(member_id):
+    """A loja e de cada um: quem entrou no proprio jardim (PIN) mexe na sua. O
+    administrador (Scrum do dia ou quem esta no computador) tambem pode escolher um
+    perfil e comprar/equipar por ele."""
+    if _eu_id() != member_id and not eh_admin():
+        return _erro("Entre no seu jardim (com o PIN) para usar a sua loja.", 403)
+    return None
+
+
 @app.route("/api/loja/comprar", methods=["POST"])
 def api_loja_comprar():
     payload, member_id = _ler_pedido()
+    negado = _so_o_dono(member_id)
+    if negado:
+        return negado
     item_id = payload.get("item_id")
     db = get_db()
     _membro_ou_404(db, member_id)
@@ -1877,6 +2888,9 @@ def api_loja_comprar():
 @app.route("/api/loja/equipar", methods=["POST"])
 def api_loja_equipar():
     payload, member_id = _ler_pedido()
+    negado = _so_o_dono(member_id)
+    if negado:
+        return negado
     slot = payload.get("slot")
     item_id = payload.get("item_id")
     db = get_db()
@@ -1903,6 +2917,9 @@ def api_loja_equipar():
 @app.route("/api/loja/desfazer", methods=["POST"])
 def api_loja_desfazer():
     payload, member_id = _ler_pedido()
+    negado = _so_o_dono(member_id)
+    if negado:
+        return negado
     try:
         compra_id = int(payload.get("compra_id"))
     except (TypeError, ValueError):

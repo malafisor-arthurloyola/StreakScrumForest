@@ -326,6 +326,8 @@ class TestFundadorNaRota(Fase1Base):
     def test_fundador_equipa_o_selo_via_api(self):
         ativos = self.ativos()
         self.inserir(ativos[0], "2026-10-20", "daily")
+        with self.client.session_transaction() as sess:
+            sess["eu"] = ativos[0]
         r = self.client.post("/api/loja/equipar", json={
             "member_id": ativos[0], "slot": "acessorio", "item_id": "selo_fundador",
         })
@@ -334,6 +336,8 @@ class TestFundadorNaRota(Fase1Base):
 
     def test_nao_fundador_nao_equipa_o_selo(self):
         ativos = self.ativos()  # sem presenca ate o prazo
+        with self.client.session_transaction() as sess:
+            sess["eu"] = ativos[0]
         r = self.client.post("/api/loja/equipar", json={
             "member_id": ativos[0], "slot": "acessorio", "item_id": "selo_fundador",
         })

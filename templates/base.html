@@ -9,7 +9,7 @@
   <link rel="preload" href="{{ url_for('static', filename='fonts/bricolage-latin.woff2') }}" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body>
+<body data-admin="{{ '1' if admin else '0' }}">
   <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
     <defs>
       <path id="p-folha" d="M0 0C6-8 18-8 27 0C18 8 6 8 0 0Z"/>
@@ -61,6 +61,15 @@
       </svg>
       <span class="brand-name"><b>Jardim</b> da Equipe</span>
     </a>
+    <div class="topbar-acoes">
+      {% if admin %}
+      <span class="selo-admin" title="{{ {'computador': 'Você está no computador do sistema', 'scrum': 'Você é o Scrum de hoje', 'codigo': 'Você entrou com o código de administrador'}[papel_admin] }}">Administrador</span>
+      {% if papel_admin == 'codigo' %}<a class="link-topo" href="{{ url_for('admin_sair') }}">Sair do modo admin</a>{% endif %}
+      {% elif admin_codigo_ativo %}
+      <a class="link-topo" href="{{ url_for('admin_entrar', next=request.full_path.rstrip('?')) }}">Sou o admin</a>
+      {% endif %}
+      <a class="link-topo{{ ' ativo' if ep and ep.startswith('eu_') }}" href="{{ url_for('eu_page') }}">Meu jardim</a>
+    </div>
     <nav class="nav" aria-label="Principal">
       <a href="{{ url_for('home') }}" class="nav-link{% if ep in ('home', 'dia') %} ativo{% endif %}">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.6l2.7 2.7L16 9.6"/></svg>
@@ -92,6 +101,15 @@
   <main class="container">
     {% block content %}{% endblock %}
   </main>
+  <div id="qr-modal" class="qr-modal" hidden aria-hidden="true">
+    <div class="qr-modal-caixa" role="dialog" aria-modal="true" aria-label="QR de presença">
+      <div class="qr-modal-topo">
+        <h2>Presença por QR</h2>
+        <button type="button" class="qr-modal-fechar" id="qr-modal-fechar" aria-label="Fechar">×</button>
+      </div>
+      <div id="qr-modal-corpo"><p class="vazio">Carregando…</p></div>
+    </div>
+  </div>
   <div id="toast-container" aria-live="polite"></div>
   <script src="{{ url_for('static', filename='app.js') }}"></script>
   {% block scripts %}{% endblock %}

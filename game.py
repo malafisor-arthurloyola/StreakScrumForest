@@ -32,6 +32,8 @@ SEED_SEMANA_FECHADA = 3   # por semana fechada
 SEED_DIA_CHEIO = 1        # por dia cheio do time, para cada presente
 SEED_FLORESCEU = 20       # ao florescer (bonus unico)
 SEED_BOAS_VINDAS = 20     # ao registrar a 1a presenca (bonus unico)
+SEED_ATA = 1              # por ata (daily/fechamento) com a fala da pessoa preenchida
+SEED_RELATOR = 1          # por ata que a pessoa redigiu (relator)
 
 SEED_MILESTONES = [
     (5,  3),
@@ -248,10 +250,16 @@ def calcular_semanas_fechadas(semanas_projeto, registros_por_data):
     return fechadas
 
 
-def calcular_sementes(dias_letivos_lista, semanas_projeto, registros_por_data, floresceu, dias_cheios=None):
+def calcular_sementes(dias_letivos_lista, semanas_projeto, registros_por_data, floresceu,
+                      dias_cheios=None, atas_com_fala=0, atas_relatadas=0):
     """
     Calcula sementes ganhas (nunca perde por falta).
     Retorna dict com total e detalhes.
+
+    atas_com_fala: numero de atas (daily/fechamento) em que a pessoa deixou a fala
+    preenchida (feito OU planejado nao vazio) -> +SEED_ATA cada (adubo).
+    atas_relatadas: numero de atas que a pessoa redigiu como relator -> +SEED_RELATOR cada.
+    Impedimentos nunca entram aqui (nao rendem semente).
     """
     dias_presentes = sum(
         1 for d in dias_letivos_lista if registros_por_data.get(d, {}).get("presente", False)
@@ -296,7 +304,12 @@ def calcular_sementes(dias_letivos_lista, semanas_projeto, registros_por_data, f
         if registros_por_data.get(d, {}).get("presente", False)
     )
 
-    total = seeds_eventos + semenas_fechadas * SEED_SEMANA_FECHADA + marcos + bonus_floresceu + por_dia_cheio + por_boas_vindas
+    # atas (Fase 4): adubo fixo, sem avaliar conteudo. Impedimentos nao entram.
+    por_ata = SEED_ATA * max(0, int(atas_com_fala))
+    por_relator = SEED_RELATOR * max(0, int(atas_relatadas))
+
+    total = (seeds_eventos + semenas_fechadas * SEED_SEMANA_FECHADA + marcos + bonus_floresceu
+             + por_dia_cheio + por_boas_vindas + por_ata + por_relator)
     return {
         "total": total,
         "por_presenca": seeds_eventos,
@@ -306,6 +319,8 @@ def calcular_sementes(dias_letivos_lista, semanas_projeto, registros_por_data, f
         "por_floresceu": bonus_floresceu,
         "por_dia_cheio": por_dia_cheio,
         "por_boas_vindas": por_boas_vindas,
+        "por_ata": por_ata,
+        "por_relator": por_relator,
         "semanas_fechadas": semenas_fechadas,
     }
 

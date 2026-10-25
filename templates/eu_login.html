@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Meu jardim · Jardim da Equipe{% endblock %}
+
+{% block content %}
+<section class="eu-login" aria-label="Entrar no meu jardim">
+  <header class="eu-login-cab">
+    <h1>Meu jardim</h1>
+    <p class="sub">Escolha seu nome e use seu PIN de 4 dígitos. O aparelho lembra de você por 30 dias.</p>
+  </header>
+
+  <ol class="eu-passos" id="eu-passos">
+    <li class="eu-passo" data-passo="nome">
+      <h2>Quem é você?</h2>
+      <div class="eu-nomes">
+        {% for p in pessoas %}
+        <button type="button" class="eu-nome-btn" data-id="{{ p.id }}" data-nome="{{ p.name }}" data-tem-pin="{{ 1 if p.tem_pin else 0 }}">
+          <span class="eu-nome-avatar" aria-hidden="true">{{ p.name[0] }}</span>
+          <span class="eu-nome-texto">{{ p.name }}</span>
+          {% if p.tipo == 'convidado' %}<span class="chip chip-convidado">convidado</span>{% endif %}
+          {% if not p.tem_pin %}<span class="eu-nome-novo">criar PIN</span>{% endif %}
+        </button>
+        {% endfor %}
+      </div>
+    </li>
+
+    <li class="eu-passo" data-passo="pin" hidden>
+      <button type="button" class="eu-voltar" id="eu-voltar">← trocar de nome</button>
+      <h2 id="eu-pin-titulo">Seu PIN</h2>
+      <p class="eu-pin-sub" id="eu-pin-sub"></p>
+      <form id="eu-form-pin" autocomplete="off">
+        <input class="eu-pin-input" id="eu-pin" type="password" inputmode="numeric" pattern="[0-9]*"
+               maxlength="4" placeholder="••••" aria-label="PIN de 4 dígitos" required>
+        <input class="eu-pin-input" id="eu-pin2" type="password" inputmode="numeric" pattern="[0-9]*"
+               maxlength="4" placeholder="repita o PIN" aria-label="Repita o PIN" hidden>
+        <p class="eu-pin-erro" id="eu-pin-erro" role="alert" aria-live="assertive"></p>
+        <button type="submit" class="btn btn-primary eu-pin-enviar" id="eu-pin-enviar">Entrar</button>
+        <p class="eu-pin-esqueci" id="eu-pin-esqueci" hidden>Esqueceu o PIN? Peça ao responsável para resetar na tela Membros.</p>
+      </form>
+    </li>
+  </ol>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  // volta para a pagina de onde a pessoa veio (ex.: a ata), se for um caminho do proprio site
+  function destinoDepoisDoLogin() {
+    try {
+      var n = new URLSearchParams(location.search).get('next');
+      if (n && n.charAt(0) === '/' && n.charAt(1) !== '/') return n;
+    } catch (e) {}
+    return '/eu';
+  }
+  var passoNome = document.querySelector('.eu-passo[data-passo="nome"]');
+  var passoPin = document.querySelector('.eu-passo[data-passo="pin"]');
+  var titulo = document.getElementById('eu-pin-titulo');
+  var sub = document.getElementById('eu-pin-sub');
+  var pin = document.getElementById('eu-pin');
+  var pin2 = document.getElementById('eu-pin2');
+  var erro = document.getElementById('eu-pin-erro');
+  var enviar = document.getElementById('eu-pin-enviar');
+  var esqueci = document.getElementById('eu-pin-esqueci');
+  var form = document.getElementById('eu-form-pin');
+  var escolhido = null, criando = false;
+
+  document.querySelectorAll('.eu-nome-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      escolhido = { id: parseInt(btn.dataset.id, 10), nome: btn.dataset.nome, temPin: btn.dataset.temPin === '1' };
+      criando = !escolhido.temPin;
+      titulo.textContent = criando ? 'Criar PIN de ' + escolhido.nome : 'Oi, ' + escolhido.nome;
+      sub.textContent = criando ? 'Escolha um PIN de 4 dígitos. Guarde bem: ele protege seu jardim.' : 'Digite seu PIN de 4 dígitos.';
+      pin2.hidden = !criando;
+      pin2.required = criando;
+      if (esqueci) esqueci.hidden = criando;  // aviso de reset so ao entrar
+      enviar.textContent = criando ? 'Criar e entrar' : 'Entrar';
+      erro.textContent = '';
+      pin.value = ''; pin2.value = '';
+      passoNome.hidden = true;
+      passoPin.hidden = false;
+      pin.focus();
+    });
+  });
+
+  document.getElementById('eu-voltar').addEventListener('click', function () {
+    passoPin.hidden = true;
+    passoNome.hidden = false;
+  });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    erro.textContent = '';
+    if (!/^[0-9]{4}$/.test(pin.value)) { erro.textContent = 'O PIN deve ter 4 dígitos.'; return; }
+    if (criando && pin.value !== pin2.value) { erro.textContent = 'Os dois PINs não batem.'; return; }
+    enviar.disabled = true;
+    var url = criando ? '/eu/criar' : '/eu/entrar';
+    var corpo = { member_id: escolhido.id, pin: pin.value };
+    if (criando) corpo.pin2 = pin2.value;
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(corpo),
+    })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (res.ok && res.j.ok) { window.location.href = destinoDepoisDoLogin(); return; }
+        erro.textContent = res.j.erro || 'Não deu certo.';
+        enviar.disabled = false;
+      })
+      .catch(function () { erro.textContent = 'Sem conexão com o servidor.'; enviar.disabled = false; });
+  });
+})();
+</script>
+{% endblock %}

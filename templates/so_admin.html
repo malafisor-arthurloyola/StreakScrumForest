@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Só o administrador · Jardim da Equipe{% endblock %}
+{% block content %}
+<section class="presenca-tela" aria-label="Acesso restrito">
+  <h1>Só o administrador</h1>
+  <p class="sub">Esta parte é do Scrum do dia ou de quem está no computador do sistema. Você pode ver as outras telas normalmente.</p>
+  {% if admin_codigo_ativo %}
+  <a class="btn btn-primary presenca-btn" href="{{ url_for('admin_entrar', next=request.full_path.rstrip('?')) }}">Sou o administrador</a>
+  {% endif %}
+  <a class="btn btn-ghost presenca-btn" href="{{ url_for('home') }}">Voltar</a>
+</section>
+{% endblock %}

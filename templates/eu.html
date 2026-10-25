@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% from "_planta.html" import conjunto %}
+{% block title %}{{ eu.name }} · Meu jardim{% endblock %}
+
+{% block content %}
+{% if papel_admin == 'scrum' %}
+<p class="aviso-scrum">Você é o <b>Scrum de hoje</b>: pode marcar presença de todos e editar a ata do dia.
+  <a href="{{ url_for('ata_page', data_str=hoje, tipo='daily') }}">Abrir a ata</a></p>
+{% endif %}
+<section class="eu-topo" aria-label="Meu jardim">
+  <div class="eu-hero">
+    <div class="eu-planta">{{ conjunto(eu, 150) }}</div>
+    <div class="eu-ident">
+      <h1>{{ eu.name }}{% if eu.convidado %} <span class="chip chip-convidado">convidado</span>{% endif %}</h1>
+      <p class="eu-estagio">{{ eu.estagio_nome }}</p>
+      <a class="eu-sair" href="{{ url_for('eu_sair') }}">Sair deste aparelho</a>
+    </div>
+  </div>
+
+  <div class="eu-kpis">
+    <div class="eu-kpi eu-kpi-destaque">
+      <span class="eu-kpi-rotulo">Sementes</span>
+      <span class="eu-kpi-valor"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#p-semente" class="sem-corpo"/><use href="#p-semente-brilho" class="sem-brilho"/></svg>{{ eu.sementes }}</span>
+    </div>
+    <div class="eu-kpi">
+      <span class="eu-kpi-rotulo">Sequência</span>
+      <span class="eu-kpi-valor">{{ eu.streak }}</span>
+    </div>
+    <div class="eu-kpi">
+      <span class="eu-kpi-rotulo">Dias presentes</span>
+      <span class="eu-kpi-valor">{{ eu.dias_presentes }}</span>
+    </div>
+    <div class="eu-kpi">
+      <span class="eu-kpi-rotulo">Próximo estágio</span>
+      <span class="eu-kpi-valor eu-kpi-pequeno">{% if eu.floresceu %}Floresceu{% elif eu.dias_ate_proximo %}faltam {{ eu.dias_ate_proximo }}{% else %}—{% endif %}</span>
+    </div>
+  </div>
+  <a class="eu-link-sementes" href="{{ url_for('sementes_page', m=eu.id) }}">Ver de onde vêm as sementes →</a>
+</section>
+
+{% if minhas_falas %}
+<section class="eu-fala" aria-label="Minha fala de hoje" data-hoje="{{ hoje }}">
+  <h2 class="secao-titulo">Minha fala de hoje</h2>
+  <p class="sub sub-secao">Escreva a sua parte da ata. O relator vê o que você preencheu e pode completar. Salva sozinho.</p>
+  {% for f in minhas_falas %}
+  <article class="eu-fala-bloco" data-tipo="{{ f.tipo }}">
+    <h3>{{ f.rotulo }}</h3>
+    <label>{{ f.rot_feito }}</label>
+    <textarea class="eu-fala-texto" data-campo="feito" rows="2" placeholder="pode citar cards como #101">{{ f.feito }}</textarea>
+    <label>{{ f.rot_planejado }}</label>
+    <textarea class="eu-fala-texto" data-campo="planejado" rows="2">{{ f.planejado }}</textarea>
+  </article>
+  {% endfor %}
+</section>
+{% endif %}
+
+<section class="eu-loja" aria-label="Loja">
+  <h2 class="secao-titulo">Loja</h2>
+  <p class="sub sub-secao">Troque sementes por plantas e enfeites. É só visual: nada muda o quanto a planta cresce.</p>
+
+  {% for tipo, titulo in grupos %}
+  <h3 class="eu-loja-grupo-titulo">{{ titulo }}</h3>
+  <div class="eu-itens">
+    {% for it in itens if it.tipo == tipo %}
+    <article class="eu-item{{ ' meu' if it.possui }}" data-item="{{ it.id }}">
+      <div class="eu-item-vitrine">{{ conjunto(it.preview, 88) }}</div>
+      <div class="eu-item-nome">{{ it.nome }}</div>
+      <div class="eu-item-acao">
+        {% if it.possui %}
+          {% if it.tipo == 'especie' %}
+            <button type="button" class="btn btn-ghost eu-btn" data-acao="equipar" data-slot="especie" data-item="{{ it.id }}">Usar</button>
+          {% elif it.tipo == 'slot' %}
+            <span class="selo-comprado">Comprado</span>
+          {% else %}
+            {% if it.equipado_em %}
+              <button type="button" class="btn btn-primary eu-btn" data-acao="equipar" data-slot="{{ it.tipo }}" data-item="" data-tirar="1">Em uso</button>
+            {% else %}
+              <button type="button" class="btn btn-ghost eu-btn" data-acao="equipar" data-slot="{{ it.tipo }}" data-item="{{ it.id }}">Usar</button>
+            {% endif %}
+          {% endif %}
+        {% else %}
+          <span class="preco"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#p-semente" class="sem-corpo"/></svg>{{ it.preco }}</span>
+          {% if it.pode_comprar %}
+            <button type="button" class="btn btn-primary eu-btn" data-acao="comprar" data-item="{{ it.id }}">Comprar</button>
+          {% else %}
+            <span class="eu-item-motivo">{{ it.motivo }}</span>
+          {% endif %}
+        {% endif %}
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var EU = {{ eu.id }};
+  function enviar(url, dados, mensagem) {
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dados),
+    })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (!res.ok || !res.j.ok) { mostrarToast(res.j.erro || 'Não deu certo.', 'info'); return; }
+        mostrarToast(mensagem, 'sucesso');
+        setTimeout(function () { window.location.reload(); }, 500);
+      })
+      .catch(function () { mostrarToast('Sem conexão com o servidor.', 'info'); });
+  }
+  document.querySelectorAll('.eu-btn[data-acao]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var acao = btn.dataset.acao;
+      var base = { member_id: EU };
+      if (acao === 'comprar') {
+        enviar('/api/loja/comprar', Object.assign(base, { item_id: btn.dataset.item }), 'Compra feita!');
+      } else if (acao === 'equipar') {
+        var item = btn.dataset.tirar ? null : btn.dataset.item;
+        enviar('/api/loja/equipar', Object.assign(base, { slot: btn.dataset.slot, item_id: item }), 'Canteiro atualizado.');
+      }
+    });
+  });
+
+  // Minha fala do dia: salva sozinho ao sair do campo (so a propria pessoa).
+  var secFala = document.querySelector('.eu-fala');
+  if (secFala) {
+    var hoje = secFala.dataset.hoje;
+    secFala.querySelectorAll('.eu-fala-texto').forEach(function (ta) {
+      ta.addEventListener('blur', function () {
+        var tipo = ta.closest('.eu-fala-bloco').dataset.tipo;
+        fetch('/api/ata/minha-fala', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: hoje, tipo: tipo, campo: ta.dataset.campo, valor: ta.value }),
+        })
+          .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+          .then(function (res) { mostrarToast(res.ok && res.j.ok ? 'Salvo' : (res.j.erro || 'Não salvou.'), res.ok && res.j.ok ? 'sucesso' : 'info'); })
+          .catch(function () { mostrarToast('Sem conexão.', 'info'); });
+      });
+    });
+  }
+})();
+</script>
+{% endblock %}

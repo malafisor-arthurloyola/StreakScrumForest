@@ -25,6 +25,8 @@
       <a class="btn btn-ghost" href="{{ url_for('dia', data_str=hoje) }}">Ir para hoje</a>
     {% endif %}
     <a class="btn btn-ghost" href="#panorama">Panorama do grupo</a>
+    <a class="btn btn-ghost" href="{{ url_for('ata_page', data_str=data_str, tipo='daily') }}">Ata do dia</a>
+    {% if admin %}<a class="btn btn-primary btn-qr-modal" href="{{ url_for('qr_page', evento='daily') }}">QR de presença</a>{% endif %}
   </div>
 </header>
 
@@ -53,11 +55,12 @@
 {% if not linhas %}
   <p class="vazio">Nenhum membro ativo ainda. Cadastre o grupo em <a href="{{ url_for('membros_page') }}">Membros</a>.</p>
 {% else %}
-<section class="registro" aria-label="Registro de presença"
+<section class="registro{{ '' if admin else ' somente-leitura' }}" aria-label="Registro de presença"
          data-dia-data="{{ data_str }}" data-dia-cheio-inicial="{{ 'true' if dia_cheio_inicial else 'false' }}">
   <div class="registro-topo">
     <h2>Quem veio?</h2>
-    <div class="todos">
+    {% if not admin %}<p class="aviso-leitura">Só o Scrum do dia ou quem está no computador marca a presença de todos. Você marca a sua pelo QR, em <a href="{{ url_for('eu_page') }}">Meu jardim</a>.</p>{% endif %}
+    <div class="todos so-admin">
       <span class="todos-rotulo">Todos presentes em</span>
       {% for chave, label in events %}
         <button type="button" class="btn btn-ghost btn-marcar-todos" data-event-type="{{ chave }}" data-tipo="equipe">{{ label }}</button>
@@ -111,7 +114,7 @@
   <div class="registro-convidados">
     <div class="registro-topo">
       <h3 class="convidados-subtitulo">Convidados</h3>
-      <div class="todos">
+      <div class="todos so-admin">
         <span class="todos-rotulo">Todos presentes em</span>
         {% for chave, label in events %}
           <button type="button" class="btn btn-ghost btn-marcar-todos" data-event-type="{{ chave }}" data-tipo="convidado">{{ label }}</button>
@@ -154,5 +157,35 @@
         .catch(function () { alert('Não foi possível marcar todos.'); });
     });
   });
+
+  // Atualizacao automatica (polling): reflete presencas marcadas por QR ou por outro
+  // aparelho, sem recarregar. So no dia de hoje. Nunca dispara a celebracao de dia cheio.
+  (function () {
+    var DATA = '{{ data_str }}';
+    var HOJE = '{{ hoje }}';
+    if (DATA !== HOJE) return;  // nao faz sentido no passado
+
+    function aplicarCelula(c) {
+      var grupo = document.querySelector('.status-toggle[data-member-id="' + c.member_id + '"][data-event-type="' + c.evento + '"]');
+      if (!grupo) return;
+      grupo.querySelectorAll('.btn-status').forEach(function (b) {
+        b.classList.toggle('active', b.dataset.status === c.status);
+      });
+    }
+
+    function poll() {
+      fetch('/api/dia/' + DATA + '/estado')
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (!d) return;
+          if (typeof atualizarSementesTodos === 'function' && d.sementes_membros) atualizarSementesTodos(d.sementes_membros);
+          (d.celulas || []).forEach(aplicarCelula);
+          // reflete o estado de dia cheio em silencio (sem celebrar ao atualizar)
+          if (typeof diaCheioAnterior !== 'undefined') diaCheioAnterior = !!d.dia_cheio;
+        })
+        .catch(function () { /* silencioso: rede instavel nao atrapalha */ });
+    }
+    setInterval(poll, 12000);
+  })();
 </script>
 {% endblock %}

@@ -48,7 +48,14 @@ class LojaBase(unittest.TestCase):
         finally:
             con.close()
 
+    def entrar_como(self, member_id):
+        """A loja e de cada um: entra no jardim da pessoa (sessao) antes de mexer nela."""
+        with self.client.session_transaction() as sess:
+            sess["eu"] = member_id
+
     def post(self, url, **dados):
+        if url.startswith("/api/loja/") and isinstance(dados.get("member_id"), int):
+            self.entrar_como(dados["member_id"])
         return self.client.post(url, json=dados)
 
     def comprar(self, member_id, item_id):

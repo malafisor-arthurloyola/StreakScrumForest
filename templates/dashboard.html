@@ -12,7 +12,10 @@
     <h1>O jardim da equipe</h1>
     <p class="sub">Sprint {{ sprint_atual }} de {{ total_sprints }} · cada planta floresce com {{ meta }} presenças em {{ total_dias }} dias letivos</p>
   </div>
-  <a class="btn btn-ghost" href="{{ url_for('sprint_page', n=sprint_atual) }}">Resumo da Sprint {{ sprint_atual }}</a>
+  <div class="pagina-cab-acoes">
+    <a class="btn btn-ghost" href="{{ url_for('sprint_page', n=sprint_atual) }}">Resumo da Sprint {{ sprint_atual }}</a>
+    <a class="btn btn-primary btn-qr-modal" href="{{ url_for('qr_page', evento='daily') }}">QR de presença</a>
+  </div>
 </header>
 
 <section class="kpis" aria-label="Resumo do time">
@@ -97,7 +100,7 @@
       <div class="meta-topo">
         <b>{{ mt.titulo }}</b>
         {% if mt.cumprida %}<span class="selo-comprado">Cumprida</span>{% endif %}
-        <button type="button" class="btn-x" data-meta-remover="{{ mt.id }}" aria-label="Remover meta">×</button>
+        <button type="button" class="btn-x so-admin" data-meta-remover="{{ mt.id }}" aria-label="Remover meta">×</button>
       </div>
       <div class="barra barra-meta"><div class="barra-fill" style="width: {{ mt.pct }}%"></div></div>
       <span class="meta-nums">{{ mt.valor }}{{ '%' if mt.tipo == 'presenca_pct' }} de {{ mt.alvo }}{{ '%' if mt.tipo == 'presenca_pct' }} {{ rotulo_meta[mt.tipo] if mt.tipo != 'presenca_pct' }}</span>
@@ -106,9 +109,9 @@
   </div>
   {% else %}
   <p class="vazio">Nenhuma meta para esta sprint ainda. Metas simples de engajamento que o time cumpre junto.
-    <button type="button" class="btn btn-primary" id="metas-sugeridas">Usar metas sugeridas</button></p>
+    <button type="button" class="btn btn-primary so-admin" id="metas-sugeridas">Usar metas sugeridas</button></p>
   {% endif %}
-  <form class="form-linha form-meta" id="form-meta">
+  <form class="form-linha form-meta so-admin" id="form-meta">
     <label for="meta-tipo">Nova meta</label>
     <select id="meta-tipo">
       <option value="presenca_pct">% de presença do time</option>

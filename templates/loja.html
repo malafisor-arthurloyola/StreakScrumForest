@@ -11,8 +11,14 @@
   <a class="btn btn-ghost" href="{{ url_for('album_page', m=atual.id if atual else None) }}">Ver coleção</a>
 </header>
 
-<section class="quem" aria-label="Quem é você">
-  <span class="quem-rotulo">Quem é você?</span>
+{% if not pode_agir %}
+<p class="aviso-leitura">
+  {% if eu_id %}Você está vendo a loja de outra pessoa. {% else %}Para comprar e equipar na sua loja, <a href="{{ url_for('eu_page') }}">entre no seu jardim</a> com o PIN. {% endif %}Cada um mexe só na sua; o administrador pode mexer na de qualquer perfil.
+  {% if eu_id %}<a href="{{ url_for('loja_page', m=eu_id) }}">Ir para a minha loja</a>.{% endif %}
+</p>
+{% endif %}
+<section class="quem" aria-label="Escolher o perfil">
+  <span class="quem-rotulo">{{ 'Perfil:' if pode_agir or admin else 'Ver a loja de:' }}</span>
   <div class="quem-chips">
     {% for m in membros %}
     <a class="quem-chip{{ ' ativo' if atual and atual.id == m.id }}" href="{{ url_for('loja_page', m=m.id) }}">{{ m.name }}</a>
@@ -21,7 +27,7 @@
 </section>
 
 {% if not atual %}
-  <p class="vazio">Escolha o seu nome para ver suas sementes e comprar. Fica salvo neste aparelho.</p>
+  <p class="vazio">Escolha um nome para ver a loja. Para comprar na sua, entre no seu jardim com o PIN.</p>
 {% else %}
 <section class="kpis loja-kpis" aria-label="Suas sementes">
   <div class="kpi kpi-destaque">
@@ -128,17 +134,13 @@
 {% block scripts %}
 <script>
 (function () {
-  var KEY = 'jardim.quemSou';
   var atual = {{ atual.id if atual else 'null' }};
-  var temParametro = location.search.indexOf('m=') !== -1;
+  var PODE_AGIR = {{ 'true' if pode_agir else 'false' }};
+  if (!PODE_AGIR) {
+    document.querySelectorAll('[data-acao]').forEach(function (b) { b.hidden = true; });
+  }
 
   try {
-    if (atual) {
-      localStorage.setItem(KEY, atual);
-    } else if (!temParametro) {
-      var salvo = localStorage.getItem(KEY);
-      if (salvo) { location.replace('/loja?m=' + encodeURIComponent(salvo)); return; }
-    }
     var msg = sessionStorage.getItem('jardim.msg');
     if (msg) { sessionStorage.removeItem('jardim.msg'); mostrarToast(msg, 'sucesso'); }
   } catch (e) {}
