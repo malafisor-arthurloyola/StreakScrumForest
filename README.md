@@ -34,6 +34,85 @@ Pre-requisito: Python 3.9+ instalado.
    ```
    Detalhes e os comandos para cmd/Linux na seção [Testes](#testes).
 
+## Comandos do dia a dia (cola rápida)
+
+Troque `SEUUSUARIO` pelo seu usuário do PythonAnywhere (o nome depois de `/home/` na aba Files).
+Todos os comandos locais são para rodar **a partir da pasta do projeto** (`Contagem de strikes`).
+
+### No seu computador (PowerShell)
+
+| Para quê | Comando |
+|---|---|
+| Entrar na pasta do projeto | `cd "C:\Users\Inteli\Desktop\Módulo 3\Contagem de strikes"` |
+| **Ativar o ambiente virtual** | `venv\Scripts\Activate.ps1` (aparece `(venv)` no começo da linha) |
+| Sair do ambiente virtual | `deactivate` |
+| Se der erro de permissão ao ativar (uma vez só) | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` |
+| **Rodar o site local** (com os dados reais) | `python app.py` e abrir http://localhost:5000 |
+| Parar o site | `Ctrl + C` no terminal |
+| Rodar o site com **banco de mentira** (seguro para testar) | `python scripts/criar_banco_demo.py C:\temp\jardim-demo.db` e depois `$env:STRIKES_DB = "C:\temp\jardim-demo.db"; python app.py` |
+| Recriar o banco de mentira do zero | `python scripts/criar_banco_demo.py C:\temp\jardim-demo.db --forcar` |
+| Voltar a usar o banco real no mesmo terminal | `Remove-Item Env:STRIKES_DB` (ou feche e abra o terminal) |
+| **Rodar os testes** | `python -m unittest discover tests` (deve terminar em `OK`) |
+| Instalar/atualizar as dependências | `pip install -r requirements.txt` |
+| **Gerar um `SECRET_KEY`** novo | `python -c "import secrets; print(secrets.token_urlsafe(48))"` |
+| Backup do banco local agora | `python scripts/backup_db.py` |
+| Ver quem está usando a porta 5000 (se der "porta em uso") | `netstat -ano \| findstr :5000` e depois `taskkill /PID <número> /F` |
+
+> Dica: se o navegador mostrar a versão antiga do visual depois de atualizar, use **Ctrl + F5**.
+> Cuidado: com `$env:STRIKES_DB` definido, o site usa **aquele** banco. Sem a variável, ele usa o real
+> (`data/strikes.db`). A variável vale só para o terminal onde foi definida.
+
+### No PythonAnywhere (aba Consoles > Bash)
+
+| Para quê | Comando |
+|---|---|
+| **Atualizar o site com o código novo** | `cd ~/StreakScrumForest && git pull` e depois **Reload** na aba Web |
+| Ver o código que está publicado (último commit) | `cd ~/StreakScrumForest && git log --oneline -3` |
+| **Ver o log de erros** (quando o site der erro 500) | `tail -n 50 /var/log/SEUUSUARIO.pythonanywhere.com.error.log` (ou o link *Error log* na aba Web) |
+| Ver o log de acessos | `tail -n 30 /var/log/SEUUSUARIO.pythonanywhere.com.access.log` |
+| Conferir se o banco está no lugar certo | `ls -la ~/dados` (deve aparecer `strikes.db`) |
+| Mover o banco, se subiu na pasta errada | `mv ~/strikes.db ~/dados/strikes.db` |
+| Checar a integridade do banco | `sqlite3 ~/dados/strikes.db "PRAGMA integrity_check;"` (deve responder `ok`) |
+| Quantos membros e presenças existem | `sqlite3 ~/dados/strikes.db "SELECT COUNT(*) FROM members; SELECT COUNT(*) FROM attendance;"` |
+| **Backup agora** | `STRIKES_DB=~/dados/strikes.db ~/venv-jardim/bin/python ~/StreakScrumForest/scripts/backup_db.py` |
+| Listar os backups | `ls -la ~/dados/backups` |
+| Atualizar as dependências do servidor | `~/venv-jardim/bin/pip install -r ~/StreakScrumForest/requirements.txt` |
+| Gerar um `SECRET_KEY` no servidor | `python3 -c "import secrets; print(secrets.token_urlsafe(48))"` |
+
+Outras ações no site publicado:
+
+- **Reload:** aba **Web** > botão verde **Reload** (necessário depois de `git pull` ou de mudar o arquivo WSGI).
+- **Trocar códigos** (`ACCESS_CODE`, `ADMIN_CODE`, `SECRET_KEY`): aba **Web** > *WSGI configuration file* > editar > salvar > **Reload**.
+  Trocar o `SECRET_KEY` ou o `ACCESS_CODE` desloga todo mundo.
+- **Baixar uma cópia do banco do servidor:** entre como administrador e abra `https://SEUUSUARIO.pythonanywhere.com/admin/baixar-banco`.
+- **Restaurar um backup:** pare o site (aba Web > Disable), copie o backup por cima do banco
+  (`cp ~/dados/backups/<arquivo>.db ~/dados/strikes.db`), depois **Enable** e **Reload**.
+- **Manter no ar:** a cada ~3 meses, aba **Web** > botão para estender a validade do app gratuito.
+- **Nunca** suba o `data/strikes.db` do seu PC por cima do banco do servidor depois que o site estiver em uso.
+
+### Git (no seu computador)
+
+| Para quê | Comando |
+|---|---|
+| Ver o que mudou | `git status` |
+| Ver em qual branch estou | `git branch --show-current` |
+| Guardar as mudanças (o banco `data/*.db` já é ignorado) | `git add -A` e depois `git commit -m "mensagem"` |
+| Enviar para o GitHub | `git push origin main` (ou o nome da branch) |
+| Trazer o que está no GitHub | `git pull` |
+| Trocar de branch | `git switch nome-da-branch` |
+| Criar uma branch nova | `git switch -c nome-da-branch` |
+| Juntar uma branch na `main` (sem commit de merge) | `git switch main` e `git merge --ff-only nome-da-branch` |
+| Desfazer mudanças **não commitadas** de um arquivo | `git restore caminho/do/arquivo` (cuidado: apaga a alteração) |
+
+> O banco real (`data/strikes.db`) **não vai mais para o GitHub** (está no `.gitignore`). Faça backup dele à parte.
+
+### Fluxo para publicar uma mudança
+
+1. Mexa no código, rode `python -m unittest discover tests` e teste com o banco de mentira.
+2. `git add -A` · `git commit -m "..."` · `git push origin main`.
+3. No PythonAnywhere: `cd ~/StreakScrumForest && git pull` e **Reload**.
+4. Abra o site publicado e confira (Ctrl + F5).
+
 ## Quem pode alterar o quê (administrador x visitante)
 
 O site é aberto a quem tem o código de acesso do grupo, mas **só o administrador altera o que é de
