@@ -63,8 +63,8 @@
     </a>
     <div class="topbar-acoes">
       {% if admin %}
-      <span class="selo-admin" title="{{ {'computador': 'Você está no computador do sistema', 'scrum': 'Você é o Scrum de hoje', 'codigo': 'Você entrou com o código de administrador'}[papel_admin] }}">Administrador</span>
-      {% if papel_admin == 'codigo' %}<a class="link-topo" href="{{ url_for('admin_sair') }}">Sair do modo admin</a>{% endif %}
+      <span class="selo-admin" title="{{ {'computador': 'Você está no computador do sistema', 'scrum': 'Você é o Scrum de hoje', 'codigo': 'Você entrou com o código de administrador'}[papel_admin] }}"><span class="txt-largo">Administrador</span><span class="txt-curto">Admin</span></span>
+      {% if papel_admin == 'codigo' %}<a class="link-topo" href="{{ url_for('admin_sair') }}"><span class="txt-largo">Sair do admin</span><span class="txt-curto">Sair</span></a>{% endif %}
       {% elif admin_codigo_ativo %}
       <a class="link-topo" href="{{ url_for('admin_entrar', next=request.full_path.rstrip('?')) }}">Sou o admin</a>
       {% endif %}

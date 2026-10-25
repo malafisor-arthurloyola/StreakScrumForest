@@ -1691,3 +1691,18 @@ body[data-admin="0"] .so-admin { display: none !important; }
 @media (max-width: 560px) { .brand-name { display: none; } .topbar { gap: 8px; } }
 .aviso-leitura a.btn-primary, .aviso-leitura .btn-primary { color: var(--acc-ink); text-decoration: none; margin: 4px 0 10px; display: inline-flex; }
 .aviso-relator p { margin: 0 0 6px; }
+/* botoes do topo: mesma altura, uma linha so, nunca quebram o texto */
+.topbar-acoes { flex-wrap: nowrap; flex: 0 1 auto; }
+.selo-admin, .link-topo { display: inline-flex; align-items: center; min-height: 32px; white-space: nowrap; flex: none; line-height: 1; }
+.selo-admin { padding: 0 12px; }
+.link-topo { padding: 0 12px; }
+@media (max-width: 760px) { .selo-admin, .link-topo { min-height: 30px; padding: 0 9px; font-size: 0.76rem; } }
+.brand-name { white-space: nowrap; }
+.nav-link span { white-space: nowrap; }
+.txt-curto { display: none; }
+@media (max-width: 560px) {
+  .txt-largo { display: none; }
+  .txt-curto { display: inline; }
+  .topbar-acoes { gap: 6px; min-width: 0; }
+  .selo-admin, .link-topo { padding: 0 8px; }
+}
