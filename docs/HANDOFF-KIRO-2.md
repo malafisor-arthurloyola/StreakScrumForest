@@ -219,3 +219,44 @@ Comportamento:
 - O mapeamento pessoa ↔ usuário do GitLab é manual (campo na tela Membros).
 - O retrato do quadro é empurrado do computador do dono; o servidor publicado nunca guarda o token do GitLab.
 - O campo **Review** não rende semente.
+
+## 9. Fase 6b: cards do Backlog (e recém-fechados) no campo "Done" (`feature/gitlab-backlog`)
+
+Pedido do dono: no **primeiro campo da ata (Done / "o que fiz")** também deve ser possível **escolher cards do
+Backlog**, ou eles devem aparecer como sugestão, além dos que já aparecem em Doing e Waiting review. Parta da `main`
+(já tem as Fases 5 e 6). Mesmas regras: sem commit, sem segredo, stdlib, CRLF, testes verdes, nada rende semente.
+
+**Comportamento desejado**
+- No campo **Done**, abaixo do texto, mostrar chips tocáveis com: (a) os cards **da própria pessoa** em Doing e em
+  Waiting review (muitas vezes o que ela concluiu saiu dali), (b) os cards **dela fechados recentemente** (coluna
+  `done`, padrão últimos 7 dias) e (c) uma caixa **"Buscar no Backlog"**: ao digitar número ou parte do título,
+  lista até 20 cards do Backlog **de qualquer pessoa ou sem responsável**; tocar acrescenta `#iid título` ao
+  campo (nunca sobrescreve, não duplica). Digitação livre de `#123` continua funcionando sempre.
+- Vale na **ata (relator)**, no **"Minha fala"** do `/eu` e no formulário da **tela de presença** (campo Done).
+- No campo Doing/planejado, a caixa de busca do Backlog também pode aparecer (quem vai pegar um card do backlog
+  hoje). Se ficar poluído no celular, deixe só no Done e em um link "buscar no backlog" no Doing.
+
+**Dados (retrato)**
+- Novas colunas no retrato: `backlog` (issues **abertas** com a label do Backlog, **inclusive sem responsável**;
+  `usuario` vazio = sem responsável; um card com vários responsáveis gera uma linha por responsável) e `done`
+  (issues **fechadas** nos últimos N dias, só as que têm responsável). Nomes por variável de ambiente no script:
+  `GITLAB_LABEL_BACKLOG` (padrão `Backlog`), `GITLAB_DIAS_FECHADOS` (padrão 7). Confirme com o dono os nomes reais
+  das colunas do quadro (as "labels" de cada lista do board).
+- **Migração do banco**: a tabela `gitlab_cards` tem `CHECK (coluna IN ('doing','review'))`; no SQLite isso exige
+  **recriar a tabela** (criar a nova, copiar, trocar). Faça de forma **idempotente e em transação**, só se a tabela
+  ainda não aceitar as novas colunas, sem perder dados. A chave primária continua `(iid, coluna, usuario)`.
+- Limites: o endpoint de snapshot já limita a ~2000 cards; no script, limite o Backlog a ~500 mais recentes
+  (e avise no resumo se cortou). Validar tamanhos de texto como nas outras colunas.
+
+**Endpoints**
+- `GET /api/gitlab/cards?member_id=ID` passa a devolver também `done` (os recém-fechados dele). O `backlog` **não**
+  vem aqui inteiro (pode ser grande).
+- Novo `GET /api/gitlab/backlog?q=texto&limit=20`: busca por número exato (`123` ou `#123`) ou trecho do título
+  (sem diferenciar maiúsculas/minúsculas) entre os cards do Backlog; devolve `[{iid, titulo, url, responsaveis:[...]}]`,
+  sem duplicar o mesmo card por responsável. Somente leitura, aberto a quem vê o site. Sem retrato: lista vazia.
+
+**Testes**: montagem do retrato com Backlog (com e sem responsável, vários responsáveis, label em
+maiúsculas/minúsculas, card fechado antigo fora da janela); migração da tabela (banco antigo com `CHECK` antigo
+vira o novo sem perder linhas, e rodar duas vezes não quebra); busca (número, trecho, limite, vazio); rota
+`/api/gitlab/cards` com `done`; chips aparecem no Done da ata e do `/eu`. `scripts/criar_banco_demo.py` deve criar
+cards de exemplo de backlog e done. README: atualizar a seção do GitLab (novas variáveis e o que cada coluna faz).
