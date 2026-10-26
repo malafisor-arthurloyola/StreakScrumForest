@@ -180,3 +180,120 @@ def citacao(card):
     """Como o card entra no texto da fala: '#123 titulo' (titulo opcional)."""
     titulo = (card.get("titulo") or "").strip()
     return f"#{card['iid']} {titulo}".strip()
+
+
+# ------------------------------------------------------------------ usuarios do projeto
+MAX_USUARIOS = 500
+
+
+def _chave(texto):
+    """Minusculas, sem acentos e so letras/numeros: 'Joao  Silva' -> 'joaosilva'."""
+    import unicodedata
+    sem = unicodedata.normalize("NFKD", texto or "").encode("ascii", "ignore").decode("ascii")
+    return "".join(ch for ch in sem.lower() if ch.isalnum())
+
+
+def _tokens(texto):
+    """Palavras normalizadas do nome: 'Ana Maria' -> ['ana', 'maria']."""
+    import unicodedata
+    sem = unicodedata.normalize("NFKD", texto or "").encode("ascii", "ignore").decode("ascii")
+    out, atual = [], ""
+    for ch in sem.lower():
+        if ch.isalnum():
+            atual += ch
+        else:
+            if atual:
+                out.append(atual)
+            atual = ""
+    if atual:
+        out.append(atual)
+    return out
+
+
+def validar_usuarios(usuarios):
+    """Valida a lista [{username, nome}] dos membros do projeto (opcional no retrato)."""
+    if usuarios is None:
+        return []
+    if not isinstance(usuarios, list):
+        raise ValueError("A lista de usuarios precisa ser uma lista.")
+    if len(usuarios) > MAX_USUARIOS:
+        raise ValueError(f"Usuarios demais (mais de {MAX_USUARIOS}).")
+    limpos, vistos = [], set()
+    for u in usuarios:
+        if not isinstance(u, dict):
+            raise ValueError("Cada usuario precisa ser um objeto.")
+        username = u.get("username")
+        nome = u.get("nome") or ""
+        if not isinstance(username, str) or not username.strip():
+            raise ValueError("Usuario sem username.")
+        if not isinstance(nome, str):
+            raise ValueError("Nome de usuario precisa ser texto.")
+        username = username.strip()
+        if len(username) > MAX_TEXTO or len(nome) > MAX_TEXTO:
+            raise ValueError("Usuario com texto grande demais.")
+        if username in vistos:
+            continue
+        vistos.add(username)
+        limpos.append({"username": username, "nome": nome.strip()})
+    return limpos
+
+
+def montar_usuarios(membros_api):
+    """Da lista crua de /projects/:id/members/all (formato da API) para [{username, nome}].
+    Ignora bloqueados/inativos e contas de bot."""
+    out = []
+    for m in membros_api or []:
+        if not isinstance(m, dict):
+            continue
+        username = (m.get("username") or "").strip()
+        if not username or (m.get("state") and m.get("state") != "active"):
+            continue
+        if username.endswith("_bot") or "_bot_" in username or username.startswith("project_") and "_bot" in username:
+            continue
+        out.append({"username": username, "nome": (m.get("name") or "").strip()})
+    return out
+
+
+def sugerir_mapeamento(membros, usuarios):
+    """Casa pessoas do site com usuarios do GitLab, sem adivinhar quando houver duvida.
+
+    membros: [{'id', 'name'}] (so quem ainda NAO tem usuario do GitLab definido).
+    usuarios: [{'username', 'nome'}] (membros do projeto).
+    Devolve {member_id: username}.
+
+    Regras, em ordem (para na primeira que der EXATAMENTE um candidato):
+      1. nome completo igual (ignorando acentos/caixa);
+      2. todas as palavras do nome da pessoa estao no nome do GitLab ('Ana' em 'Ana Souza');
+      3. o username e o nome da pessoa batem ('ana' = 'ana', ou 'ana.souza' contem 'ana').
+    Um usuario do GitLab nunca e dado a duas pessoas: se duas pessoas disputam o mesmo
+    usuario, nenhuma das duas e mapeada (o admin escolhe na tela Membros).
+    """
+    candidatos = {}
+    for m in membros:
+        chave_m = _chave(m["name"])
+        toks_m = _tokens(m["name"])
+        if not chave_m:
+            continue
+        niveis = ([], [], [])
+        for u in usuarios:
+            nome_u = u.get("nome") or ""
+            toks_u = set(_tokens(nome_u))
+            chave_user = _chave(u["username"])
+            if _chave(nome_u) == chave_m:
+                niveis[0].append(u["username"])
+            if toks_m and all(t in toks_u for t in toks_m):
+                niveis[1].append(u["username"])
+            if len(chave_m) >= 3 and (chave_user == chave_m or chave_m in chave_user):
+                niveis[2].append(u["username"])
+        for nivel in niveis:
+            unicos = sorted(set(nivel))
+            if len(unicos) == 1:
+                candidatos[m["id"]] = unicos[0]
+                break
+            if len(unicos) > 1:
+                break           # ambiguo neste nivel: nao tenta niveis mais frouxos
+    # um usuario so para uma pessoa
+    contagem = {}
+    for username in candidatos.values():
+        contagem[username] = contagem.get(username, 0) + 1
+    return {mid: u for mid, u in candidatos.items() if contagem[u] == 1}

@@ -35,8 +35,18 @@ Se preferir, da para definir as variaveis direto no terminal, sem .env:
     cmd:
         set GITLAB_URL=...   (e assim por diante)
 
+Destinos (onde enviar). Defina o(s) que usa:
+        SITE_URL_PRODUCAO=https://suaconta.pythonanywhere.com
+        SITE_URL_LOCAL=http://localhost:5000
+        SITE_URL=...                    # (antigo) usado quando nenhum dos dois acima existir
+    O segredo e o mesmo SITE_SYNC_TOKEN para todos (cada servidor tem o seu SYNC_TOKEN igual a ele);
+    se o do local for diferente, use SITE_SYNC_TOKEN_LOCAL (e SITE_SYNC_TOKEN_PRODUCAO).
+
 Rodar:
-    python scripts/sync_gitlab.py                 # le o GitLab e empurra para o site
+    python scripts/sync_gitlab.py                 # le o GitLab e empurra para o destino padrao
+    python scripts/sync_gitlab.py --destino producao   # so para o site publicado
+    python scripts/sync_gitlab.py --destino local      # so para o site no seu computador
+    python scripts/sync_gitlab.py --destino ambos      # para os dois
     python scripts/sync_gitlab.py --simular       # le e MOSTRA o que enviaria (nao envia)
     python scripts/sync_gitlab.py --listar-usuarios  # lista os responsaveis (para mapear no site)
     python scripts/sync_gitlab.py --arquivo q.json   # le de um arquivo em vez do GitLab (teste)
@@ -157,10 +167,14 @@ def _carregar_de_arquivo(caminho):
     return dados
 
 
-def enviar_snapshot(site_url, sync_token, cards, base_url):
+class ErroEnvio(Exception):
+    """Falha ao enviar para UM destino (a mensagem nunca traz segredos)."""
+
+
+def enviar_snapshot(site_url, sync_token, cards, base_url, usuarios=None):
     """Faz POST /api/gitlab/snapshot com Bearer SYNC_TOKEN. Devolve o dict de resposta."""
     url = site_url.rstrip("/") + "/api/gitlab/snapshot"
-    corpo = json.dumps({"cards": cards, "base_url": base_url}).encode("utf-8")
+    corpo = json.dumps({"cards": cards, "base_url": base_url, "usuarios": usuarios or []}).encode("utf-8")
     req = urllib.request.Request(url, data=corpo, method="POST", headers={
         "Authorization": f"Bearer {sync_token}",
         "Content-Type": "application/json",
@@ -170,14 +184,76 @@ def enviar_snapshot(site_url, sync_token, cards, base_url):
             return json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         if e.code in (401, 403):
-            _sair("O site recusou a autorizacao (SYNC_TOKEN nao confere com o do servidor).")
+            raise ErroEnvio("o site recusou a autorizacao (SYNC_TOKEN nao confere com o do servidor).")
         if e.code == 404:
-            _sair("O site nao tem a sincronizacao ligada (defina SYNC_TOKEN no servidor).")
-        _sair(f"O site respondeu {e.code} ao receber o retrato.")
+            raise ErroEnvio("o site nao tem a sincronizacao ligada (defina SYNC_TOKEN no servidor e de Reload).")
+        raise ErroEnvio(f"o site respondeu {e.code} ao receber o retrato.")
     except urllib.error.URLError as e:
-        _sair(f"Nao consegui falar com o site ({e.reason}).")
+        raise ErroEnvio(f"nao consegui falar com o site ({e.reason}).")
     except (ValueError, json.JSONDecodeError):
-        _sair("O site devolveu algo que nao e JSON.")
+        raise ErroEnvio("o site devolveu algo que nao e JSON.")
+
+
+def ler_membros_do_projeto(base, projeto, token):
+    """Le os membros do projeto (usuario e nome) para casar com as pessoas do site.
+    Se o token nao puder listar membros, devolve None (o resto continua funcionando)."""
+    base = base.rstrip("/")
+    projeto_cod = urllib.parse.quote(str(projeto), safe="")
+    headers = {"PRIVATE-TOKEN": token, "Accept": "application/json"}
+    membros = []
+    for pagina in range(1, MAX_PAGINAS + 1):
+        params = urllib.parse.urlencode({"per_page": POR_PAGINA, "page": pagina})
+        url = f"{base}/api/v4/projects/{projeto_cod}/members/all?{params}"
+        req = urllib.request.Request(url, headers=headers, method="GET")
+        try:
+            with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+                lote = json.loads(resp.read().decode("utf-8"))
+                proxima = resp.headers.get("X-Next-Page") or ""
+        except (urllib.error.URLError, ValueError):
+            return None
+        if not isinstance(lote, list) or not lote:
+            break
+        membros.extend(lote)
+        if not str(proxima).strip():
+            break
+    return gitlab_sync.montar_usuarios(membros)
+
+
+def escolher_destinos(destino):
+    """Devolve a lista de (nome, url, token) onde enviar, conforme --destino e o .env."""
+    url_prod = os.environ.get("SITE_URL_PRODUCAO", "").strip()
+    url_local = os.environ.get("SITE_URL_LOCAL", "").strip()
+    url_antiga = os.environ.get("SITE_URL", "").strip()
+    token_base = os.environ.get("SITE_SYNC_TOKEN", "").strip()
+    token_prod = os.environ.get("SITE_SYNC_TOKEN_PRODUCAO", "").strip() or token_base
+    token_local = os.environ.get("SITE_SYNC_TOKEN_LOCAL", "").strip() or token_base
+
+    disponiveis = {}
+    if url_prod:
+        disponiveis["producao"] = (url_prod, token_prod)
+    if url_local:
+        disponiveis["local"] = (url_local, token_local)
+    if url_antiga and not disponiveis:
+        disponiveis["padrao"] = (url_antiga, token_base)
+
+    if not disponiveis:
+        _sair("Nenhum destino configurado. Defina SITE_URL_PRODUCAO e/ou SITE_URL_LOCAL no .env (veja .env.exemplo).")
+    if destino in (None, ""):
+        # sem --destino: o que existir (se so houver um); se houver os dois, o publicado
+        escolhidos = ["producao"] if "producao" in disponiveis else list(disponiveis)
+    elif destino == "ambos":
+        escolhidos = [n for n in ("producao", "local") if n in disponiveis]
+    else:
+        if destino not in disponiveis:
+            _sair(f"O destino '{destino}' nao esta configurado no .env (SITE_URL_{destino.upper()}).")
+        escolhidos = [destino]
+    saida = []
+    for nome in escolhidos:
+        url, token = disponiveis[nome]
+        if not token:
+            _sair(f"Falta o token de envio para '{nome}' (SITE_SYNC_TOKEN no .env).")
+        saida.append((nome, url, token))
+    return saida
 
 
 def _base_url_cards(gitlab_url, projeto):
@@ -193,6 +269,8 @@ def main(argv=None):
                     help="mostra os responsaveis encontrados (para mapear no site) e sai")
     ap.add_argument("--arquivo", metavar="JSON",
                     help="le as issues de um arquivo JSON em vez do GitLab (para testar)")
+    ap.add_argument("--destino", choices=("producao", "local", "ambos"),
+                    help="para onde enviar: o site publicado, o local ou os dois (veja o .env)")
     args = ap.parse_args(argv)
 
     carregar_dotenv()        # le o .env (se existir); variaveis do ambiente tem prioridade
@@ -201,6 +279,7 @@ def main(argv=None):
     label_review = _env("GITLAB_LABEL_REVIEW", gitlab_sync.LABEL_REVIEW_PADRAO)
     gitlab_url = _env("GITLAB_URL", "")
 
+    usuarios = []
     if args.arquivo:
         issues = _carregar_de_arquivo(args.arquivo)
     else:
@@ -208,14 +287,24 @@ def main(argv=None):
         projeto = _env("GITLAB_PROJECT", obrigatorio=True)
         token = _env("GITLAB_TOKEN", obrigatorio=True)
         issues = ler_issues_do_gitlab(base, projeto, token)
+        lidos = ler_membros_do_projeto(base, projeto, token)
+        if lidos is None:
+            print("Aviso: nao consegui listar os membros do projeto; o usuario de cada pessoa tera de ser "
+                  "preenchido na tela Membros.")
+        else:
+            usuarios = lidos
 
     cards = gitlab_sync.montar_retrato(issues, label_doing, label_review)
 
     if args.listar_usuarios:
-        usuarios = sorted({c["usuario"] for c in cards})
-        print(f"{len(usuarios)} responsavel(is) com cards em {label_doing}/{label_review}:")
-        for u in usuarios:
+        responsaveis = sorted({c["usuario"] for c in cards})
+        print(f"{len(responsaveis)} responsavel(is) com cards em {label_doing}/{label_review}:")
+        for u in responsaveis:
             print(f"  {u}")
+        if usuarios:
+            print(f"{len(usuarios)} membro(s) do projeto (usuario | nome):")
+            for u in usuarios:
+                print(f"  {u['username']} | {u['nome']}")
         return 0
 
     base_cards = _base_url_cards(gitlab_url, _env("GITLAB_PROJECT", ""))
@@ -231,11 +320,21 @@ def main(argv=None):
             print(f"  ... e mais {len(cards) - 10}.")
         return 0
 
-    site_url = _env("SITE_URL", obrigatorio=True)
-    sync_token = _env("SITE_SYNC_TOKEN", obrigatorio=True)
-    resposta = enviar_snapshot(site_url, sync_token, cards, base_cards)
-    print(f"Enviado. O site guardou {resposta.get('cards', '?')} card(s).")
-    return 0
+    if usuarios:
+        print(f"Membros do projeto lidos: {len(usuarios)} (o site casa sozinho com as pessoas pelo nome).")
+    falhas = 0
+    for nome, site_url, sync_token in escolher_destinos(args.destino):
+        try:
+            resposta = enviar_snapshot(site_url, sync_token, cards, base_cards, usuarios)
+        except ErroEnvio as e:
+            falhas += 1
+            print(f"[{nome}] FALHOU: {e}", file=sys.stderr)
+            continue
+        extra = ""
+        if resposta.get("mapeados"):
+            extra = f" e ligou {resposta['mapeados']} pessoa(s) ao usuario do GitLab"
+        print(f"[{nome}] Enviado. O site guardou {resposta.get('cards', '?')} card(s){extra}.")
+    return 1 if falhas else 0
 
 
 if __name__ == "__main__":

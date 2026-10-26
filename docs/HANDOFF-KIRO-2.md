@@ -216,7 +216,7 @@ Comportamento:
 ## 8. Premissas (confirmar com o dono se discordar)
 
 - Colunas do quadro: **Doing** e **Waiting review**; nomes configuráveis no script.
-- O mapeamento pessoa ↔ usuário do GitLab é manual (campo na tela Membros).
+- O mapeamento pessoa ↔ usuário do GitLab é **automático pelo nome** (a API de membros do projeto), com o campo na tela Membros como ajuste manual (ver seção 10).
 - O retrato do quadro é empurrado do computador do dono; o servidor publicado nunca guarda o token do GitLab.
 - O campo **Review** não rende semente.
 
@@ -260,3 +260,28 @@ maiúsculas/minúsculas, card fechado antigo fora da janela); migração da tabe
 vira o novo sem perder linhas, e rodar duas vezes não quebra); busca (número, trecho, limite, vazio); rota
 `/api/gitlab/cards` com `done`; chips aparecem no Done da ata e do `/eu`. `scripts/criar_banco_demo.py` deve criar
 cards de exemplo de backlog e done. README: atualizar a seção do GitLab (novas variáveis e o que cada coluna faz).
+
+## 10. Atualização já feita pelo Claude (na `main`; construa a Fase 6b **por cima disto**)
+
+Depois da Fase 6, o dono pediu duas melhorias que **já estão implementadas e na `main`**. Faça `git pull`/parta da
+`main` atual e **não desfaça nada disto**:
+
+1. **Mapeamento automático pessoa ↔ usuário do GitLab pela API.** O script (`scripts/sync_gitlab.py`) agora lê
+   também `GET /projects/:id/members/all` (função `ler_membros_do_projeto`; se o token não puder listar, avisa e
+   segue) e envia `usuarios: [{username, nome}]` no corpo do snapshot. O servidor guarda a lista na tabela
+   `gitlab_usuarios` e, **só para quem está sem `gitlab_user`**, liga sozinho via
+   `gitlab_sync.sugerir_mapeamento` (regras sem chute: nome igual → nome da pessoa dentro do nome do GitLab →
+   usuário contendo o nome; ambíguo não liga; nunca sobrescreve o que o admin definiu; nunca repete um usuário em
+   duas pessoas). A resposta do snapshot traz `mapeados`. A tela Membros sugere os usuários (`datalist`).
+   Novas funções puras em `gitlab_sync.py`: `montar_usuarios`, `validar_usuarios`, `sugerir_mapeamento`.
+2. **Vários destinos no script.** `.env` aceita `SITE_URL_PRODUCAO` e `SITE_URL_LOCAL` (e a antiga `SITE_URL` como
+   reserva); opção `--destino producao|local|ambos`; token por destino opcional (`SITE_SYNC_TOKEN_PRODUCAO` /
+   `SITE_SYNC_TOKEN_LOCAL`). Se um destino falhar, os outros continuam e o código de saída é diferente de zero
+   (`ErroEnvio` no lugar de `sys.exit` dentro do envio).
+
+Testes novos: `tests/test_fase6_usuarios.py` (23). Hoje a suíte tem **447** testes e deve continuar verde.
+
+**Na Fase 6b**, ao mexer no retrato e no script: mantenha o campo `usuarios` e o mapeamento automático funcionando,
+mantenha `--destino`, e se alterar `enviar_snapshot`/`montar_retrato`, atualize os testes de
+`test_fase6.py` e `test_fase6_usuarios.py` em vez de removê-los. Se recriar a tabela `gitlab_cards`, **não** toque em
+`gitlab_usuarios` nem em `members.gitlab_user`.

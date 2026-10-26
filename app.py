@@ -660,6 +660,10 @@ def _migrar_gitlab(db):
         """
     )
     db.execute("CREATE INDEX IF NOT EXISTS ix_gitlab_cards_usuario ON gitlab_cards (usuario)")
+    db.execute(
+        "CREATE TABLE IF NOT EXISTS gitlab_usuarios ("
+        "username TEXT PRIMARY KEY, nome TEXT NOT NULL DEFAULT '')"
+    )
 
 
 def _get_config(db):
@@ -1682,7 +1686,10 @@ def membros_page():
     db = get_db()
     dias_letivos_lista = _dias_letivos(db)
     membros = get_member_stats(db, dias_letivos_lista)
-    return render_template("membros.html", membros=membros)
+    usuarios_gitlab = [
+        dict(r) for r in db.execute("SELECT username, nome FROM gitlab_usuarios ORDER BY username").fetchall()
+    ]
+    return render_template("membros.html", membros=membros, usuarios_gitlab=usuarios_gitlab)
 
 
 @app.route("/calendario")
@@ -2892,12 +2899,32 @@ def api_gitlab_snapshot():
         return _erro("Corpo inválido.")
     try:
         cards = gitlab_sync.validar_cards(p.get("cards"))
+        usuarios = gitlab_sync.validar_usuarios(p.get("usuarios"))
     except ValueError as e:
         return _erro(str(e))
     base_url = (p.get("base_url") or "").strip()
 
     db = get_db()
     _garantir_config(db)
+    mapeados = {}
+    if usuarios:
+        db.execute("DELETE FROM gitlab_usuarios")
+        db.executemany("INSERT INTO gitlab_usuarios (username, nome) VALUES (?, ?)",
+                       [(u["username"], u["nome"]) for u in usuarios])
+        # casa sozinho quem ainda nao tem usuario (nunca sobrescreve o que o admin definiu)
+        sem_usuario = [
+            {"id": r["id"], "name": r["name"]}
+            for r in db.execute(
+                "SELECT id, name FROM members WHERE active = 1 AND COALESCE(tipo, 'equipe') = 'equipe' "
+                "AND COALESCE(TRIM(gitlab_user), '') = ''"
+            ).fetchall()
+        ]
+        ja_usados = {r["gitlab_user"] for r in db.execute(
+            "SELECT gitlab_user FROM members WHERE COALESCE(TRIM(gitlab_user), '') <> ''").fetchall()}
+        livres = [u for u in usuarios if u["username"] not in ja_usados]
+        mapeados = gitlab_sync.sugerir_mapeamento(sem_usuario, livres)
+        for mid, username in mapeados.items():
+            db.execute("UPDATE members SET gitlab_user = ? WHERE id = ?", (username, mid))
     db.execute("DELETE FROM gitlab_cards")
     db.executemany(
         "INSERT INTO gitlab_cards (iid, coluna, usuario, titulo, url, labels, atualizado_em) "
@@ -2918,7 +2945,7 @@ def api_gitlab_snapshot():
                 (base_url,),
             )
     db.commit()
-    return jsonify({"ok": True, "cards": len(cards)})
+    return jsonify({"ok": True, "cards": len(cards), "mapeados": len(mapeados)})
 
 
 def _garantir_config(db):

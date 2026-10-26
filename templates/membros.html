@@ -24,6 +24,12 @@
 </form>
 <p class="dica so-admin">Convidados têm planta, loja e sementes próprias, mas ficam fora das contas do time (dia cheio, jardim coletivo, metas, destaques e panorama).</p>
 
+{% if usuarios_gitlab %}
+<datalist id="gl-usuarios">
+  {% for u in usuarios_gitlab %}<option value="{{ u.username }}">{{ u.nome }}</option>{% endfor %}
+</datalist>
+<p class="dica so-admin">O usuário do GitLab é preenchido sozinho quando o nome bate com o de alguém do projeto; se não bater, escolha na lista ao digitar.</p>
+{% endif %}
 <div class="membros-lista">
   {% for m in membros %}
   <article class="membro-card{% if not m.active %} inativo{% endif %}" data-row-membro="{{ m.id }}">
@@ -42,7 +48,7 @@
       </div>
       <label class="membro-gitlab">
         <span>Usuário no GitLab</span>
-        <input type="text" class="input-gitlab" value="{{ m.gitlab_user }}" data-member-id="{{ m.id }}"
+        <input type="text" class="input-gitlab" list="gl-usuarios" value="{{ m.gitlab_user }}" data-member-id="{{ m.id }}"
                placeholder="ex.: arthur.silva" aria-label="Usuário no GitLab de {{ m.name }}">
       </label>
     </div>

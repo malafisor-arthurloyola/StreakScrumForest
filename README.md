@@ -437,21 +437,29 @@ Defina a variável `SYNC_TOKEN` no WSGI/ambiente do PythonAnywhere com um segred
    $env:GITLAB_URL      = "https://gitlab.suafaculdade.br"
    $env:GITLAB_PROJECT  = "123"              # o Project ID
    $env:GITLAB_TOKEN    = "<seu token read_api>"
-   $env:SITE_URL        = "https://suaconta.pythonanywhere.com"
-   $env:SITE_SYNC_TOKEN = "<o mesmo SYNC_TOKEN do servidor>"
+   $env:SITE_URL_PRODUCAO = "https://suaconta.pythonanywhere.com"   # o site publicado
+   $env:SITE_URL_LOCAL    = "http://localhost:5000"                  # (opcional) o site no seu computador
+   $env:SITE_SYNC_TOKEN   = "<o mesmo SYNC_TOKEN do servidor>"
    ```
+   O mais confortável é colocar tudo num arquivo `.env` na pasta do projeto (copie o `.env.exemplo`): o script o lê sozinho e ele **nunca** é versionado.
    (no `cmd` use `set NOME=valor`). As labels do quadro podem ser trocadas, sem diferenciar maiúsculas/minúsculas, com `GITLAB_LABEL_DOING` (padrão `Doing`) e `GITLAB_LABEL_REVIEW` (padrão `Waiting review`).
 4. Rode:
    ```powershell
-   python scripts/sync_gitlab.py                 # lê o GitLab e empurra para o site
+   python scripts/sync_gitlab.py                 # lê o GitLab e empurra para o site (o publicado, se houver)
+   python scripts/sync_gitlab.py --destino producao   # só para o site publicado
+   python scripts/sync_gitlab.py --destino local      # só para o site no seu computador
+   python scripts/sync_gitlab.py --destino ambos      # para os dois (se um falhar, o outro continua)
    python scripts/sync_gitlab.py --simular       # mostra o que enviaria, sem enviar
    python scripts/sync_gitlab.py --listar-usuarios  # lista os responsáveis (para mapear no site)
    python scripts/sync_gitlab.py --arquivo q.json   # lê de um arquivo, para testar sem rede
    ```
 5. Para manter atualizado, agende o `python scripts/sync_gitlab.py` no **Agendador de Tarefas** do Windows (ex.: a cada 15 min, durante o horário do time).
 
+### Quem é quem no GitLab (automático)
+O script também lê os **membros do projeto** (usuário e nome) pela API e os envia junto. O site **liga sozinho** cada pessoa ao usuário dela quando o nome bate: nome igual, ou o nome da pessoa dentro do nome do GitLab (ex.: "Arthur" em "Arthur Loyola"), ou o usuário contendo o nome. Sem chute: se houver dúvida (dois "Ana"), ele não liga e você escolhe. Ele **nunca sobrescreve** o que você já definiu e nunca dá o mesmo usuário a duas pessoas. Se o seu token não puder listar membros, o script avisa e você preenche à mão.
+
 ### Na tela de Membros (admin)
-Preencha o campo **"Usuário no GitLab"** de cada pessoa (é como os cards são casados com quem fala). Quem está sem usuário mapeado ganha um aviso discreto "sem GitLab" — os cards dele simplesmente não aparecem, nada quebra.
+O campo **"Usuário no GitLab"** de cada pessoa aparece **já preenchido** quando o casamento automático acertou; ao digitar nos demais, o campo sugere os usuários do projeto. Quem continua sem usuário ganha um aviso discreto "sem GitLab" — os cards dele simplesmente não aparecem, nada quebra.
 
 ### Como aparece
 - Na daily (ata e "Minha fala"), sob **Doing** e no novo campo **Waiting review**, aparecem os chips `#123 título`. Tocar acrescenta ao texto (nunca sobrescreve, não duplica) e você pode digitar livre do mesmo jeito.
