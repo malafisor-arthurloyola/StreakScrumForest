@@ -17,6 +17,7 @@ ROTULOS = {
             "excused": "Excused",
             "feito": "Done",
             "planejado": "Doing",
+            "review": "Waiting review",
             "bloqueios": "Blockers",
         },
         "fechamento": {
@@ -41,6 +42,7 @@ ROTULOS = {
             "excused": "Justificados",
             "feito": "Feito",
             "planejado": "Fazendo",
+            "review": "Em revisão",
             "bloqueios": "Impedimentos",
         },
         "fechamento": {
@@ -107,6 +109,11 @@ def _linhas_falas(falas, chave):
     return linhas
 
 
+def _tem_coluna(falas, chave):
+    """True se alguma fala tem texto nao-vazio naquela coluna (ex.: 'review')."""
+    return any((f.get(chave) or "").strip() for f in falas)
+
+
 def montar_texto(ata, idioma="en"):
     """Texto puro da ata no modelo exato.
 
@@ -133,6 +140,12 @@ def montar_texto(ata, idioma="en"):
     linhas.append(f"{rt['planejado']}:")
     linhas.extend(_linhas_falas(ata.get("falas") or [], "planejado"))
     linhas.append("")
+    # "Em revisao" (Waiting review): so aparece na daily E se alguem tiver texto de review.
+    # Sem isso, o documento fica identico ao modelo que a professora espera.
+    if rt.get("review") and _tem_coluna(ata.get("falas") or [], "review"):
+        linhas.append(f"{rt['review']}:")
+        linhas.extend(_linhas_falas(ata.get("falas") or [], "review"))
+        linhas.append("")
     bloqueios = (ata.get("bloqueios") or "").strip()
     linhas.append(f"{rt['bloqueios']}: {bloqueios or r['none']}")
     if tipo == "fechamento":
@@ -171,8 +184,10 @@ def montar_html(ata, idioma="en", gitlab_base_url=""):
          if ata.get("excused") else ""),
         f"<p><b>{rt['feito']}:</b></p>{lista('feito')}",
         f"<p><b>{rt['planejado']}:</b></p>{lista('planejado')}",
-        f"<p><b>{rt['bloqueios']}:</b> {bloqueios_html}</p>",
     ]
+    if rt.get("review") and _tem_coluna(ata.get("falas") or [], "review"):
+        partes.append(f"<p><b>{rt['review']}:</b></p>{lista('review')}")
+    partes.append(f"<p><b>{rt['bloqueios']}:</b> {bloqueios_html}</p>")
     if tipo == "fechamento":
         quadro = r["sim"] if ata.get("quadro_atualizado") else r["nao"]
         partes.append(f"<p><b>{rt['quadro']}:</b> {quadro}</p>")

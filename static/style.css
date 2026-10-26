@@ -1717,3 +1717,39 @@ body[data-admin="0"] .so-admin { display: none !important; }
 .presenca-form-titulo { font-weight: 700; margin: 0 0 4px; }
 .ata-linha-minha { border-left-color: var(--acc) !important; box-shadow: 0 0 0 1px var(--acc) inset; }
 .ata-selo-eu { font-size: 0.72rem; font-weight: 700; color: var(--acc-ink); background: var(--acc); padding: 1px 7px; border-radius: 999px; }
+
+/* ===== Fase 6: GitLab (chips de cards, cabecalho de sync, campo review) ===== */
+.gl-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; align-items: center; }
+.gl-chips-rot { width: 100%; font-size: .82rem; color: var(--ink2); }
+.gl-chip {
+  min-height: 40px; padding: 6px 12px; border-radius: 999px;
+  border: 1px solid rgba(109, 185, 255, 0.45);
+  background: rgba(109, 185, 255, 0.12); color: #bfe0ff;
+  font: inherit; font-size: .9rem; font-weight: 600; cursor: pointer;
+}
+.gl-chip:active { background: rgba(109, 185, 255, 0.28); }
+.gl-chip:focus-visible { outline: 2px solid var(--aviso); outline-offset: 2px; }
+
+.gl-sync {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin: 2px 0 14px; padding: 6px 12px; border-radius: 999px;
+  background: rgba(79, 219, 155, 0.14); color: var(--ok);
+  font-size: .85rem; font-weight: 600;
+}
+.gl-sync-ponto { width: 9px; height: 9px; border-radius: 50%; background: var(--ok); }
+.gl-sync-antigo { background: rgba(255, 211, 92, 0.16); color: var(--ouro); }
+.gl-sync-antigo .gl-sync-ponto { background: var(--ouro); }
+.gl-sync-vazio { background: var(--s2); color: var(--ink2); }
+.gl-sync-vazio .gl-sync-ponto { background: var(--ink2); }
+
+.ata-campo-review { margin-top: 10px; }
+.eu-rot-fraco { color: var(--ink2); font-weight: 400; font-size: .85rem; }
+
+.membro-gitlab { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+.membro-gitlab span { font-size: .82rem; color: var(--ink2); }
+.input-gitlab {
+  min-height: 44px; padding: 8px 12px; border-radius: var(--r-md);
+  border: 1px solid var(--s4); background: var(--s1); color: var(--ink); font: inherit;
+}
+.input-gitlab:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }
+.chip-sem-gitlab { background: rgba(255, 141, 118, 0.16); color: var(--falta); font-weight: 600; }

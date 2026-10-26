@@ -125,6 +125,32 @@ def main():
     # PIN de teste da Arthur: 1234
     h, s = appmod.criar_pin_hash("1234")
     con.execute("UPDATE members SET pin_hash = ?, pin_salt = ? WHERE id = ?", (h, s, ids["Arthur"]))
+
+    # Fase 6: mapeia a equipe no GitLab e deixa um retrato de exemplo (so para a demo).
+    # O usuario do GitLab e um apelido fake aqui; nenhum token e necessario para a demo.
+    gitlab_users = {nome: nome.lower() for nome in EQUIPE}
+    gitlab_users["Rachel"] = ""          # proposital: fica "sem GitLab" para mostrar o aviso
+    for nome, gu in gitlab_users.items():
+        con.execute("UPDATE members SET gitlab_user = ? WHERE id = ?", (gu or None, ids[nome]))
+    base_cards = "https://gitlab.exemplo.br/equipe/projeto/-/issues"
+    exemplo = [
+        (201, "doing", "arthur", "Tela de presença sem atrito"),
+        (202, "doing", "arthur", "Chips de cards na daily"),
+        (203, "review", "arthur", "Endpoint de snapshot"),
+        (204, "doing", "bruno", "Ajuste no gráfico de sementes"),
+        (205, "review", "guilherme", "Revisar a ata da sprint"),
+    ]
+    for iid, col, usr, titulo in exemplo:
+        con.execute(
+            "INSERT OR IGNORE INTO gitlab_cards (iid, coluna, usuario, titulo, url, labels) "
+            "VALUES (?,?,?,?,?,?)",
+            (iid, col, usr, titulo, f"{base_cards}/{iid}",
+             "Doing" if col == "doing" else "Waiting review"),
+        )
+    con.execute("INSERT OR IGNORE INTO config (chave, valor) VALUES ('gitlab_base_url', ?)", (base_cards,))
+    con.execute("UPDATE config SET valor = ? WHERE chave = 'gitlab_base_url'", (base_cards,))
+    con.execute("INSERT OR IGNORE INTO config (chave, valor) VALUES ('gitlab_ultima_sync', datetime('now'))")
+    con.execute("UPDATE config SET valor = datetime('now') WHERE chave = 'gitlab_ultima_sync'")
     con.commit()
     con.close()
 

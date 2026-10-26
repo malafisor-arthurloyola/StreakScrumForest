@@ -18,6 +18,7 @@ import catalog
 import game
 import qr_puro
 import ata_fmt
+import gitlab_sync
 
 BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = Path(os.environ.get("STRIKES_DB", BASE_DIR / "data" / "strikes.db"))
@@ -43,6 +44,7 @@ DEFAULT_CONFIG = {
     "fundador_ate": "2026-10-23",
     "idioma_ata": "en",
     "gitlab_base_url": "",
+    "gitlab_ultima_sync": "",
 }
 
 DEFAULT_FERIADOS = [
@@ -218,6 +220,11 @@ def guarda_de_acesso():
         return None
     app.secret_key = _segredo()
     if request.endpoint in ("entrar", "static"):
+        return None
+    # O snapshot do GitLab vem do PC do dono (script), sem cookie e sem X-Requested-With.
+    # Ele NAO passa pela sessao: autentica sozinho so pelo Bearer SYNC_TOKEN. Por isso sai
+    # daqui antes das checagens de sessao. Nenhuma outra rota /api ganha esse passe.
+    if request.endpoint == "api_gitlab_snapshot":
         return None
     if session.get("auth") != _assinatura():
         if request.path.startswith("/api/"):
@@ -600,6 +607,8 @@ def init_db():
 
     _migrar_membros_tipo(db)
 
+    _migrar_gitlab(db)
+
     db.commit()
     db.close()
 
@@ -622,6 +631,35 @@ def _migrar_membros_pin(db):
         db.execute("ALTER TABLE members ADD COLUMN pin_hash TEXT")
     if "pin_salt" not in colunas:
         db.execute("ALTER TABLE members ADD COLUMN pin_salt TEXT")
+
+
+def _migrar_gitlab(db):
+    """Fase 6 (integracao com o GitLab, so leitura). Tudo aditivo e idempotente:
+      - members.gitlab_user: o usuario da pessoa no GitLab (para casar os cards);
+      - ata_falas.review: o campo "em revisao" da daily (NUNCA rende semente);
+      - gitlab_cards: o retrato do quadro (Doing / Waiting review) empurrado pelo script.
+    As configs gitlab_base_url e gitlab_ultima_sync entram pelo DEFAULT_CONFIG (INSERT OR IGNORE)."""
+    cols_membros = {r["name"] for r in db.execute("PRAGMA table_info(members)").fetchall()}
+    if "gitlab_user" not in cols_membros:
+        db.execute("ALTER TABLE members ADD COLUMN gitlab_user TEXT")
+    cols_falas = {r["name"] for r in db.execute("PRAGMA table_info(ata_falas)").fetchall()}
+    if "review" not in cols_falas:
+        db.execute("ALTER TABLE ata_falas ADD COLUMN review TEXT NOT NULL DEFAULT ''")
+    db.execute(
+        """
+        CREATE TABLE IF NOT EXISTS gitlab_cards (
+            iid INTEGER NOT NULL,
+            coluna TEXT NOT NULL CHECK (coluna IN ('doing', 'review')),
+            usuario TEXT NOT NULL,
+            titulo TEXT NOT NULL DEFAULT '',
+            url TEXT NOT NULL DEFAULT '',
+            labels TEXT NOT NULL DEFAULT '',
+            atualizado_em TEXT NOT NULL DEFAULT (datetime('now')),
+            PRIMARY KEY (iid, coluna, usuario)
+        )
+        """
+    )
+    db.execute("CREATE INDEX IF NOT EXISTS ix_gitlab_cards_usuario ON gitlab_cards (usuario)")
 
 
 def _get_config(db):
@@ -818,6 +856,7 @@ def get_member_stats(db, dias_letivos_lista=None):
             "active": bool(m["active"]),
             "convidado": not _e_equipe(m),
             "tem_pin": bool(_coluna(m, "pin_hash")),
+            "gitlab_user": _coluna(m, "gitlab_user") or "",
             "estagio": estado["estagio"],
             "estagio_nome": game.STAGE_NAMES[estado["estagio"]],
             "floresceu": estado["floresceu"],
@@ -1901,6 +1940,10 @@ def api_editar_membro(member_id):
         if tipo not in ("equipe", "convidado"):
             abort(400)
         db.execute("UPDATE members SET tipo = ? WHERE id = ?", (tipo, member_id))
+    if "gitlab_user" in payload:
+        # Usuario da pessoa no GitLab (para casar os cards). Vazio = nao mapeado.
+        gu = (payload.get("gitlab_user") or "").strip().lstrip("@")[:100]
+        db.execute("UPDATE members SET gitlab_user = ? WHERE id = ?", (gu or None, member_id))
     if payload.get("resetar_pin"):
         # o dono reseta o PIN: a pessoa cria um novo no proximo acesso ao /eu
         db.execute(
@@ -2220,17 +2263,19 @@ def eu_page():
             ("fechamento", "Day Closing", "Concluí hoje", "Ficou para depois"),
         ):
             f = db.execute(
-                "SELECT feito, planejado FROM ata_falas WHERE data = ? AND tipo = ? AND member_id = ?",
+                "SELECT feito, planejado, review FROM ata_falas WHERE data = ? AND tipo = ? AND member_id = ?",
                 (hoje, tipo, membro["id"]),
             ).fetchone()
             minhas_falas.append({
                 "tipo": tipo, "rotulo": rotulo,
                 "rot_feito": rot_feito, "rot_planejado": rot_planejado,
                 "feito": f["feito"] if f else "", "planejado": f["planejado"] if f else "",
+                "review": (_coluna(f, "review") or "") if f else "",
             })
 
     return render_template(
-        "eu.html", eu=stats, hoje=hoje, minhas_falas=minhas_falas, **ctx
+        "eu.html", eu=stats, hoje=hoje, minhas_falas=minhas_falas,
+        eu_member_id=membro["id"], **ctx
     )
 
 
@@ -2344,7 +2389,7 @@ ATA_ROTULOS_FALA = {
 }
 
 
-def _salvar_fala(db, data_str, tipo, member_id, feito=None, planejado=None):
+def _salvar_fala(db, data_str, tipo, member_id, feito=None, planejado=None, review=None):
     """Grava (upsert) a fala de uma pessoa na ata; so os campos informados mudam."""
     _garantir_ata(db, data_str, tipo)
     db.execute(
@@ -2358,6 +2403,9 @@ def _salvar_fala(db, data_str, tipo, member_id, feito=None, planejado=None):
     if planejado is not None:
         db.execute("UPDATE ata_falas SET planejado = ?, atualizada_em = datetime('now') "
                    "WHERE data = ? AND tipo = ? AND member_id = ?", (planejado, data_str, tipo, member_id))
+    if review is not None:
+        db.execute("UPDATE ata_falas SET review = ?, atualizada_em = datetime('now') "
+                   "WHERE data = ? AND tipo = ? AND member_id = ?", (review, data_str, tipo, member_id))
 
 
 def _definir_status(db, member_id, data_str, evento, status):
@@ -2484,13 +2532,14 @@ def _carregar_ata(db, data_str, tipo):
 
 
 def _falas_da_ata(db, data_str, tipo):
-    """{member_id: {'feito', 'planejado'}} do que ja foi preenchido."""
+    """{member_id: {'feito', 'planejado', 'review'}} do que ja foi preenchido."""
     out = {}
     for r in db.execute(
-        "SELECT member_id, feito, planejado FROM ata_falas WHERE data = ? AND tipo = ?",
+        "SELECT member_id, feito, planejado, review FROM ata_falas WHERE data = ? AND tipo = ?",
         (data_str, tipo),
     ).fetchall():
-        out[r["member_id"]] = {"feito": r["feito"], "planejado": r["planejado"]}
+        out[r["member_id"]] = {"feito": r["feito"], "planejado": r["planejado"],
+                               "review": _coluna(r, "review") or ""}
     return out
 
 
@@ -2518,13 +2567,15 @@ def _ata_para_fmt(db, data_str, tipo):
     for m in membros:
         st = status.get(m["id"])
         f = falas_map.get(m["id"], {})
-        tem_texto = bool((f.get("feito") or "").strip() or (f.get("planejado") or "").strip())
+        rev = (f.get("review") or "").strip() if tipo == "daily" else ""
+        tem_texto = bool((f.get("feito") or "").strip() or (f.get("planejado") or "").strip() or rev)
         if st == "presente":
             present.append(m["name"])
         elif st == "justificada":
             excused.append(m["name"])
         if st == "presente" or tem_texto:
-            falas.append({"nome": m["name"], "feito": f.get("feito", ""), "planejado": f.get("planejado", "")})
+            falas.append({"nome": m["name"], "feito": f.get("feito", ""),
+                          "planejado": f.get("planejado", ""), "review": rev})
     return {
         "tipo": tipo,
         "data": data_str,
@@ -2571,6 +2622,7 @@ def _linhas_da_ata(db, data_str, tipo):
         linhas.append({
             "id": m["id"], "name": m["name"], "status": status.get(m["id"]) or "",
             "feito": f.get("feito", ""), "planejado": f.get("planejado", ""),
+            "review": f.get("review", ""),
             "planejado_ontem": planejado_ontem.get(m["id"], ""),
             "e_relator": m["id"] == relator_id,
         })
@@ -2632,7 +2684,7 @@ def api_ata_estado():
         "bloqueios": cab["bloqueios"] if cab else "",
         "quadro_atualizado": bool(cab["quadro_atualizado"]) if cab else False,
         "linhas": [{"id": l["id"], "status": l["status"], "feito": l["feito"],
-                    "planejado": l["planejado"], "e_relator": l["e_relator"]} for l in linhas],
+                    "planejado": l["planejado"], "review": l["review"], "e_relator": l["e_relator"]} for l in linhas],
     })
 
 
@@ -2668,6 +2720,15 @@ def api_ata_salvar():
             if atual not in ("presente", "justificada"):
                 _definir_status(db, mid, data_str, evento, "presente")
                 resposta["status"] = "presente"
+    elif campo == "review":
+        # "Em revisao" (Waiting review) da daily: so guarda, NUNCA rende semente e nao
+        # mexe na presenca (nem toda revisao e uma fala da daily).
+        if tipo != "daily":
+            return _erro("Revisão só existe na daily.")
+        mid = _int_ou_none(p.get("member_id"))
+        if mid is None:
+            return _erro("Pessoa inválida.")
+        _salvar_fala(db, data_str, tipo, mid, review=(p.get("valor") or ""))
     elif campo == "status":
         mid = _int_ou_none(p.get("member_id"))
         valor = p.get("valor") or ""
@@ -2746,8 +2807,10 @@ def api_ata_minha_fala():
         date.fromisoformat(data_str or "")
     except (TypeError, ValueError):
         return _erro("Data inválida.")
-    if tipo not in ATA_TIPOS or campo not in ("feito", "planejado"):
+    if tipo not in ATA_TIPOS or campo not in ("feito", "planejado", "review"):
         return _erro("Pedido inválido.")
+    if campo == "review" and tipo != "daily":
+        return _erro("Revisão só existe na daily.")
     _garantir_ata(db, data_str, tipo)
     db.execute(
         """
@@ -2764,6 +2827,141 @@ def api_ata_minha_fala():
     )
     db.commit()
     return jsonify({"ok": True})
+
+
+# ------------------------------------------------------------ Fase 6: GitLab (so leitura)
+# O site nao alcanca o GitLab da faculdade. Um script no PC do dono le o quadro e EMPURRA
+# um retrato pronto para ca. O unico segredo que o servidor guarda e o SYNC_TOKEN (variavel
+# de ambiente), nunca o token pessoal do GitLab. Sem SYNC_TOKEN configurado, o endpoint de
+# snapshot simplesmente nao existe para quem chama (404) - ninguem consegue empurrar dados.
+GITLAB_SYNC_ERROS = {}          # ip -> {"erros": int, "ate": float}
+GITLAB_SYNC_MAX = 10
+GITLAB_SYNC_BLOQUEIO = 300
+
+
+def _sync_token():
+    return os.environ.get("SYNC_TOKEN") or None
+
+
+def _bearer_do_pedido():
+    """Extrai o token do cabecalho 'Authorization: Bearer xxx'. Retorna '' se nao houver."""
+    cab = request.headers.get("Authorization", "")
+    if cab.startswith("Bearer "):
+        return cab[len("Bearer "):].strip()
+    return ""
+
+
+def _sync_bloqueado(ip):
+    reg = GITLAB_SYNC_ERROS.get(ip)
+    if not reg:
+        return False
+    if reg["ate"] and time.time() < reg["ate"]:
+        return True
+    if reg["ate"] and time.time() >= reg["ate"]:
+        GITLAB_SYNC_ERROS.pop(ip, None)
+    return False
+
+
+def _sync_erro(ip):
+    reg = GITLAB_SYNC_ERROS.setdefault(ip, {"erros": 0, "ate": 0})
+    reg["erros"] += 1
+    if reg["erros"] >= GITLAB_SYNC_MAX:
+        reg["ate"] = time.time() + GITLAB_SYNC_BLOQUEIO
+
+
+@app.route("/api/gitlab/snapshot", methods=["POST"])
+def api_gitlab_snapshot():
+    """Recebe o retrato do quadro (Doing / Waiting review) empurrado pelo script do dono.
+    Autentica SO pelo Bearer SYNC_TOKEN (nao usa cookie nem sessao). Substitui tudo numa
+    transacao. Nunca registra o token em log algum."""
+    token_servidor = _sync_token()
+    if not token_servidor:
+        # Integracao desligada: o endpoint nao existe para quem chama.
+        abort(404)
+    ip = _ip()
+    if _sync_bloqueado(ip):
+        return _erro("Muitas tentativas. Tente de novo mais tarde.", 429)
+    enviado = _bearer_do_pedido()
+    if not enviado or not hmac.compare_digest(enviado, token_servidor):
+        _sync_erro(ip)
+        return _erro("Autorização inválida.", 403)
+    GITLAB_SYNC_ERROS.pop(ip, None)
+
+    p = request.get_json(force=True, silent=True)
+    if not isinstance(p, dict):
+        return _erro("Corpo inválido.")
+    try:
+        cards = gitlab_sync.validar_cards(p.get("cards"))
+    except ValueError as e:
+        return _erro(str(e))
+    base_url = (p.get("base_url") or "").strip()
+
+    db = get_db()
+    _garantir_config(db)
+    db.execute("DELETE FROM gitlab_cards")
+    db.executemany(
+        "INSERT INTO gitlab_cards (iid, coluna, usuario, titulo, url, labels, atualizado_em) "
+        "VALUES (?, ?, ?, ?, ?, ?, datetime('now'))",
+        [(c["iid"], c["coluna"], c["usuario"], c["titulo"], c["url"], c["labels"]) for c in cards],
+    )
+    db.execute(
+        "INSERT INTO config (chave, valor) VALUES ('gitlab_ultima_sync', datetime('now')) "
+        "ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor"
+    )
+    # So preenche a base_url se o dono ainda nao configurou uma (nao sobrescreve a escolha dele).
+    if base_url:
+        atual = db.execute("SELECT valor FROM config WHERE chave = 'gitlab_base_url'").fetchone()
+        if not (atual and (atual["valor"] or "").strip()):
+            db.execute(
+                "INSERT INTO config (chave, valor) VALUES ('gitlab_base_url', ?) "
+                "ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor",
+                (base_url,),
+            )
+    db.commit()
+    return jsonify({"ok": True, "cards": len(cards)})
+
+
+def _garantir_config(db):
+    """Garante que as chaves de config da Fase 6 existam (idempotente)."""
+    for chave in ("gitlab_base_url", "gitlab_ultima_sync"):
+        db.execute("INSERT OR IGNORE INTO config (chave, valor) VALUES (?, '')", (chave,))
+
+
+def _cards_do_usuario(db, usuario):
+    """Cards (Doing / Waiting review) de um usuario do GitLab, separados por coluna."""
+    doing, review = [], []
+    if not usuario:
+        return doing, review
+    for r in db.execute(
+        "SELECT iid, coluna, titulo, url, labels FROM gitlab_cards WHERE usuario = ? "
+        "ORDER BY iid", (usuario,)
+    ).fetchall():
+        item = {"iid": r["iid"], "titulo": r["titulo"], "url": r["url"],
+                "citacao": f"#{r['iid']} {(r['titulo'] or '').strip()}".strip()}
+        (doing if r["coluna"] == "doing" else review).append(item)
+    return doing, review
+
+
+@app.route("/api/gitlab/cards")
+def api_gitlab_cards():
+    """Cards do quadro para uma pessoa (leitura, qualquer um pode ver). Nunca bloqueia:
+    se o GitLab nunca sincronizou ou a pessoa nao esta mapeada, devolve listas vazias."""
+    db = get_db()
+    mid = _int_ou_none(request.args.get("member_id"))
+    if mid is None:
+        return _erro("Pessoa inválida.")
+    m = db.execute("SELECT gitlab_user FROM members WHERE id = ?", (mid,)).fetchone()
+    usuario = (_coluna(m, "gitlab_user") or "").strip() if m else ""
+    doing, review = _cards_do_usuario(db, usuario)
+    cfg = _get_config(db)
+    return jsonify({
+        "ok": True,
+        "configurado": bool(usuario),
+        "doing": doing,
+        "review": review,
+        "ultima_sync": cfg.get("gitlab_ultima_sync", ""),
+        "base_url": cfg.get("gitlab_base_url", ""),
+    })
 
 
 @app.route("/ata/<data_str>/<tipo>/imprimir")

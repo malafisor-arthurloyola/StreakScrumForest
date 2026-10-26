@@ -39,9 +39,13 @@
 </section>
 
 {% if minhas_falas %}
-<section class="eu-fala" aria-label="Minha fala de hoje" data-hoje="{{ hoje }}">
+<section class="eu-fala" aria-label="Minha fala de hoje" data-hoje="{{ hoje }}" data-member-id="{{ eu_member_id }}">
   <h2 class="secao-titulo">Minha fala de hoje</h2>
   <p class="sub sub-secao">Escreva a sua parte da ata. O relator vê o que você preencheu e pode completar. Salva sozinho.</p>
+  <div class="gl-sync" id="gl-sync" hidden>
+    <span class="gl-sync-ponto" aria-hidden="true"></span>
+    <span id="gl-sync-texto">GitLab: verificando…</span>
+  </div>
   {% for f in minhas_falas %}
   <article class="eu-fala-bloco" data-tipo="{{ f.tipo }}">
     <h3>{{ f.rotulo }}</h3>
@@ -49,6 +53,12 @@
     <textarea class="eu-fala-texto" data-campo="feito" rows="2" placeholder="pode citar cards como #101">{{ f.feito }}</textarea>
     <label>{{ f.rot_planejado }}</label>
     <textarea class="eu-fala-texto" data-campo="planejado" rows="2">{{ f.planejado }}</textarea>
+    {% if f.tipo == 'daily' %}
+    <div class="gl-chips" data-chips-para="planejado" hidden></div>
+    <label>Waiting review <span class="eu-rot-fraco">em revisão (não conta semente)</span></label>
+    <textarea class="eu-fala-texto" data-campo="review" rows="2" placeholder="cards aguardando revisão">{{ f.review }}</textarea>
+    <div class="gl-chips" data-chips-para="review" hidden></div>
+    {% endif %}
   </article>
   {% endfor %}
 </section>
@@ -129,19 +139,79 @@
   var secFala = document.querySelector('.eu-fala');
   if (secFala) {
     var hoje = secFala.dataset.hoje;
+    function salvarFala(tipo, campo, valor, aoOk) {
+      fetch('/api/ata/minha-fala', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: hoje, tipo: tipo, campo: campo, valor: valor }),
+      })
+        .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+        .then(function (res) {
+          var bom = res.ok && res.j.ok;
+          mostrarToast(bom ? 'Salvo' : (res.j.erro || 'Não salvou.'), bom ? 'sucesso' : 'info');
+          if (bom && aoOk) aoOk();
+        })
+        .catch(function () { mostrarToast('Sem conexão.', 'info'); });
+    }
     secFala.querySelectorAll('.eu-fala-texto').forEach(function (ta) {
       ta.addEventListener('blur', function () {
         var tipo = ta.closest('.eu-fala-bloco').dataset.tipo;
-        fetch('/api/ata/minha-fala', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ data: hoje, tipo: tipo, campo: ta.dataset.campo, valor: ta.value }),
-        })
-          .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
-          .then(function (res) { mostrarToast(res.ok && res.j.ok ? 'Salvo' : (res.j.erro || 'Não salvou.'), res.ok && res.j.ok ? 'sucesso' : 'info'); })
-          .catch(function () { mostrarToast('Sem conexão.', 'info'); });
+        salvarFala(tipo, ta.dataset.campo, ta.value);
       });
     });
+
+    // GitLab: chips de cards (Doing / Waiting review) na daily. Acrescentam "#123 titulo"
+    // ao campo (nunca sobrescrevem, nao duplicam). Nunca bloqueiam nada.
+    var mid = secFala.dataset.memberId;
+    var blocoDaily = secFala.querySelector('.eu-fala-bloco[data-tipo="daily"]');
+    function textoTemCard(valor, iid) { return new RegExp('#' + iid + '(\\D|$)').test(valor || ''); }
+    function montarChips(cont, cards, campo) {
+      cont.innerHTML = '';
+      if (!cards.length) { cont.hidden = true; return; }
+      var rot = document.createElement('span');
+      rot.className = 'gl-chips-rot';
+      rot.textContent = campo === 'review' ? 'Seus cards em Waiting review:' : 'Seus cards em Doing:';
+      cont.appendChild(rot);
+      cards.forEach(function (c) {
+        var b = document.createElement('button');
+        b.type = 'button'; b.className = 'gl-chip'; b.textContent = c.citacao;
+        b.addEventListener('click', function () {
+          var ta = blocoDaily.querySelector('.eu-fala-texto[data-campo="' + campo + '"]');
+          if (!ta) return;
+          if (textoTemCard(ta.value, c.iid)) { ta.focus(); return; }
+          ta.value = (ta.value.trim() ? ta.value.replace(/\s+$/, '') + '\n' : '') + c.citacao;
+          ta.focus();
+          salvarFala('daily', campo, ta.value);
+        });
+        cont.appendChild(b);
+      });
+      cont.hidden = false;
+    }
+    function cabecalhoSync(ultima) {
+      var cab = document.getElementById('gl-sync');
+      if (!cab) return;
+      var txt = document.getElementById('gl-sync-texto');
+      cab.hidden = false;
+      if (!ultima) { txt.textContent = 'GitLab: ainda não sincronizado'; cab.className = 'gl-sync gl-sync-vazio'; return; }
+      var d = new Date(ultima.replace(' ', 'T') + 'Z');
+      var hh = isNaN(d) ? ultima : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      var antigo = !isNaN(d) && (Date.now() - d.getTime() > 24 * 3600 * 1000);
+      txt.textContent = antigo ? ('GitLab: dados antigos (atualizado às ' + hh + ')') : ('GitLab: atualizado às ' + hh);
+      cab.className = 'gl-sync' + (antigo ? ' gl-sync-antigo' : '');
+    }
+    if (blocoDaily && mid) {
+      fetch('/api/gitlab/cards?member_id=' + encodeURIComponent(mid))
+        .then(function (r) { return r.json(); })
+        .then(function (res) {
+          if (!res || !res.ok) return;
+          cabecalhoSync(res.ultima_sync);
+          var cD = blocoDaily.querySelector('.gl-chips[data-chips-para="planejado"]');
+          var cR = blocoDaily.querySelector('.gl-chips[data-chips-para="review"]');
+          if (cD) montarChips(cD, res.doing || [], 'planejado');
+          if (cR) montarChips(cR, res.review || [], 'review');
+        })
+        .catch(function () {});
+    }
   }
 })();
 </script>

@@ -419,6 +419,47 @@ Ajustes para tornar o preenchimento da daily mais fácil (nenhuma regra de semen
 - **Cada um edita a própria linha na ata**: em `/ata/<data>/<tipo>`, quem está logado com o PIN e **não** é relator/admin vê **só a sua própria linha** editável (destacada, com o selo "você"); as demais ficam só de leitura. Isso salva por `POST /api/ata/minha-fala` (que valida que é a própria pessoa); o `POST /api/ata/salvar` continua **403** para quem não é relator/admin. O auto-salvar (pausa de 1,2 s + ao sair do campo) e a atualização automática a cada 4 s continuam valendo, sem sobrescrever o que você está digitando.
 - **Quanto rende, sem promessa falsa**: na tela de presença e em "Minha fala" há um bloco **"Quanto rende"** lido das constantes de `game.py` (nunca número fixo no HTML): "Marcar presença +N", "Preencher a Daily/Day Closing +M", "juntos +(N+M) hoje". Depois de salvar, aparece o que foi ganho de fato ("Você ganhou +1 pela presença e +1 pela fala"). Editar a fala **não** rende de novo e apagar todo o texto remove o bônus (é derivado) — dito em uma linha discreta.
 
+## Integração com o GitLab (branch `feature/gitlab`)
+
+Sugere, na daily, os cards de cada pessoa que estão em **Doing** e em **Waiting review**, como chips tocáveis que você acrescenta à sua fala com um toque. É **só leitura**: o site nunca escreve no GitLab, e os cards **não rendem semente** (continua valendo só preencher a fala; a revisão não conta).
+
+### Por que um script no seu computador?
+O GitLab é o da faculdade e o site roda no PythonAnywhere grátis, que **não alcança** a rede da faculdade. Então a ponte é feita por você: um script lê o GitLab com o **seu** token pessoal e **empurra** um retrato pronto do quadro para o site. O token do GitLab **fica no seu computador** — nunca vai para o servidor, para o repositório, nem aparece em mensagens. O único segredo que o servidor guarda é o `SYNC_TOKEN` (um segredo combinado, definido como variável de ambiente no WSGI). Sem `SYNC_TOKEN` configurado, o endpoint de recebimento simplesmente não existe (ninguém consegue empurrar dados).
+
+### No servidor (uma vez)
+Defina a variável `SYNC_TOKEN` no WSGI/ambiente do PythonAnywhere com um segredo forte à sua escolha (o mesmo que o script vai usar). Não coloque esse valor no repositório.
+
+### No seu computador
+1. No GitLab, crie um **token de acesso pessoal** com escopo de **leitura** (`read_api`).
+2. Descubra o **Project ID** (aparece na página inicial do projeto, em "Project ID").
+3. Defina as variáveis (PowerShell):
+   ```powershell
+   $env:GITLAB_URL      = "https://gitlab.suafaculdade.br"
+   $env:GITLAB_PROJECT  = "123"              # o Project ID
+   $env:GITLAB_TOKEN    = "<seu token read_api>"
+   $env:SITE_URL        = "https://suaconta.pythonanywhere.com"
+   $env:SITE_SYNC_TOKEN = "<o mesmo SYNC_TOKEN do servidor>"
+   ```
+   (no `cmd` use `set NOME=valor`). As labels do quadro podem ser trocadas, sem diferenciar maiúsculas/minúsculas, com `GITLAB_LABEL_DOING` (padrão `Doing`) e `GITLAB_LABEL_REVIEW` (padrão `Waiting review`).
+4. Rode:
+   ```powershell
+   python scripts/sync_gitlab.py                 # lê o GitLab e empurra para o site
+   python scripts/sync_gitlab.py --simular       # mostra o que enviaria, sem enviar
+   python scripts/sync_gitlab.py --listar-usuarios  # lista os responsáveis (para mapear no site)
+   python scripts/sync_gitlab.py --arquivo q.json   # lê de um arquivo, para testar sem rede
+   ```
+5. Para manter atualizado, agende o `python scripts/sync_gitlab.py` no **Agendador de Tarefas** do Windows (ex.: a cada 15 min, durante o horário do time).
+
+### Na tela de Membros (admin)
+Preencha o campo **"Usuário no GitLab"** de cada pessoa (é como os cards são casados com quem fala). Quem está sem usuário mapeado ganha um aviso discreto "sem GitLab" — os cards dele simplesmente não aparecem, nada quebra.
+
+### Como aparece
+- Na daily (ata e "Minha fala"), sob **Doing** e no novo campo **Waiting review**, aparecem os chips `#123 título`. Tocar acrescenta ao texto (nunca sobrescreve, não duplica) e você pode digitar livre do mesmo jeito.
+- Um cabeçalho discreto mostra **"GitLab: atualizado às HH:MM"**, ou "ainda não sincronizado", ou "dados antigos" se a última sincronização foi há mais de um dia. Se o GitLab estiver fora, **nada é bloqueado**.
+- Na exportação da ata, a seção **"Waiting review"** (ou "Em revisão", em português) só aparece **se alguém tiver escrito algo ali** — sem isso, o documento fica idêntico ao modelo de sempre.
+
+O que casa os cards (de issues para a lista enviada) fica em `gitlab_sync.py` (módulo puro e testável: um responsável por linha, labels sem diferenciar maiúsculas, um card pode estar em Doing e em Waiting review). O `scripts/sync_gitlab.py` e o site usam o mesmo módulo. **Fora de escopo:** semente por card/commit/merge request e escrever qualquer coisa no GitLab.
+
 ## Como testar uma branch (`feature/deploy`, `feature/coletivo`, `feature/loja-sementes`, `feature/jardim-vivo` ou `redesign/visual`)
 
 Use sempre uma **cópia** do banco para não alterar os dados reais do grupo.

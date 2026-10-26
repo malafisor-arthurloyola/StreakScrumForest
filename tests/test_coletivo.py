@@ -3,6 +3,8 @@ import sqlite3
 import sys
 import tempfile
 import unittest
+from datetime import date
+from unittest import mock
 
 # O banco de teste e sempre um arquivo temporario; nunca o banco real.
 _TMP = tempfile.mkdtemp()
@@ -53,7 +55,20 @@ class ColetivoBase(unittest.TestCase):
         return self.client.post("/api/metas", json=dados)
 
 
+class _HojeFixo(date):
+    """Fixa o 'hoje' do app na Sprint 1, para o teste nao depender do relogio."""
+    @classmethod
+    def today(cls):
+        return date(2026, 10, 21)
+
+
 class TestMetas(ColetivoBase):
+    def setUp(self):
+        super().setUp()
+        patcher = mock.patch.object(appmod, "date", _HojeFixo)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_adicionar_e_remover(self):
         r = self.meta(acao="adicionar", sprint=1, tipo="presenca_pct", alvo=90)
         self.assertEqual(r.status_code, 200)
