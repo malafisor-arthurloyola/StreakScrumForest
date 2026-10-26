@@ -214,6 +214,7 @@ class TestDestinos(unittest.TestCase):
                        SITE_SYNC_TOKEN="t", GITLAB_URL="https://gl", GITLAB_PROJECT="1", GITLAB_TOKEN="x"):
             with mock.patch.object(sync_gitlab, "carregar_dotenv", lambda *a, **k: False), \
                  mock.patch.object(sync_gitlab, "ler_issues_do_gitlab", lambda *a, **k: issues), \
+                 mock.patch.object(sync_gitlab, "ler_fechadas_do_gitlab", lambda *a, **k: []), \
                  mock.patch.object(sync_gitlab, "ler_membros_do_projeto", lambda *a, **k: []), \
                  mock.patch.object(sync_gitlab, "enviar_snapshot", falso_envio):
                 codigo = sync_gitlab.main(["--destino", "ambos"])

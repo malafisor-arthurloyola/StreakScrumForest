@@ -199,7 +199,65 @@ use `--forcar`. O banco real não é tocado em nenhum momento.
 ```powershell
 python -m unittest discover tests
 ```
-Ao fim deve aparecer `OK` (hoje são 385 testes). Detalhes na seção [Testes](#testes).
+Ao fim deve aparecer `OK` (hoje são 447 testes). Detalhes na seção [Testes](#testes).
+
+**7. Testar a integração com o GitLab localmente (de ponta a ponta)**
+
+Aqui você sobe o site **no seu computador**, lê o quadro do GitLab de verdade e empurra os cards
+para esse site local — sem tocar na produção. Precisa de duas janelas de terminal.
+
+Antes, configure o arquivo `.env` uma vez (copie o modelo e preencha):
+```powershell
+copy .env.exemplo .env       # depois edite o .env e preencha os valores abaixo
+```
+No `.env`, para teste local, deixe assim (o `SYNC_TOKEN` é uma senha que **você inventa**; pode ser
+qualquer coisa, só precisa ser a mesma nos dois lugares):
+```
+GITLAB_URL=https://git.inteli.edu.br
+GITLAB_PROJECT=graduacao/2026-2b/t24/g01
+GITLAB_TOKEN=glpat-SEU_TOKEN_read_api
+SITE_URL_LOCAL=http://localhost:5000
+SITE_SYNC_TOKEN=um-segredo-qualquer-para-teste
+```
+
+**Janela A — o site local** (com banco de demonstração e o `SYNC_TOKEN` ligado):
+```powershell
+venv\Scripts\Activate.ps1
+python scripts\criar_banco_demo.py C:\temp\jardim-demo.db --forcar
+$env:STRIKES_DB = "C:\temp\jardim-demo.db"
+$env:SYNC_TOKEN = "um-segredo-qualquer-para-teste"   # o MESMO do SITE_SYNC_TOKEN no .env
+python app.py
+```
+Deixe essa janela rodando. O site fica em [http://localhost:5000](http://localhost:5000).
+
+**Janela B — ler o GitLab e enviar** (abra outro terminal, na mesma pasta):
+```powershell
+venv\Scripts\Activate.ps1
+python scripts\sync_gitlab.py --listar-usuarios   # ve os usuarios do GitLab (so leitura)
+python scripts\sync_gitlab.py --simular           # mostra os cards, sem enviar
+python scripts\sync_gitlab.py --destino local     # envia para o site da Janela A
+```
+Deve imprimir algo como `Retrato montado: N linha(s)` e `Enviado. O site guardou N card(s).`
+
+**No navegador** (site local):
+- Entre em **Membros** e confira o campo "Usuário no GitLab" de cada pessoa. O envio tenta casar
+  sozinho pelo nome; quem não casar, você preenche à mão (use os nomes do `--listar-usuarios`) e
+  clica em **Salvar GitLab**.
+- Abra a **ata da daily** (`/ata/AAAA-MM-DD/daily`) ou entre em **Meu jardim** (`/eu`, Arthur PIN
+  `1234`). Sob **Doing** e no campo **Waiting review** aparecem os chips dos cards; tocar
+  acrescenta `#123 título` ao texto.
+
+Se os chips não aparecerem, o diagnóstico é direto (a rota é só leitura, não precisa de login):
+```powershell
+curl.exe "http://localhost:5000/api/gitlab/cards?member_id=1"
+```
+- `"ultima_sync": ""` → o envio não chegou (confira `SYNC_TOKEN` igual nos dois lados e se a Janela A está no ar).
+- `"configurado": false` → essa pessoa está sem "Usuário no GitLab" (preencha em Membros).
+- `"configurado": true` com listas vazias → o usuário mapeado não bate com o responsável dos cards (ajuste em Membros).
+
+Para apontar o mesmo comando para a **produção** depois, troque `--destino local` por
+`--destino producao` (exige `SITE_URL_PRODUCAO` no `.env` e o `SYNC_TOKEN` definido no WSGI do
+PythonAnywhere, com Reload). O token do GitLab **nunca** vai para o servidor.
 
 ## Visual
 
@@ -468,6 +526,26 @@ O campo **"Usuário no GitLab"** de cada pessoa aparece **já preenchido** quand
 
 O que casa os cards (de issues para a lista enviada) fica em `gitlab_sync.py` (módulo puro e testável: um responsável por linha, labels sem diferenciar maiúsculas, um card pode estar em Doing e em Waiting review). O `scripts/sync_gitlab.py` e o site usam o mesmo módulo. **Fora de escopo:** semente por card/commit/merge request e escrever qualquer coisa no GitLab.
 
+### Campos da daily repensados (branch `feature/gitlab-daily`)
+
+A daily passou a ter **três campos em português**, cada um com uma bolinha **"i"** de ajuda (toque ou passe o mouse) e com chips de card conforme a coluna do quadro:
+
+- **O que fiz**: sugere os seus cards em **Waiting review**, **Review** e os **fechados (Closed) nos últimos dias** — porque "concluí" normalmente é mandar para revisão ou fechar. (Guarda em `feito`.)
+- **O que vou fazer hoje**: sugere os seus cards em **Doing** e tem uma caixa **"buscar no Backlog"** (digite número ou parte do título para puxar um card). (Guarda em `planejado`.)
+- **Vou revisar**: mostra **todos** os cards do quadro em **Waiting review + Review** (de qualquer pessoa) e você toca nos que vai revisar — quem revisa não é o responsável do card, então não dá para adivinhar. (Guarda em `review` e **não rende semente**.)
+
+Novas variáveis (opcionais) para o script, além de `GITLAB_LABEL_DOING`/`GITLAB_LABEL_REVIEW`:
+
+| Variável | O que é | Padrão |
+|---|---|---|
+| `GITLAB_LABEL_REVIEW_EM` | label da coluna "Review" do quadro (quem está revisando) | `Review` |
+| `GITLAB_LABEL_BACKLOG` | label da coluna "Backlog" | `Backlog` |
+| `GITLAB_DIAS_FECHADOS` | quantos dias de cards **fechados** sugerir em "O que fiz" | `5` |
+
+A **exportação** agora abre **em português por padrão** (com o botão para ver em inglês). Em um site que já existia, o idioma fica guardado como estava; para ver o português primeiro, troque uma vez na tela **Calendário**. A seção **"Em revisão"** (ou "Waiting review", em inglês) só aparece no documento **se alguém escreveu algo** em "Vou revisar" — sem isso, o documento fica idêntico ao modelo de sempre.
+
+A regra de semente **não mudou**: só "O que fiz" e "O que vou fazer" (os antigos `feito`/`planejado`) rendem o adubo; "Vou revisar" nunca conta. Os rótulos na tela mudaram, as fontes de semente não.
+
 ## Como testar uma branch (`feature/deploy`, `feature/coletivo`, `feature/loja-sementes`, `feature/jardim-vivo` ou `redesign/visual`)
 
 Use sempre uma **cópia** do banco para não alterar os dados reais do grupo.
@@ -625,7 +703,7 @@ STRIKES_DB=/tmp/strikes-teste.db python -m unittest discover tests
 ```
 
 Sem ativar o venv, use o Python dele direto: `venv\Scripts\python -m unittest discover tests`.
-Ao fim deve aparecer algo como `Ran 385 tests ... OK`.
+Ao fim deve aparecer algo como `Ran 447 tests ... OK`.
 
 > Para **testar o site no navegador** sem risco, use o mesmo truque: defina `STRIKES_DB` para uma
 > cópia antes de `python app.py`. Sem isso, o app usa o banco real (`data/strikes.db`).

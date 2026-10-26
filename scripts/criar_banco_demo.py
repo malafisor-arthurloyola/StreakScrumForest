@@ -138,14 +138,18 @@ def main():
         (202, "doing", "arthur", "Chips de cards na daily"),
         (203, "review", "arthur", "Endpoint de snapshot"),
         (204, "doing", "bruno", "Ajuste no gráfico de sementes"),
-        (205, "review", "guilherme", "Revisar a ata da sprint"),
+        (205, "em_revisao", "guilherme", "Revisar a ata da sprint"),
+        (206, "done", "arthur", "Migração do banco"),
+        (207, "backlog", "", "Exportar ata em PDF"),
+        (208, "backlog", "bruno", "Login com o GitLab da faculdade"),
     ]
+    rotulo_label = {"doing": "Doing", "review": "Waiting review", "em_revisao": "Review",
+                    "backlog": "Backlog", "done": "Closed"}
     for iid, col, usr, titulo in exemplo:
         con.execute(
             "INSERT OR IGNORE INTO gitlab_cards (iid, coluna, usuario, titulo, url, labels) "
             "VALUES (?,?,?,?,?,?)",
-            (iid, col, usr, titulo, f"{base_cards}/{iid}",
-             "Doing" if col == "doing" else "Waiting review"),
+            (iid, col, usr, titulo, f"{base_cards}/{iid}", rotulo_label.get(col, "")),
         )
     con.execute("INSERT OR IGNORE INTO config (chave, valor) VALUES ('gitlab_base_url', ?)", (base_cards,))
     con.execute("UPDATE config SET valor = ? WHERE chave = 'gitlab_base_url'", (base_cards,))

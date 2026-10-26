@@ -49,14 +49,25 @@
   {% for f in minhas_falas %}
   <article class="eu-fala-bloco" data-tipo="{{ f.tipo }}">
     <h3>{{ f.rotulo }}</h3>
-    <label>{{ f.rot_feito }}</label>
+    <label>{{ f.rot_feito }}
+      {% if f.tipo == 'daily' %}<button type="button" class="gl-ajuda" aria-label="O que é este campo" data-ajuda="O que você concluiu ou avançou desde a última daily. Sugerimos seus cards que foram para revisão ou foram fechados nos últimos dias.">i</button>{% endif %}
+    </label>
     <textarea class="eu-fala-texto" data-campo="feito" rows="2" placeholder="pode citar cards como #101">{{ f.feito }}</textarea>
-    <label>{{ f.rot_planejado }}</label>
+    {% if f.tipo == 'daily' %}<div class="gl-chips" data-chips-para="feito" hidden></div>{% endif %}
+    <label>{{ f.rot_planejado }}
+      {% if f.tipo == 'daily' %}<button type="button" class="gl-ajuda" aria-label="O que é este campo" data-ajuda="No que você vai trabalhar hoje. Sugerimos seus cards em Doing; use a busca para puxar um card do Backlog.">i</button>{% endif %}
+    </label>
     <textarea class="eu-fala-texto" data-campo="planejado" rows="2">{{ f.planejado }}</textarea>
     {% if f.tipo == 'daily' %}
     <div class="gl-chips" data-chips-para="planejado" hidden></div>
-    <label>Waiting review <span class="eu-rot-fraco">em revisão (não conta semente)</span></label>
-    <textarea class="eu-fala-texto" data-campo="review" rows="2" placeholder="cards aguardando revisão">{{ f.review }}</textarea>
+    <div class="gl-backlog">
+      <input type="search" class="gl-backlog-busca" placeholder="buscar no Backlog (número ou título)" aria-label="Buscar card no Backlog">
+      <div class="gl-backlog-res" hidden></div>
+    </div>
+    <label>Vou revisar <span class="eu-rot-fraco">não conta semente</span>
+      <button type="button" class="gl-ajuda" aria-label="O que é este campo" data-ajuda="Cards aguardando revisão no quadro. Toque nos que você vai revisar — não precisa ser a pessoa responsável pelo card.">i</button>
+    </label>
+    <textarea class="eu-fala-texto" data-campo="review" rows="2" placeholder="cards que você vai revisar">{{ f.review }}</textarea>
     <div class="gl-chips" data-chips-para="review" hidden></div>
     {% endif %}
   </article>
@@ -160,32 +171,63 @@
       });
     });
 
-    // GitLab: chips de cards (Doing / Waiting review) na daily. Acrescentam "#123 titulo"
-    // ao campo (nunca sobrescrevem, nao duplicam). Nunca bloqueiam nada.
+    // GitLab: chips de cards + busca no Backlog na daily. Acrescentam "#123 titulo" ao
+    // campo (nunca sobrescrevem, nao duplicam). Nunca bloqueiam nada.
     var mid = secFala.dataset.memberId;
     var blocoDaily = secFala.querySelector('.eu-fala-bloco[data-tipo="daily"]');
+    var ROT_CHIP = { feito: 'Seus cards concluídos / em revisão:', planejado: 'Seus cards em Doing:', review: 'Cards aguardando revisão (toque nos seus):' };
     function textoTemCard(valor, iid) { return new RegExp('#' + iid + '(\\D|$)').test(valor || ''); }
+    function acrescentar(campo, citacao, iid) {
+      var ta = blocoDaily.querySelector('.eu-fala-texto[data-campo="' + campo + '"]');
+      if (!ta) return;
+      if (textoTemCard(ta.value, iid)) { ta.focus(); return; }
+      ta.value = (ta.value.trim() ? ta.value.replace(/\s+$/, '') + '\n' : '') + citacao;
+      ta.focus();
+      salvarFala('daily', campo, ta.value);
+    }
     function montarChips(cont, cards, campo) {
       cont.innerHTML = '';
       if (!cards.length) { cont.hidden = true; return; }
       var rot = document.createElement('span');
       rot.className = 'gl-chips-rot';
-      rot.textContent = campo === 'review' ? 'Seus cards em Waiting review:' : 'Seus cards em Doing:';
+      rot.textContent = ROT_CHIP[campo] || 'Cards do GitLab:';
       cont.appendChild(rot);
       cards.forEach(function (c) {
         var b = document.createElement('button');
         b.type = 'button'; b.className = 'gl-chip'; b.textContent = c.citacao;
-        b.addEventListener('click', function () {
-          var ta = blocoDaily.querySelector('.eu-fala-texto[data-campo="' + campo + '"]');
-          if (!ta) return;
-          if (textoTemCard(ta.value, c.iid)) { ta.focus(); return; }
-          ta.value = (ta.value.trim() ? ta.value.replace(/\s+$/, '') + '\n' : '') + c.citacao;
-          ta.focus();
-          salvarFala('daily', campo, ta.value);
-        });
+        b.addEventListener('click', function () { acrescentar(campo, c.citacao, c.iid); });
         cont.appendChild(b);
       });
       cont.hidden = false;
+    }
+    if (blocoDaily) {
+      blocoDaily.querySelectorAll('.gl-ajuda').forEach(function (b) {
+        b.title = b.dataset.ajuda || '';
+        b.addEventListener('click', function (e) { e.preventDefault(); mostrarToast(b.dataset.ajuda || '', 'info'); });
+      });
+      var inp = blocoDaily.querySelector('.gl-backlog-busca');
+      var res = blocoDaily.querySelector('.gl-backlog-res');
+      if (inp && res) {
+        var t;
+        var buscar = function () {
+          fetch('/api/gitlab/backlog?q=' + encodeURIComponent(inp.value.trim()))
+            .then(function (r) { return r.json(); })
+            .then(function (j) {
+              res.innerHTML = '';
+              if (!j || !j.ok || !j.cards.length) { res.hidden = true; return; }
+              j.cards.forEach(function (c) {
+                var b = document.createElement('button');
+                b.type = 'button'; b.className = 'gl-chip'; b.textContent = c.citacao;
+                b.addEventListener('click', function () { acrescentar('planejado', c.citacao, c.iid); });
+                res.appendChild(b);
+              });
+              res.hidden = false;
+            })
+            .catch(function () {});
+        };
+        inp.addEventListener('input', function () { clearTimeout(t); t = setTimeout(buscar, 300); });
+        inp.addEventListener('focus', buscar);
+      }
     }
     function cabecalhoSync(ultima) {
       var cab = document.getElementById('gl-sync');
@@ -205,10 +247,12 @@
         .then(function (res) {
           if (!res || !res.ok) return;
           cabecalhoSync(res.ultima_sync);
-          var cD = blocoDaily.querySelector('.gl-chips[data-chips-para="planejado"]');
-          var cR = blocoDaily.querySelector('.gl-chips[data-chips-para="review"]');
-          if (cD) montarChips(cD, res.doing || [], 'planejado');
-          if (cR) montarChips(cR, res.review || [], 'review');
+          var cFiz = blocoDaily.querySelector('.gl-chips[data-chips-para="feito"]');
+          var cFazer = blocoDaily.querySelector('.gl-chips[data-chips-para="planejado"]');
+          var cRev = blocoDaily.querySelector('.gl-chips[data-chips-para="review"]');
+          if (cFiz) montarChips(cFiz, res.fiz || [], 'feito');
+          if (cFazer) montarChips(cFazer, res.fazer || [], 'planejado');
+          if (cRev) montarChips(cRev, res.revisar || [], 'review');
         })
         .catch(function () {});
     }

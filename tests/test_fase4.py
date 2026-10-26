@@ -66,7 +66,7 @@ class TestSchema(Fase4Base):
         con = sqlite3.connect(DB)
         cfg = dict(con.execute("SELECT chave, valor FROM config"))
         con.close()
-        self.assertEqual(cfg.get("idioma_ata"), "en")
+        self.assertEqual(cfg.get("idioma_ata"), "pt")
         self.assertEqual(cfg.get("gitlab_base_url"), "")
 
 
@@ -239,7 +239,7 @@ class TestRelator(Fase4Base):
         a = self.ids()[0]
         self.presente(a, DATA)
         self.salvar(data=DATA, tipo="daily", campo="feito", member_id=a, valor="fiz #101")
-        h = self.client.get(f"/ata/{DATA}/daily/imprimir").get_data(as_text=True)
+        h = self.client.get(f"/ata/{DATA}/daily/imprimir?idioma=en").get_data(as_text=True)
         self.assertIn("Done", h)
         self.assertIn("Blockers", h)
         self.assertIn("card-tag", h)
@@ -393,7 +393,7 @@ class TestAtaSituacao(Fase4Base):
     def test_quem_avisou_vai_em_excused_na_exportacao(self):
         a = self.ids()[0]
         self.salvar(data=DATA, tipo="daily", campo="status", member_id=a, valor="justificada")
-        h = self.client.get(f"/ata/{DATA}/daily/imprimir").get_data(as_text=True)
+        h = self.client.get(f"/ata/{DATA}/daily/imprimir?idioma=en").get_data(as_text=True)
         self.assertIn("Excused:", h)
 
     def test_convidados_ficam_fora_da_ata(self):

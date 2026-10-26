@@ -70,24 +70,40 @@
     </div>
     <div class="ata-dois">
       <div class="ata-campo">
-        <label>{{ 'Done' if tipo == 'daily' else 'Completed today' }} <span class="ata-rot-pt">{{ rot_feito | lower }}</span></label>
+        <label>{% if tipo == 'daily' %}O que fiz{% else %}Concluí hoje{% endif %}
+          <button type="button" class="gl-ajuda" aria-label="O que é este campo"
+            data-ajuda="O que você concluiu ou avançou desde a última daily. Sugerimos seus cards que foram para Waiting review, Review ou foram fechados nos últimos dias.">i</button>
+          <span class="ata-rot-pt">{{ rot_feito | lower }}</span></label>
         <textarea class="ata-texto" data-campo="feito" data-member-id="{{ l.id }}" rows="2" placeholder="{{ 'Escreva aqui a sua fala' if minha else 'Escreva aqui o que ' ~ l.name ~ ' falou' }}" {{ 'disabled' if not (pode_editar or minha) }}>{{ l.feito }}</textarea>
         {% if tipo == 'daily' and l.planejado_ontem and (pode_editar or minha) %}
         <button type="button" class="btn btn-ghost btn-ontem" data-member-id="{{ l.id }}" data-ontem="{{ l.planejado_ontem }}">usar o que ficou planejado ontem</button>
         {% endif %}
+        {% if tipo == 'daily' and (pode_editar or minha) %}
+        <div class="gl-chips" data-chips-para="feito" data-member-id="{{ l.id }}" hidden></div>
+        {% endif %}
       </div>
       <div class="ata-campo">
-        <label>{{ 'Doing' if tipo == 'daily' else 'Carried over' }} <span class="ata-rot-pt">{{ rot_planejado | lower }}</span></label>
+        <label>{% if tipo == 'daily' %}O que vou fazer hoje{% else %}Ficou para depois{% endif %}
+          <button type="button" class="gl-ajuda" aria-label="O que é este campo"
+            data-ajuda="No que você vai trabalhar hoje. Sugerimos seus cards em Doing; use a busca para puxar um card do Backlog.">i</button>
+          <span class="ata-rot-pt">{{ rot_planejado | lower }}</span></label>
         <textarea class="ata-texto" data-campo="planejado" data-member-id="{{ l.id }}" rows="2" {{ 'disabled' if not (pode_editar or minha) }}>{{ l.planejado }}</textarea>
         {% if tipo == 'daily' and (pode_editar or minha) %}
         <div class="gl-chips" data-chips-para="planejado" data-member-id="{{ l.id }}" hidden></div>
+        <div class="gl-backlog" data-member-id="{{ l.id }}">
+          <input type="search" class="gl-backlog-busca" data-member-id="{{ l.id }}" placeholder="buscar no Backlog (número ou título)" aria-label="Buscar card no Backlog">
+          <div class="gl-backlog-res" data-member-id="{{ l.id }}" hidden></div>
+        </div>
         {% endif %}
       </div>
     </div>
     {% if tipo == 'daily' %}
     <div class="ata-campo ata-campo-review">
-      <label>Waiting review <span class="ata-rot-pt">em revisão</span></label>
-      <textarea class="ata-texto" data-campo="review" data-member-id="{{ l.id }}" rows="2" placeholder="cards aguardando revisão (não conta semente)" {{ 'disabled' if not (pode_editar or minha) }}>{{ l.review }}</textarea>
+      <label>Vou revisar
+        <button type="button" class="gl-ajuda" aria-label="O que é este campo"
+          data-ajuda="Cards aguardando revisão no quadro. Toque nos que você vai revisar — não precisa ser a pessoa responsável pelo card. Isto não conta semente.">i</button>
+        <span class="ata-rot-pt">não conta semente</span></label>
+      <textarea class="ata-texto" data-campo="review" data-member-id="{{ l.id }}" rows="2" placeholder="cards que você vai revisar" {{ 'disabled' if not (pode_editar or minha) }}>{{ l.review }}</textarea>
       {% if pode_editar or minha %}
       <div class="gl-chips" data-chips-para="review" data-member-id="{{ l.id }}" hidden></div>
       {% endif %}
@@ -294,13 +310,18 @@
     });
   }
 
-  // ---- GitLab: chips de cards (Doing / Waiting review) e cabecalho de "atualizado" ----
+  // ---- GitLab: chips de cards + busca no Backlog + cabecalho de "atualizado" ----
   // Os chips ACRESCENTAM "#123 titulo" ao campo (nunca sobrescrevem, nao duplicam). Sempre
   // da para digitar livre. Se o GitLab nunca sincronizou ou a pessoa nao esta mapeada,
   // simplesmente nao aparece chip. Nada aqui bloqueia a ata.
+  var ROT_CHIP = { feito: 'Seus cards concluídos / em revisão:', planejado: 'Seus cards em Doing:', review: 'Cards aguardando revisão (toque nos seus):' };
   function textoTemCard(valor, iid) {
     var re = new RegExp('#' + iid + '(\\D|$)');
     return re.test(valor || '');
+  }
+  function persistirCampo(campo, memberId, ehMinha, v) {
+    if (PODE_EDITAR) salvar(campo, v, memberId);
+    else if (ehMinha) salvarMinha(campo, v);
   }
   function acrescentarCard(ta, citacao, iid, salvarFn) {
     if (!ta || ta.disabled) return;
@@ -315,7 +336,7 @@
     if (!cards.length) { cont.hidden = true; return; }
     var rot = document.createElement('span');
     rot.className = 'gl-chips-rot';
-    rot.textContent = campo === 'review' ? 'Seus cards em Waiting review:' : 'Seus cards em Doing:';
+    rot.textContent = ROT_CHIP[campo] || 'Cards do GitLab:';
     cont.appendChild(rot);
     cards.forEach(function (c) {
       var b = document.createElement('button');
@@ -324,15 +345,50 @@
       b.textContent = c.citacao;
       b.addEventListener('click', function () {
         var ta = raiz.querySelector('.ata-texto[data-campo="' + campo + '"][data-member-id="' + memberId + '"]');
-        acrescentarCard(ta, c.citacao, c.iid, function (v) {
-          if (PODE_EDITAR) salvar(campo, v, memberId);
-          else if (ehMinha) salvarMinha(campo, v);
-        });
+        acrescentarCard(ta, c.citacao, c.iid, function (v) { persistirCampo(campo, memberId, ehMinha, v); });
       });
       cont.appendChild(b);
     });
     cont.hidden = false;
   }
+  // bolinha "i": mostra/esconde a explicacao do campo (toque ou hover via title tambem)
+  raiz.querySelectorAll('.gl-ajuda').forEach(function (b) {
+    b.title = b.dataset.ajuda || '';
+    b.addEventListener('click', function (e) {
+      e.preventDefault();
+      mostrarToast(b.dataset.ajuda || '', 'info');
+    });
+  });
+  // busca no Backlog: digita numero/titulo, lista ate 20, tocar acrescenta ao "O que vou fazer"
+  raiz.querySelectorAll('.gl-backlog-busca').forEach(function (inp) {
+    var mid = inp.dataset.memberId;
+    var res = raiz.querySelector('.gl-backlog-res[data-member-id="' + mid + '"]');
+    var ehMinha = raiz.querySelector('.ata-linha[data-member-id="' + mid + '"]');
+    ehMinha = ehMinha && ehMinha.dataset.minha === '1';
+    var t;
+    function buscar() {
+      var q = inp.value.trim();
+      fetch('/api/gitlab/backlog?q=' + encodeURIComponent(q))
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+          res.innerHTML = '';
+          if (!j || !j.ok || !j.cards.length) { res.hidden = true; return; }
+          j.cards.forEach(function (c) {
+            var b = document.createElement('button');
+            b.type = 'button'; b.className = 'gl-chip'; b.textContent = c.citacao;
+            b.addEventListener('click', function () {
+              var ta = raiz.querySelector('.ata-texto[data-campo="planejado"][data-member-id="' + mid + '"]');
+              acrescentarCard(ta, c.citacao, c.iid, function (v) { persistirCampo('planejado', mid, ehMinha, v); });
+            });
+            res.appendChild(b);
+          });
+          res.hidden = false;
+        })
+        .catch(function () {});
+    }
+    inp.addEventListener('input', function () { clearTimeout(t); t = setTimeout(buscar, 300); });
+    inp.addEventListener('focus', buscar);
+  });
   function cabecalhoSync(ultima) {
     var cab = document.getElementById('gl-sync');
     if (!cab) return;
@@ -357,10 +413,12 @@
           if (primeiro) { cabecalhoSync(res.ultima_sync); primeiro = false; }
           var ehMinha = raiz.querySelector('.ata-linha[data-member-id="' + mid + '"]');
           ehMinha = ehMinha && ehMinha.dataset.minha === '1';
-          var cDoing = raiz.querySelector('.gl-chips[data-chips-para="planejado"][data-member-id="' + mid + '"]');
+          var cFiz = raiz.querySelector('.gl-chips[data-chips-para="feito"][data-member-id="' + mid + '"]');
+          var cFazer = raiz.querySelector('.gl-chips[data-chips-para="planejado"][data-member-id="' + mid + '"]');
           var cRev = raiz.querySelector('.gl-chips[data-chips-para="review"][data-member-id="' + mid + '"]');
-          if (cDoing) montarChips(cDoing, res.doing || [], 'planejado', mid, ehMinha);
-          if (cRev) montarChips(cRev, res.review || [], 'review', mid, ehMinha);
+          if (cFiz) montarChips(cFiz, res.fiz || [], 'feito', mid, ehMinha);
+          if (cFazer) montarChips(cFazer, res.fazer || [], 'planejado', mid, ehMinha);
+          if (cRev) montarChips(cRev, res.revisar || [], 'review', mid, ehMinha);
         })
         .catch(function () {});
     });

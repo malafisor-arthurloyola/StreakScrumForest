@@ -42,7 +42,7 @@ DEFAULT_CONFIG = {
     "sprint_semanas": "2",
     "contar_a_partir_de": "2026-10-15",
     "fundador_ate": "2026-10-23",
-    "idioma_ata": "en",
+    "idioma_ata": "pt",
     "gitlab_base_url": "",
     "gitlab_ultima_sync": "",
 }
@@ -649,7 +649,7 @@ def _migrar_gitlab(db):
         """
         CREATE TABLE IF NOT EXISTS gitlab_cards (
             iid INTEGER NOT NULL,
-            coluna TEXT NOT NULL CHECK (coluna IN ('doing', 'review')),
+            coluna TEXT NOT NULL CHECK (coluna IN ('doing', 'review', 'em_revisao', 'backlog', 'done')),
             usuario TEXT NOT NULL,
             titulo TEXT NOT NULL DEFAULT '',
             url TEXT NOT NULL DEFAULT '',
@@ -659,10 +659,55 @@ def _migrar_gitlab(db):
         )
         """
     )
+    _migrar_gitlab_cards_colunas(db)
     db.execute("CREATE INDEX IF NOT EXISTS ix_gitlab_cards_usuario ON gitlab_cards (usuario)")
     db.execute(
         "CREATE TABLE IF NOT EXISTS gitlab_usuarios ("
         "username TEXT PRIMARY KEY, nome TEXT NOT NULL DEFAULT '')"
+    )
+
+
+def _gitlab_cards_aceita_novas_colunas(db):
+    """True se a tabela gitlab_cards ja aceita as colunas novas (backlog/done/em_revisao).
+    Testa inserindo e desfazendo um registro de sonda dentro de um savepoint."""
+    db.execute("SAVEPOINT sonda_gl")
+    try:
+        db.execute("INSERT INTO gitlab_cards (iid, coluna, usuario) VALUES (-999, 'backlog', '__sonda__')")
+    except sqlite3.IntegrityError:
+        db.execute("ROLLBACK TO sonda_gl")
+        db.execute("RELEASE sonda_gl")
+        return False
+    db.execute("ROLLBACK TO sonda_gl")       # desfaz a sonda (nunca grava de verdade)
+    db.execute("RELEASE sonda_gl")
+    return True
+
+
+def _migrar_gitlab_cards_colunas(db):
+    """Amplia o CHECK de gitlab_cards para aceitar backlog/done/em_revisao (Fase 6c).
+
+    No SQLite nao da para alterar um CHECK: e preciso recriar a tabela (criar a nova, copiar,
+    trocar). Faz isso de forma IDEMPOTENTE (so quando a tabela antiga ainda nao aceita as
+    colunas novas) e em transacao, sem perder dados. Nao toca em gitlab_usuarios nem em
+    members.gitlab_user. Rodar duas vezes nao quebra."""
+    if _gitlab_cards_aceita_novas_colunas(db):
+        return
+    db.executescript(
+        """
+        CREATE TABLE gitlab_cards_nova (
+            iid INTEGER NOT NULL,
+            coluna TEXT NOT NULL CHECK (coluna IN ('doing', 'review', 'em_revisao', 'backlog', 'done')),
+            usuario TEXT NOT NULL,
+            titulo TEXT NOT NULL DEFAULT '',
+            url TEXT NOT NULL DEFAULT '',
+            labels TEXT NOT NULL DEFAULT '',
+            atualizado_em TEXT NOT NULL DEFAULT (datetime('now')),
+            PRIMARY KEY (iid, coluna, usuario)
+        );
+        INSERT INTO gitlab_cards_nova (iid, coluna, usuario, titulo, url, labels, atualizado_em)
+            SELECT iid, coluna, usuario, titulo, url, labels, atualizado_em FROM gitlab_cards;
+        DROP TABLE gitlab_cards;
+        ALTER TABLE gitlab_cards_nova RENAME TO gitlab_cards;
+        """
     )
 
 
@@ -2258,10 +2303,17 @@ def eu_page():
     ctx = _contexto_loja(db, membro["id"])
 
     # Fala propria do dia: so aparece se a pessoa tem presenca hoje. Ela edita so a dela.
+    # O Day Closing so aparece quando faz sentido: quando a pessoa ja marcou presenca no
+    # encerramento de hoje (leu o QR do encerramento) ou ja escreveu algo nele. De manha,
+    # com so a daily, o /eu mostra so a Daily (nao polui com o fim do dia ainda).
     hoje = date.today().isoformat()
     tem_presenca_hoje = db.execute(
         "SELECT 1 FROM attendance WHERE member_id = ? AND event_date = ? AND status = 'presente' LIMIT 1",
         (membro["id"], hoje),
+    ).fetchone() is not None
+    tem_encerramento = db.execute(
+        "SELECT 1 FROM attendance WHERE member_id = ? AND event_date = ? AND event_type = 'encerramento' "
+        "AND status = 'presente' LIMIT 1", (membro["id"], hoje),
     ).fetchone() is not None
     minhas_falas = []
     if tem_presenca_hoje:
@@ -2273,6 +2325,11 @@ def eu_page():
                 "SELECT feito, planejado, review FROM ata_falas WHERE data = ? AND tipo = ? AND member_id = ?",
                 (hoje, tipo, membro["id"]),
             ).fetchone()
+            # o Day Closing so entra se ja ha encerramento marcado ou texto preenchido
+            if tipo == "fechamento":
+                tem_texto = bool(f and ((f["feito"] or "").strip() or (f["planejado"] or "").strip()))
+                if not (tem_encerramento or tem_texto):
+                    continue
             minhas_falas.append({
                 "tipo": tipo, "rotulo": rotulo,
                 "rot_feito": rot_feito, "rot_planejado": rot_planejado,
@@ -2664,7 +2721,7 @@ def ata_page(data_str, tipo):
         relator_id=cab["relator_id"] if cab else None,
         bloqueios=cab["bloqueios"] if cab else "",
         quadro_atualizado=bool(cab["quadro_atualizado"]) if cab else False,
-        idioma_ata=cfg.get("idioma_ata", "en"),
+        idioma_ata=cfg.get("idioma_ata", "pt"),
         rot_feito=ATA_ROTULOS_FALA[tipo][0], rot_planejado=ATA_ROTULOS_FALA[tipo][1],
         evento_qr=ATA_EVENTO[tipo],
     )
@@ -2955,18 +3012,45 @@ def _garantir_config(db):
 
 
 def _cards_do_usuario(db, usuario):
-    """Cards (Doing / Waiting review) de um usuario do GitLab, separados por coluna."""
-    doing, review = [], []
-    if not usuario:
-        return doing, review
-    for r in db.execute(
-        "SELECT iid, coluna, titulo, url, labels FROM gitlab_cards WHERE usuario = ? "
-        "ORDER BY iid", (usuario,)
-    ).fetchall():
-        item = {"iid": r["iid"], "titulo": r["titulo"], "url": r["url"],
+    """Cards do quadro para os campos da daily, a partir das colunas internas.
+
+    Devolve (fiz, fazer, revisar):
+      - fiz: cards do usuario em 'review' (Waiting review) + 'em_revisao' (Review) + 'done'
+             (fechados recentes) -> "O que fiz" (ordenados recentes primeiro, limitados);
+      - fazer: cards do usuario em 'doing' -> "O que vou fazer hoje";
+      - revisar: cards do QUADRO INTEIRO em 'review' + 'em_revisao' -> "Vou revisar"
+             (nao filtra por responsavel: quem revisa nao e o dono do card).
+    """
+    def _item(r):
+        return {"iid": r["iid"], "titulo": r["titulo"], "url": r["url"],
                 "citacao": f"#{r['iid']} {(r['titulo'] or '').strip()}".strip()}
-        (doing if r["coluna"] == "doing" else review).append(item)
-    return doing, review
+
+    fazer = []
+    fiz = []
+    if usuario:
+        for r in db.execute(
+            "SELECT iid, coluna, titulo, url FROM gitlab_cards WHERE usuario = ? AND coluna = 'doing' "
+            "ORDER BY atualizado_em DESC, iid DESC", (usuario,)
+        ).fetchall():
+            fazer.append(_item(r))
+        for r in db.execute(
+            "SELECT iid, coluna, titulo, url FROM gitlab_cards WHERE usuario = ? "
+            "AND coluna IN ('review', 'em_revisao', 'done') "
+            "ORDER BY atualizado_em DESC, iid DESC LIMIT 15", (usuario,)
+        ).fetchall():
+            fiz.append(_item(r))
+
+    # "Vou revisar": todas as linhas em review/em_revisao do quadro, sem repetir o mesmo card.
+    revisar, vistos = [], set()
+    for r in db.execute(
+        "SELECT iid, titulo, url FROM gitlab_cards WHERE coluna IN ('review', 'em_revisao') "
+        "ORDER BY atualizado_em DESC, iid DESC"
+    ).fetchall():
+        if r["iid"] in vistos:
+            continue
+        vistos.add(r["iid"])
+        revisar.append(_item(r))
+    return fiz, fazer, revisar
 
 
 @app.route("/api/gitlab/cards")
@@ -2979,16 +3063,37 @@ def api_gitlab_cards():
         return _erro("Pessoa inválida.")
     m = db.execute("SELECT gitlab_user FROM members WHERE id = ?", (mid,)).fetchone()
     usuario = (_coluna(m, "gitlab_user") or "").strip() if m else ""
-    doing, review = _cards_do_usuario(db, usuario)
+    fiz, fazer, revisar = _cards_do_usuario(db, usuario)
     cfg = _get_config(db)
     return jsonify({
         "ok": True,
         "configurado": bool(usuario),
-        "doing": doing,
-        "review": review,
+        "fiz": fiz,            # O que fiz (Waiting review + Review + fechados recentes)
+        "fazer": fazer,        # O que vou fazer hoje (Doing)
+        "revisar": revisar,    # Vou revisar (todo o quadro em revisao)
         "ultima_sync": cfg.get("gitlab_ultima_sync", ""),
         "base_url": cfg.get("gitlab_base_url", ""),
     })
+
+
+@app.route("/api/gitlab/backlog")
+def api_gitlab_backlog():
+    """Busca no Backlog (leitura, qualquer um): por numero (#123 / 123) ou trecho do titulo.
+    Devolve ate `limit` cards, sem repetir o mesmo card por responsavel. Sem retrato: vazio."""
+    db = get_db()
+    q = (request.args.get("q") or "").strip()
+    limite = _int_ou_none(request.args.get("limit")) or 20
+    limite = max(1, min(limite, 50))
+    linhas = db.execute(
+        "SELECT iid, usuario, titulo, url FROM gitlab_cards WHERE coluna = 'backlog' "
+        "ORDER BY atualizado_em DESC, iid DESC"
+    ).fetchall()
+    cards = [{"iid": r["iid"], "coluna": "backlog", "usuario": r["usuario"] or "",
+              "titulo": r["titulo"] or "", "url": r["url"] or ""} for r in linhas]
+    achados = gitlab_sync.busca_backlog(cards, q, limite)
+    for a in achados:
+        a["citacao"] = f"#{a['iid']} {(a['titulo'] or '').strip()}".strip()
+    return jsonify({"ok": True, "cards": achados})
 
 
 @app.route("/ata/<data_str>/<tipo>/imprimir")
@@ -3001,7 +3106,7 @@ def ata_imprimir(data_str, tipo):
         abort(404)
     db = get_db()
     cfg = _get_config(db)
-    idioma = request.args.get("idioma") or cfg.get("idioma_ata", "en")
+    idioma = request.args.get("idioma") or cfg.get("idioma_ata", "pt")
     gitlab = cfg.get("gitlab_base_url", "")
     ata = _ata_para_fmt(db, data_str, tipo)
     texto = ata_fmt.montar_texto(ata, idioma)
@@ -3021,7 +3126,7 @@ def ata_sprint_page(n):
     if not 1 <= n <= len(sprints):
         abort(404)
     cfg = _get_config(db)
-    idioma = request.args.get("idioma") or cfg.get("idioma_ata", "en")
+    idioma = request.args.get("idioma") or cfg.get("idioma_ata", "pt")
     gitlab = cfg.get("gitlab_base_url", "")
     sp = sprints[n - 1]
     dias = [d for d in _dias_letivos(db) if sp["inicio"] <= d <= sp["fim"]]

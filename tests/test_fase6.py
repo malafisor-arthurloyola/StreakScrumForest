@@ -188,17 +188,19 @@ class TestCards(Base):
         mid = self.ids()["Arthur"]
         j = self.client.get("/api/gitlab/cards?member_id=%d" % mid).get_json()
         self.assertTrue(j["configurado"])
-        self.assertEqual(len(j["doing"]), 1)
-        self.assertEqual(len(j["review"]), 1)
-        self.assertEqual(j["doing"][0]["citacao"], "#1 X")
+        self.assertEqual(len(j["fazer"]), 1)            # Doing -> "O que vou fazer"
+        self.assertEqual(j["fazer"][0]["citacao"], "#1 X")
+        self.assertEqual(len(j["fiz"]), 1)              # Waiting review -> "O que fiz"
+        self.assertEqual(len(j["revisar"]), 1)          # Waiting review tambem entra em "Vou revisar"
 
     def test_nao_mapeado_nao_bloqueia(self):
         mid = self.ids()["Bento"]
         j = self.client.get("/api/gitlab/cards?member_id=%d" % mid).get_json()
         self.assertTrue(j["ok"])
         self.assertFalse(j["configurado"])
-        self.assertEqual(j["doing"], [])
-        self.assertEqual(j["review"], [])
+        self.assertEqual(j["fiz"], [])
+        self.assertEqual(j["fazer"], [])
+        self.assertEqual(j["revisar"], [])
 
 
 # ------------------------------------------------------------ UI (chips / review / sync)
@@ -222,7 +224,7 @@ class TestUI(Base):
         with self.client.session_transaction() as sess:
             sess["eu"] = mid
         html = self.client.get("/eu").get_data(as_text=True)
-        self.assertIn("Waiting review", html)
+        self.assertIn("Vou revisar", html)
         self.assertIn('data-chips-para="review"', html)
         self.assertIn("gl-sync", html)
 

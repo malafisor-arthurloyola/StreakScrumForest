@@ -235,3 +235,9 @@ total esperado (`tests/test_catalog.py`, `tests/test_game.py`) avisam se o equil
   de cada dia, máximo +2 por pessoa por dia; o relator ganha +1 por ata que redige (à parte). Impedimento
   nunca rende semente. Dedicado 285 -> 375 (sem contar o bônus de relator). Constantes `SEED_ATA` e
   `SEED_RELATOR` em `game.py`.
+- **Fase 6c (campos da daily + GitLab)**: a daily passou a ter três campos em português ("O que fiz",
+  "O que vou fazer hoje", "Vou revisar") com chips dos cards do GitLab (Doing, Waiting review, Review,
+  Backlog e fechados recentes). **Nada disso mudou o balanceamento**: as fontes de semente continuam
+  sendo só "O que fiz" e "O que vou fazer" (os campos `feito`/`planejado`); "Vou revisar"
+  (`ata_falas.review`) **nunca rende**. Os rótulos visíveis mudaram; as constantes e os totais acima
+  seguem iguais.

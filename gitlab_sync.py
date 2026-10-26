@@ -13,14 +13,25 @@ Escopo: SOMENTE LEITURA. Nunca escreve no GitLab. Cards nao rendem semente (isso
 no app; aqui so montamos os dados).
 """
 
-# As duas colunas que nos interessam na daily.
-COLUNAS = ("doing", "review")
+# Colunas internas do retrato. Mantemos 'doing' e 'review' (= "Waiting review") com o mesmo
+# significado de antes (dados antigos e testes continuam validos) e acrescentamos:
+#   'em_revisao' = a coluna "Review" do quadro (quem esta revisando);
+#   'backlog'    = a coluna "Backlog" (cards ainda nao comecados, inclusive sem responsavel);
+#   'done'       = cards FECHADOS recentemente (issues state=closed na janela de dias).
+COLUNAS = ("doing", "review", "em_revisao", "backlog", "done")
+
+# Colunas em que guardamos tambem cards SEM responsavel (usuario=''): o Backlog (qualquer um
+# pode puxar) e as colunas de revisao (o "Vou revisar" e do quadro inteiro, pois quem revisa
+# nao e o responsavel do card). Em 'doing' e 'done' exigimos responsavel (sao pessoais).
+COLUNAS_SEM_DONO = ("backlog", "review", "em_revisao")
 
 # Rotulos padrao das labels no GitLab (podem ser trocados pelo script via variavel de
 # ambiente). A comparacao e sempre sem diferenciar maiusculas/minusculas e sem espacos nas
 # pontas, porque cada time escreve a label de um jeito.
 LABEL_DOING_PADRAO = "Doing"
-LABEL_REVIEW_PADRAO = "Waiting review"
+LABEL_REVIEW_PADRAO = "Waiting review"      # coluna interna 'review'
+LABEL_EM_REVISAO_PADRAO = "Review"          # coluna interna 'em_revisao'
+LABEL_BACKLOG_PADRAO = "Backlog"            # coluna interna 'backlog'
 
 # Limites defensivos para o retrato (o site valida de novo ao receber).
 MAX_CARDS = 2000
@@ -39,15 +50,16 @@ def _labels_da_issue(issue):
     return [str(x) for x in labels if str(x).strip()]
 
 
-def _coluna_da_issue(issue, label_doing, label_review):
-    """Retorna a lista de colunas em que a issue aparece, pelas labels. Uma issue pode
-    estar em 'doing' E em 'review' ao mesmo tempo (duas labels), e tudo bem."""
-    alvo = {
-        "doing": _norm(label_doing),
-        "review": _norm(label_review),
-    }
+def _colunas_da_issue(issue, labels_por_coluna):
+    """Colunas internas em que a issue aparece, pelas labels. labels_por_coluna e um dict
+    {coluna_interna: label_do_quadro}. Uma issue pode estar em mais de uma (duas labels)."""
     presentes = {_norm(l) for l in _labels_da_issue(issue)}
-    return [col for col in COLUNAS if alvo[col] in presentes]
+    saida = []
+    for coluna in COLUNAS:
+        label = labels_por_coluna.get(coluna)
+        if label and _norm(label) in presentes:
+            saida.append(coluna)
+    return saida
 
 
 def _responsaveis_da_issue(issue):
@@ -70,55 +82,67 @@ def _corta(texto, limite):
     return texto[:limite]
 
 
-def montar_retrato(issues, label_doing=LABEL_DOING_PADRAO, label_review=LABEL_REVIEW_PADRAO):
-    """Transforma a lista de issues (formato da API do GitLab) em uma lista plana de cards.
+def montar_retrato(issues, label_doing=LABEL_DOING_PADRAO, label_review=LABEL_REVIEW_PADRAO,
+                   label_em_revisao=LABEL_EM_REVISAO_PADRAO, label_backlog=LABEL_BACKLOG_PADRAO,
+                   fechadas=None):
+    """Transforma as issues (formato da API do GitLab) em uma lista plana de cards.
 
-    Entrada: `issues` e uma lista de dicts como a API devolve (campos usados: iid, title,
-    web_url, labels, assignees/assignee).
+    `issues`: issues ABERTAS (state=opened); a coluna vem das labels (Doing, Waiting review,
+    Review, Backlog). `fechadas`: issues FECHADAS recentes (state=closed) -> coluna 'done'
+    (o script ja filtrou pela janela de dias; aqui so marcamos). As duas listas aceitam o
+    mesmo formato (iid, title, web_url, labels, assignees/assignee).
 
     Saida: lista de dicts, um por (card, coluna, responsavel):
-        {'iid': int, 'coluna': 'doing'|'review', 'usuario': str,
-         'titulo': str, 'url': str, 'labels': str}
+        {'iid', 'coluna', 'usuario', 'titulo', 'url', 'labels'}
 
     Regras:
-      - so entram cards que tenham a label de doing ou de review (comparacao sem caso);
-      - uma linha por responsavel (card com 3 responsaveis vira 3 linhas por coluna);
-      - card sem responsavel e ignorado (nao da para sugerir a ninguem);
-      - card em doing E review gera linhas nas duas colunas;
+      - a coluna sai das labels (sem diferenciar maiuscula/minuscula);
+      - uma linha por responsavel; card em duas colunas gera linhas nas duas;
+      - em 'doing' e 'done' o card sem responsavel e ignorado (nao da para sugerir a ninguem);
+      - em 'backlog', 'review' e 'em_revisao' guardamos tambem sem responsavel (usuario=''),
+        porque a busca no Backlog e o "Vou revisar" sao do quadro inteiro;
       - sem repetir a mesma (iid, coluna, usuario).
     """
+    labels_por_coluna = {
+        "doing": label_doing,
+        "review": label_review,
+        "em_revisao": label_em_revisao,
+        "backlog": label_backlog,
+    }
     vistos = set()
     cards = []
-    for issue in issues or []:
-        if not isinstance(issue, dict):
-            continue
-        colunas = _coluna_da_issue(issue, label_doing, label_review)
-        if not colunas:
-            continue
-        responsaveis = _responsaveis_da_issue(issue)
-        if not responsaveis:
-            continue
+
+    def _adicionar(issue, coluna):
         try:
             iid = int(issue.get("iid"))
         except (TypeError, ValueError):
-            continue
+            return
+        responsaveis = _responsaveis_da_issue(issue)
+        if not responsaveis:
+            if coluna not in COLUNAS_SEM_DONO:
+                return
+            responsaveis = [""]       # guarda sem dono, oferecido ao quadro todo
         titulo = _corta(issue.get("title"), MAX_TEXTO)
         url = _corta(issue.get("web_url"), MAX_URL)
         labels = _corta(", ".join(_labels_da_issue(issue)), MAX_TEXTO)
-        for coluna in colunas:
-            for usuario in responsaveis:
-                chave = (iid, coluna, usuario)
-                if chave in vistos:
-                    continue
-                vistos.add(chave)
-                cards.append({
-                    "iid": iid,
-                    "coluna": coluna,
-                    "usuario": _corta(usuario, MAX_TEXTO),
-                    "titulo": titulo,
-                    "url": url,
-                    "labels": labels,
-                })
+        for usuario in responsaveis:
+            chave = (iid, coluna, usuario)
+            if chave in vistos:
+                continue
+            vistos.add(chave)
+            cards.append({
+                "iid": iid, "coluna": coluna, "usuario": _corta(usuario, MAX_TEXTO),
+                "titulo": titulo, "url": url, "labels": labels,
+            })
+
+    for issue in issues or []:
+        if not isinstance(issue, dict):
+            continue
+        for coluna in _colunas_da_issue(issue, labels_por_coluna):
+            _adicionar(issue, coluna)
+    for issue in fechadas or []:
+        if isinstance(issue, dict):
+            _adicionar(issue, "done")
     return cards
 
 
@@ -140,13 +164,13 @@ def validar_cards(cards):
             raise ValueError("Cada card precisa ser um objeto.")
         coluna = c.get("coluna")
         if coluna not in COLUNAS:
-            raise ValueError("Card com coluna invalida (so 'doing' ou 'review').")
+            raise ValueError("Card com coluna invalida.")
         try:
             iid = int(c.get("iid"))
         except (TypeError, ValueError):
             raise ValueError("Card com iid invalido (precisa ser numero).")
         usuario = (c.get("usuario") or "").strip()
-        if not usuario:
+        if not usuario and coluna not in COLUNAS_SEM_DONO:
             raise ValueError("Card sem responsavel.")
         titulo = c.get("titulo") or ""
         url = c.get("url") or ""
@@ -180,6 +204,40 @@ def citacao(card):
     """Como o card entra no texto da fala: '#123 titulo' (titulo opcional)."""
     titulo = (card.get("titulo") or "").strip()
     return f"#{card['iid']} {titulo}".strip()
+
+
+def busca_backlog(cards, consulta, limite=20):
+    """Busca no Backlog por numero (#123 ou 123) ou trecho do titulo (sem diferenciar
+    maiuscula/minuscula). `cards` e a lista plana do retrato (so os de coluna 'backlog' sao
+    considerados). Devolve [{iid, titulo, url, responsaveis:[...]}], sem repetir o mesmo
+    card (varios responsaveis viram um unico item com a lista), ate `limite`.
+    """
+    q = (consulta or "").strip().lstrip("#").casefold()
+    agrupados = {}
+    ordem = []
+    for c in cards or []:
+        if c.get("coluna") != "backlog":
+            continue
+        iid = c["iid"]
+        if iid not in agrupados:
+            agrupados[iid] = {"iid": iid, "titulo": c.get("titulo", ""),
+                              "url": c.get("url", ""), "responsaveis": []}
+            ordem.append(iid)
+        usuario = (c.get("usuario") or "").strip()
+        if usuario and usuario not in agrupados[iid]["responsaveis"]:
+            agrupados[iid]["responsaveis"].append(usuario)
+    saida = []
+    for iid in ordem:
+        item = agrupados[iid]
+        if not q:
+            saida.append(item)
+        elif q.isdigit() and str(iid) == q:
+            saida.append(item)
+        elif q in (item["titulo"] or "").casefold():
+            saida.append(item)
+        if len(saida) >= limite:
+            break
+    return saida
 
 
 # ------------------------------------------------------------------ usuarios do projeto

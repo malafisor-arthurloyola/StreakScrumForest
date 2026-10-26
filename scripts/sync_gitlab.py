@@ -156,6 +156,31 @@ def ler_issues_do_gitlab(base, projeto, token):
     return issues
 
 
+def ler_fechadas_do_gitlab(base, projeto, token, dias):
+    """Le as issues FECHADAS nos ultimos `dias` dias (para a coluna 'done' / "O que fiz").
+    Usa closed_after para nao trazer o historico inteiro."""
+    import datetime
+    base = base.rstrip("/")
+    projeto_cod = urllib.parse.quote(str(projeto), safe="")
+    headers = {"PRIVATE-TOKEN": token, "Accept": "application/json"}
+    desde = (datetime.date.today() - datetime.timedelta(days=max(0, dias))).isoformat()
+    issues = []
+    for pagina in range(1, MAX_PAGINAS + 1):
+        params = urllib.parse.urlencode({
+            "state": "closed", "closed_after": desde + "T00:00:00Z",
+            "per_page": POR_PAGINA, "page": pagina,
+        })
+        url = f"{base}/api/v4/projects/{projeto_cod}/issues?{params}"
+        lote, cabecalhos = _get_json(url, headers)
+        if not isinstance(lote, list) or not lote:
+            break
+        issues.extend(lote)
+        proxima = cabecalhos.get("X-Next-Page") or cabecalhos.get("x-next-page") or ""
+        if not str(proxima).strip():
+            break
+    return issues
+
+
 def _carregar_de_arquivo(caminho):
     try:
         with open(caminho, "r", encoding="utf-8") as f:
@@ -268,7 +293,9 @@ def main(argv=None):
     ap.add_argument("--listar-usuarios", action="store_true",
                     help="mostra os responsaveis encontrados (para mapear no site) e sai")
     ap.add_argument("--arquivo", metavar="JSON",
-                    help="le as issues de um arquivo JSON em vez do GitLab (para testar)")
+                    help="le as issues ABERTAS de um arquivo JSON em vez do GitLab (para testar)")
+    ap.add_argument("--arquivo-fechadas", metavar="JSON",
+                    help="le as issues FECHADAS de um arquivo JSON (so com --arquivo, para testar)")
     ap.add_argument("--destino", choices=("producao", "local", "ambos"),
                     help="para onde enviar: o site publicado, o local ou os dois (veja o .env)")
     args = ap.parse_args(argv)
@@ -277,16 +304,26 @@ def main(argv=None):
 
     label_doing = _env("GITLAB_LABEL_DOING", gitlab_sync.LABEL_DOING_PADRAO)
     label_review = _env("GITLAB_LABEL_REVIEW", gitlab_sync.LABEL_REVIEW_PADRAO)
+    label_em_revisao = _env("GITLAB_LABEL_REVIEW_EM", gitlab_sync.LABEL_EM_REVISAO_PADRAO)
+    label_backlog = _env("GITLAB_LABEL_BACKLOG", gitlab_sync.LABEL_BACKLOG_PADRAO)
+    try:
+        dias_fechados = int(_env("GITLAB_DIAS_FECHADOS", "5") or "5")
+    except ValueError:
+        dias_fechados = 5
     gitlab_url = _env("GITLAB_URL", "")
 
     usuarios = []
+    fechadas = []
     if args.arquivo:
         issues = _carregar_de_arquivo(args.arquivo)
+        if args.arquivo_fechadas:
+            fechadas = _carregar_de_arquivo(args.arquivo_fechadas)
     else:
         base = _env("GITLAB_URL", obrigatorio=True)
         projeto = _env("GITLAB_PROJECT", obrigatorio=True)
         token = _env("GITLAB_TOKEN", obrigatorio=True)
         issues = ler_issues_do_gitlab(base, projeto, token)
+        fechadas = ler_fechadas_do_gitlab(base, projeto, token, dias_fechados)
         lidos = ler_membros_do_projeto(base, projeto, token)
         if lidos is None:
             print("Aviso: nao consegui listar os membros do projeto; o usuario de cada pessoa tera de ser "
@@ -294,7 +331,8 @@ def main(argv=None):
         else:
             usuarios = lidos
 
-    cards = gitlab_sync.montar_retrato(issues, label_doing, label_review)
+    cards = gitlab_sync.montar_retrato(
+        issues, label_doing, label_review, label_em_revisao, label_backlog, fechadas=fechadas)
 
     if args.listar_usuarios:
         responsaveis = sorted({c["usuario"] for c in cards})
@@ -308,9 +346,11 @@ def main(argv=None):
         return 0
 
     base_cards = _base_url_cards(gitlab_url, _env("GITLAB_PROJECT", ""))
-    doing = sum(1 for c in cards if c["coluna"] == "doing")
-    review = sum(1 for c in cards if c["coluna"] == "review")
-    print(f"Retrato montado: {len(cards)} linha(s) ({doing} em {label_doing}, {review} em {label_review}).")
+    def _n(col):
+        return sum(1 for c in cards if c["coluna"] == col)
+    print(f"Retrato montado: {len(cards)} linha(s) "
+          f"({_n('doing')} Doing, {_n('review')} Waiting review, {_n('em_revisao')} Review, "
+          f"{_n('backlog')} Backlog, {_n('done')} fechados <= {dias_fechados}d).")
 
     if args.simular:
         print("--simular: nao vou enviar nada. Amostra do que seria enviado:")
