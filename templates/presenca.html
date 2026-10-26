@@ -46,12 +46,24 @@
     </div>
 
     {% if tem_ata %}
-    <form class="presenca-form card" id="presenca-form" hidden>
+    <form class="presenca-form card" id="presenca-form" hidden data-member-id="{{ eu.id }}">
       <p class="presenca-form-titulo">Sua fala na {{ evento_nome }} de hoje</p>
+      <div class="gl-sync" id="gl-sync" hidden>
+        <span class="gl-sync-ponto" aria-hidden="true"></span>
+        <span id="gl-sync-texto">GitLab: verificando…</span>
+      </div>
       <label for="pf-feito">{{ rot_feito }}</label>
-      <textarea id="pf-feito" rows="3" placeholder="Pode citar cards, como #123">{{ fala_atual.feito }}</textarea>
+      <textarea id="pf-feito" data-campo="feito" rows="3" placeholder="Pode citar cards, como #123">{{ fala_atual.feito }}</textarea>
+      <div class="gl-chips" data-chips-para="feito" hidden></div>
       <label for="pf-plan">{{ rot_planejado }}</label>
-      <textarea id="pf-plan" rows="3">{{ fala_atual.planejado }}</textarea>
+      <textarea id="pf-plan" data-campo="planejado" rows="3">{{ fala_atual.planejado }}</textarea>
+      <div class="gl-chips" data-chips-para="planejado" hidden></div>
+      <div class="gl-backlog">
+        <input type="search" class="gl-backlog-busca" placeholder="buscar no Backlog (número ou título)" aria-label="Buscar card no Backlog">
+        <div class="gl-backlog-res" hidden></div>
+      </div>
+      <label for="pf-bloq">Algum impedimento? <span class="presenca-opcional">opcional — não conta semente</span></label>
+      <textarea id="pf-bloq" data-campo="bloqueios" rows="2" placeholder="Deixe vazio se não tiver nenhum">{{ fala_atual.bloqueios }}</textarea>
       <button type="submit" class="btn btn-primary presenca-btn" id="pf-enviar">Salvar minha fala</button>
       <p class="presenca-nota">Rende +{{ rende_ata }} semente uma vez por ata — editar depois não dá de novo, e apagar tudo remove o bônus. Pode voltar e completar quando quiser.</p>
     </form>
@@ -136,15 +148,93 @@
       ev.preventDefault();
       var feito = document.getElementById('pf-feito').value.trim();
       var plan = document.getElementById('pf-plan').value.trim();
-      if (!feito && !plan) { mostrarToast('Escreva alguma coisa ou use só “Marcar presença”.', 'info'); return; }
+      var bloqEl = document.getElementById('pf-bloq');
+      var bloq = bloqEl ? bloqEl.value.trim() : '';
+      if (!feito && !plan && !bloq) { mostrarToast('Escreva alguma coisa ou use só “Marcar presença”.', 'info'); return; }
       var enviarBtn = document.getElementById('pf-enviar');
-      enviar({ fala: { feito: feito, planejado: plan } }, [enviarBtn]).then(function (j) {
+      enviar({ fala: { feito: feito, planejado: plan, bloqueios: bloq } }, [enviarBtn]).then(function (j) {
         if (!j) return;
         marcarPresenteNaTela();        // salvar a fala tambem garante a presenca
         feedback(j, true);
         enviarBtn.textContent = 'Salvar alterações';   // continua editavel, volta depois
       });
     });
+
+    // GitLab: chips de card + busca no Backlog na tela de presenca. Acrescentam "#123 titulo"
+    // ao campo (nunca sobrescrevem, nao duplicam); a pessoa salva com "Salvar minha fala".
+    var mid = form.dataset.memberId;
+    var ROT_CHIP = { feito: 'Seus cards concluídos / em revisão:', planejado: 'Seus cards em Doing:' };
+    function textoTemCard(valor, iid) { return new RegExp('#' + iid + '(\\D|$)').test(valor || ''); }
+    function acrescentar(campo, citacao, iid) {
+      var ta = form.querySelector('textarea[data-campo="' + campo + '"]');
+      if (!ta) return;
+      if (textoTemCard(ta.value, iid)) { ta.focus(); return; }
+      ta.value = (ta.value.trim() ? ta.value.replace(/\s+$/, '') + '\n' : '') + citacao;
+      ta.focus();
+    }
+    function montarChips(cont, cards, campo) {
+      cont.innerHTML = '';
+      if (!cards.length) { cont.hidden = true; return; }
+      var rot = document.createElement('span');
+      rot.className = 'gl-chips-rot';
+      rot.textContent = ROT_CHIP[campo] || 'Cards do GitLab:';
+      cont.appendChild(rot);
+      cards.forEach(function (c) {
+        var b = document.createElement('button');
+        b.type = 'button'; b.className = 'gl-chip'; b.textContent = c.citacao;
+        b.addEventListener('click', function () { acrescentar(campo, c.citacao, c.iid); });
+        cont.appendChild(b);
+      });
+      cont.hidden = false;
+    }
+    var inp = form.querySelector('.gl-backlog-busca');
+    var resB = form.querySelector('.gl-backlog-res');
+    if (inp && resB) {
+      var t;
+      var buscar = function () {
+        fetch('/api/gitlab/backlog?q=' + encodeURIComponent(inp.value.trim()))
+          .then(function (r) { return r.json(); })
+          .then(function (jb) {
+            resB.innerHTML = '';
+            if (!jb || !jb.ok || !jb.cards.length) { resB.hidden = true; return; }
+            jb.cards.forEach(function (c) {
+              var b = document.createElement('button');
+              b.type = 'button'; b.className = 'gl-chip'; b.textContent = c.citacao;
+              b.addEventListener('click', function () { acrescentar('planejado', c.citacao, c.iid); });
+              resB.appendChild(b);
+            });
+            resB.hidden = false;
+          })
+          .catch(function () {});
+      };
+      inp.addEventListener('input', function () { clearTimeout(t); t = setTimeout(buscar, 300); });
+      inp.addEventListener('focus', buscar);
+    }
+    function cabecalhoSync(ultima) {
+      var cab = document.getElementById('gl-sync');
+      if (!cab) return;
+      var txt = document.getElementById('gl-sync-texto');
+      cab.hidden = false;
+      if (!ultima) { txt.textContent = 'GitLab: ainda não sincronizado'; cab.className = 'gl-sync gl-sync-vazio'; return; }
+      var d = new Date(ultima.replace(' ', 'T') + 'Z');
+      var hh = isNaN(d) ? ultima : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      var antigo = !isNaN(d) && (Date.now() - d.getTime() > 24 * 3600 * 1000);
+      txt.textContent = antigo ? ('GitLab: dados antigos (atualizado às ' + hh + ')') : ('GitLab: atualizado às ' + hh);
+      cab.className = 'gl-sync' + (antigo ? ' gl-sync-antigo' : '');
+    }
+    if (mid) {
+      fetch('/api/gitlab/cards?member_id=' + encodeURIComponent(mid))
+        .then(function (r) { return r.json(); })
+        .then(function (res) {
+          if (!res || !res.ok) return;
+          cabecalhoSync(res.ultima_sync);
+          var cFiz = form.querySelector('.gl-chips[data-chips-para="feito"]');
+          var cFazer = form.querySelector('.gl-chips[data-chips-para="planejado"]');
+          if (cFiz) montarChips(cFiz, res.fiz || [], 'feito');
+          if (cFazer) montarChips(cFazer, res.fazer || [], 'planejado');
+        })
+        .catch(function () {});
+    }
   }
 })();
 </script>

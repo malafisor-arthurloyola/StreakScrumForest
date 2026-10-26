@@ -1772,3 +1772,6 @@ body[data-admin="0"] .so-admin { display: none !important; }
 }
 .gl-backlog-busca:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }
 .gl-backlog-res { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+
+/* ===== Impedimento pessoal (opcional) na tela de presenca ===== */
+.presenca-opcional { font-size: .82rem; color: var(--ink2); font-weight: 400; }

@@ -109,6 +109,10 @@
       {% endif %}
     </div>
     {% endif %}
+    <div class="ata-campo ata-campo-impedimento">
+      <label>Impedimento <span class="ata-rot-pt">opcional, não conta semente</span></label>
+      <textarea class="ata-texto" data-campo="bloqueio_pessoal" data-member-id="{{ l.id }}" rows="2" placeholder="{{ 'algo travando a sua tarefa? (vazio = nenhum)' if minha else 'algo travando ' ~ l.name ~ '? (vazio = nenhum)' }}" {{ 'disabled' if not (pode_editar or minha) }}>{{ l.bloqueios }}</textarea>
+    </div>
   </article>
   {% endfor %}
 </section>
@@ -215,8 +219,13 @@
     var chave = t.dataset.campo + t.dataset.memberId;
     var ehMinha = t.closest('.ata-linha').dataset.minha === '1';
     function persistir(v, aoTerminar) {
-      if (PODE_EDITAR) return salvar(t.dataset.campo, v, t.dataset.memberId, aoTerminar);
-      if (ehMinha) return salvarMinha(t.dataset.campo, v, aoTerminar);
+      var campo = t.dataset.campo;
+      if (PODE_EDITAR) return salvar(campo, v, t.dataset.memberId, aoTerminar);
+      if (ehMinha) {
+        // na propria linha, o impedimento pessoal salva pelo campo 'bloqueios' do minha-fala
+        var campoMinha = campo === 'bloqueio_pessoal' ? 'bloqueios' : campo;
+        return salvarMinha(campoMinha, v, aoTerminar);
+      }
       return null;
     }
     function enviar() {
@@ -284,6 +293,8 @@
             var ta = raiz.querySelector('.ata-texto[data-campo="' + campo + '"][data-member-id="' + x.id + '"]');
             if (ta && document.activeElement !== ta && !ta.dataset.sujo && x[campo] != null && ta.value !== x[campo]) ta.value = x[campo];
           });
+          var tb = raiz.querySelector('.ata-texto[data-campo="bloqueio_pessoal"][data-member-id="' + x.id + '"]');
+          if (tb && document.activeElement !== tb && !tb.dataset.sujo && x.bloqueios != null && tb.value !== x.bloqueios) tb.value = x.bloqueios;
         });
         aplicarRelator(e.relator_id);
         if (bloq && document.activeElement !== bloq && !bloq.dataset.sujo && bloq.value !== e.bloqueios) bloq.value = e.bloqueios;

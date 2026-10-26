@@ -114,6 +114,21 @@ def _tem_coluna(falas, chave):
     return any((f.get(chave) or "").strip() for f in falas)
 
 
+def _linhas_bloqueios(ata):
+    """Linhas de impedimento combinando o bloqueio da ata (relator, do dia) com os
+    impedimentos PESSOAIS nao vazios. Cada item vira 'texto' (ata) ou 'Nome: texto' (pessoa).
+    Lista vazia quando ninguem tem nada -> o chamador escreve 'None'/'Nenhum' (igual ao modelo)."""
+    itens = []
+    geral = (ata.get("bloqueios") or "").strip()
+    if geral:
+        itens.append({"nome": None, "texto": geral})
+    for b in (ata.get("bloqueios_pessoais") or []):
+        txt = (b.get("texto") or "").strip()
+        if txt:
+            itens.append({"nome": b.get("nome"), "texto": txt})
+    return itens
+
+
 def montar_texto(ata, idioma="en"):
     """Texto puro da ata no modelo exato.
 
@@ -146,8 +161,17 @@ def montar_texto(ata, idioma="en"):
         linhas.append(f"{rt['review']}:")
         linhas.extend(_linhas_falas(ata.get("falas") or [], "review"))
         linhas.append("")
-    bloqueios = (ata.get("bloqueios") or "").strip()
-    linhas.append(f"{rt['bloqueios']}: {bloqueios or r['none']}")
+    itens_bloq = _linhas_bloqueios(ata)
+    if not itens_bloq:
+        linhas.append(f"{rt['bloqueios']}: {r['none']}")
+    elif len(itens_bloq) == 1 and itens_bloq[0]["nome"] is None:
+        # so o bloqueio geral (do relator): mantem o formato de uma linha, igual ao modelo
+        linhas.append(f"{rt['bloqueios']}: {itens_bloq[0]['texto']}")
+    else:
+        linhas.append(f"{rt['bloqueios']}:")
+        for b in itens_bloq:
+            prefixo = f"{b['nome']}: " if b["nome"] else ""
+            linhas.append(f"* {prefixo}{b['texto']}")
     if tipo == "fechamento":
         quadro = r["sim"] if ata.get("quadro_atualizado") else r["nao"]
         linhas.append(f"{rt['quadro']}: {quadro}")
@@ -173,8 +197,18 @@ def montar_html(ata, idioma="en", gitlab_base_url=""):
         return "<ul>" + "".join(itens) + "</ul>" if itens else "<ul></ul>"
 
     present = ", ".join(escape(n) for n in (ata.get("present") or [])) or r["none"]
-    bloqueios = (ata.get("bloqueios") or "").strip()
-    bloqueios_html = etiquetar_cards_html(bloqueios, gitlab_base_url) if bloqueios else r["none"]
+    itens_bloq = _linhas_bloqueios(ata)
+    if not itens_bloq:
+        bloqueios_html = f"<p><b>{rt['bloqueios']}:</b> {r['none']}</p>"
+    elif len(itens_bloq) == 1 and itens_bloq[0]["nome"] is None:
+        corpo = etiquetar_cards_html(itens_bloq[0]["texto"], gitlab_base_url)
+        bloqueios_html = f"<p><b>{rt['bloqueios']}:</b> {corpo}</p>"
+    else:
+        lis = []
+        for b in itens_bloq:
+            prefixo = f"<b>{escape(b['nome'])}:</b> " if b["nome"] else ""
+            lis.append(f"<li>{prefixo}{etiquetar_cards_html(b['texto'], gitlab_base_url)}</li>")
+        bloqueios_html = f"<p><b>{rt['bloqueios']}:</b></p><ul>" + "".join(lis) + "</ul>"
 
     partes = [
         f"<h3>{rt['titulo']} — {_data_br(ata['data'])}</h3>",
@@ -187,7 +221,7 @@ def montar_html(ata, idioma="en", gitlab_base_url=""):
     ]
     if rt.get("review") and _tem_coluna(ata.get("falas") or [], "review"):
         partes.append(f"<p><b>{rt['review']}:</b></p>{lista('review')}")
-    partes.append(f"<p><b>{rt['bloqueios']}:</b> {bloqueios_html}</p>")
+    partes.append(bloqueios_html)
     if tipo == "fechamento":
         quadro = r["sim"] if ata.get("quadro_atualizado") else r["nao"]
         partes.append(f"<p><b>{rt['quadro']}:</b> {quadro}</p>")

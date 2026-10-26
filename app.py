@@ -645,6 +645,8 @@ def _migrar_gitlab(db):
     cols_falas = {r["name"] for r in db.execute("PRAGMA table_info(ata_falas)").fetchall()}
     if "review" not in cols_falas:
         db.execute("ALTER TABLE ata_falas ADD COLUMN review TEXT NOT NULL DEFAULT ''")
+    if "bloqueios" not in cols_falas:
+        db.execute("ALTER TABLE ata_falas ADD COLUMN bloqueios TEXT NOT NULL DEFAULT ''")
     db.execute(
         """
         CREATE TABLE IF NOT EXISTS gitlab_cards (
@@ -2453,7 +2455,7 @@ ATA_ROTULOS_FALA = {
 }
 
 
-def _salvar_fala(db, data_str, tipo, member_id, feito=None, planejado=None, review=None):
+def _salvar_fala(db, data_str, tipo, member_id, feito=None, planejado=None, review=None, bloqueios=None):
     """Grava (upsert) a fala de uma pessoa na ata; so os campos informados mudam."""
     _garantir_ata(db, data_str, tipo)
     db.execute(
@@ -2470,6 +2472,9 @@ def _salvar_fala(db, data_str, tipo, member_id, feito=None, planejado=None, revi
     if review is not None:
         db.execute("UPDATE ata_falas SET review = ?, atualizada_em = datetime('now') "
                    "WHERE data = ? AND tipo = ? AND member_id = ?", (review, data_str, tipo, member_id))
+    if bloqueios is not None:
+        db.execute("UPDATE ata_falas SET bloqueios = ?, atualizada_em = datetime('now') "
+                   "WHERE data = ? AND tipo = ? AND member_id = ?", (bloqueios, data_str, tipo, member_id))
 
 
 def _definir_status(db, member_id, data_str, evento, status):
@@ -2527,6 +2532,9 @@ def presenca_page(evento, codigo):
         fala = p.get("fala") if isinstance(p.get("fala"), dict) else None
         feito = (fala.get("feito") or "").strip() if fala else ""
         planejado = (fala.get("planejado") or "").strip() if fala else ""
+        # impedimento pessoal (opcional): vazio = nenhum. NUNCA rende semente.
+        tem_bloqueio = bool(fala and ("bloqueios" in fala))
+        bloqueios = (fala.get("bloqueios") or "").strip() if fala else ""
         # tinha a fala preenchida antes? (para dizer se o bonus de ata e novo)
         ja_tinha_fala = False
         if tipo_ata:
@@ -2542,6 +2550,9 @@ def presenca_page(evento, codigo):
         if tipo_ata and (feito or planejado):
             _salvar_fala(db, hoje, tipo_ata, membro["id"], feito, planejado)
             ganhou_ata = True
+        # impedimento salvo a parte (so quando o campo veio no pedido); nao conta semente
+        if tipo_ata and tem_bloqueio:
+            _salvar_fala(db, hoje, tipo_ata, membro["id"], bloqueios=bloqueios)
         db.commit()
         return jsonify({
             "ok": True,
@@ -2553,12 +2564,13 @@ def presenca_page(evento, codigo):
             "sementes": _stats_membro(db, membro["id"])["sementes"],
         })
 
-    fala_atual = {"feito": "", "planejado": ""}
+    fala_atual = {"feito": "", "planejado": "", "bloqueios": ""}
     if tipo_ata:
-        f = db.execute("SELECT feito, planejado FROM ata_falas WHERE data = ? AND tipo = ? AND member_id = ?",
+        f = db.execute("SELECT feito, planejado, bloqueios FROM ata_falas WHERE data = ? AND tipo = ? AND member_id = ?",
                        (hoje, tipo_ata, membro["id"])).fetchone()
         if f:
-            fala_atual = {"feito": f["feito"], "planejado": f["planejado"]}
+            fala_atual = {"feito": f["feito"], "planejado": f["planejado"],
+                          "bloqueios": _coluna(f, "bloqueios") or ""}
     rot_feito, rot_planejado = ATA_ROTULOS_FALA.get(tipo_ata, ("", ""))
     return render_template(
         "presenca.html", estado="ok", codigo=codigo, eu=_stats_membro(db, membro["id"]),
@@ -2596,14 +2608,15 @@ def _carregar_ata(db, data_str, tipo):
 
 
 def _falas_da_ata(db, data_str, tipo):
-    """{member_id: {'feito', 'planejado', 'review'}} do que ja foi preenchido."""
+    """{member_id: {'feito', 'planejado', 'review', 'bloqueios'}} do que ja foi preenchido."""
     out = {}
     for r in db.execute(
-        "SELECT member_id, feito, planejado, review FROM ata_falas WHERE data = ? AND tipo = ?",
+        "SELECT member_id, feito, planejado, review, bloqueios FROM ata_falas WHERE data = ? AND tipo = ?",
         (data_str, tipo),
     ).fetchall():
         out[r["member_id"]] = {"feito": r["feito"], "planejado": r["planejado"],
-                               "review": _coluna(r, "review") or ""}
+                               "review": _coluna(r, "review") or "",
+                               "bloqueios": _coluna(r, "bloqueios") or ""}
     return out
 
 
@@ -2628,6 +2641,7 @@ def _ata_para_fmt(db, data_str, tipo):
         r = db.execute("SELECT name FROM members WHERE id = ?", (cab["relator_id"],)).fetchone()
         relator_nome = r["name"] if r else None
     present, excused, falas = [], [], []
+    bloqueios_pessoais = []
     for m in membros:
         st = status.get(m["id"])
         f = falas_map.get(m["id"], {})
@@ -2640,6 +2654,9 @@ def _ata_para_fmt(db, data_str, tipo):
         if st == "presente" or tem_texto:
             falas.append({"nome": m["name"], "feito": f.get("feito", ""),
                           "planejado": f.get("planejado", ""), "review": rev})
+        bloq = (f.get("bloqueios") or "").strip()
+        if bloq:
+            bloqueios_pessoais.append({"nome": m["name"], "texto": bloq})
     return {
         "tipo": tipo,
         "data": data_str,
@@ -2648,6 +2665,7 @@ def _ata_para_fmt(db, data_str, tipo):
         "excused": excused,
         "falas": falas,
         "bloqueios": cab["bloqueios"] if cab else "",
+        "bloqueios_pessoais": bloqueios_pessoais,
         "quadro_atualizado": bool(cab["quadro_atualizado"]) if cab else False,
     }
 
@@ -2687,6 +2705,7 @@ def _linhas_da_ata(db, data_str, tipo):
             "id": m["id"], "name": m["name"], "status": status.get(m["id"]) or "",
             "feito": f.get("feito", ""), "planejado": f.get("planejado", ""),
             "review": f.get("review", ""),
+            "bloqueios": f.get("bloqueios", ""),
             "planejado_ontem": planejado_ontem.get(m["id"], ""),
             "e_relator": m["id"] == relator_id,
         })
@@ -2748,7 +2767,7 @@ def api_ata_estado():
         "bloqueios": cab["bloqueios"] if cab else "",
         "quadro_atualizado": bool(cab["quadro_atualizado"]) if cab else False,
         "linhas": [{"id": l["id"], "status": l["status"], "feito": l["feito"],
-                    "planejado": l["planejado"], "review": l["review"], "e_relator": l["e_relator"]} for l in linhas],
+                    "planejado": l["planejado"], "review": l["review"], "bloqueios": l["bloqueios"], "e_relator": l["e_relator"]} for l in linhas],
     })
 
 
@@ -2793,6 +2812,13 @@ def api_ata_salvar():
         if mid is None:
             return _erro("Pessoa inválida.")
         _salvar_fala(db, data_str, tipo, mid, review=(p.get("valor") or ""))
+    elif campo == "bloqueio_pessoal":
+        # impedimento de UMA pessoa (o relator pode preencher por ela). Nunca rende semente
+        # e nao mexe na presenca. Diferente do 'bloqueios' (impedimento geral do dia).
+        mid = _int_ou_none(p.get("member_id"))
+        if mid is None:
+            return _erro("Pessoa inválida.")
+        _salvar_fala(db, data_str, tipo, mid, bloqueios=(p.get("valor") or ""))
     elif campo == "status":
         mid = _int_ou_none(p.get("member_id"))
         valor = p.get("valor") or ""
@@ -2871,7 +2897,7 @@ def api_ata_minha_fala():
         date.fromisoformat(data_str or "")
     except (TypeError, ValueError):
         return _erro("Data inválida.")
-    if tipo not in ATA_TIPOS or campo not in ("feito", "planejado", "review"):
+    if tipo not in ATA_TIPOS or campo not in ("feito", "planejado", "review", "bloqueios"):
         return _erro("Pedido inválido.")
     if campo == "review" and tipo != "daily":
         return _erro("Revisão só existe na daily.")

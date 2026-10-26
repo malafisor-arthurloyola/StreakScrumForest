@@ -176,6 +176,21 @@ class TestUIptBR(Base):
         self.assertIn("gl-backlog-busca", html)         # busca no backlog
         self.assertIn('data-chips-para="feito"', html)
 
+    def test_presenca_qr_tem_chips_e_busca(self):
+        # loga um membro e abre a tela de presenca da daily com um codigo valido
+        con = sqlite3.connect(DB)
+        mid = con.execute("SELECT id FROM members LIMIT 1").fetchone()[0]
+        con.execute("UPDATE members SET pin_hash=NULL, pin_salt=NULL WHERE id=?", (mid,))
+        con.commit(); con.close()
+        with self.client.session_transaction() as sess:
+            sess["eu"] = mid
+        cod = appmod.codigo_do_evento(HOJE, "daily")
+        html = self.client.get("/presenca/daily/%s" % cod).get_data(as_text=True)
+        self.assertIn('data-chips-para="feito"', html)
+        self.assertIn('data-chips-para="planejado"', html)
+        self.assertIn("gl-backlog-busca", html)
+        self.assertIn("gl-sync", html)
+
 
 # ------------------------------------------------------------ export pt-BR primeiro + review nao rende
 class TestExportERende(Base):
@@ -204,6 +219,107 @@ class TestExportERende(Base):
             db.commit()
             com_fala, _ = appmod._contagem_atas(db, [HOJE])
         self.assertEqual(com_fala.get(mid, 0), 0)
+
+
+# ------------------------------------------------------------ impedimento por pessoa (presenca)
+class TestImpedimentoPessoal(Base):
+    def test_coluna_bloqueios_idempotente(self):
+        appmod.init_db()   # roda de novo; nao pode quebrar
+        con = sqlite3.connect(DB)
+        cols = {r[1] for r in con.execute("PRAGMA table_info(ata_falas)")}
+        con.close()
+        self.assertIn("bloqueios", cols)
+
+    def test_presenca_salva_impedimento(self):
+        con = sqlite3.connect(DB)
+        mid = con.execute("SELECT id FROM members LIMIT 1").fetchone()[0]
+        con.execute("UPDATE members SET pin_hash=NULL, pin_salt=NULL WHERE id=?", (mid,))
+        con.commit(); con.close()
+        with self.client.session_transaction() as sess:
+            sess["eu"] = mid
+        cod = appmod.codigo_do_evento(HOJE, "daily")
+        r = self.client.post("/presenca/daily/%s" % cod,
+                             json={"fala": {"feito": "", "planejado": "", "bloqueios": "travado no deploy"}})
+        self.assertTrue(r.get_json()["ok"])
+        con = sqlite3.connect(DB)
+        b = con.execute("SELECT bloqueios FROM ata_falas WHERE data=? AND tipo='daily' AND member_id=?",
+                        (HOJE, mid)).fetchone()[0]
+        con.close()
+        self.assertEqual(b, "travado no deploy")
+
+    def test_impedimento_nao_rende(self):
+        mid = _primeiro_id()
+        with appmod.app.test_request_context():
+            db = appmod.get_db()
+            appmod._salvar_fala(db, HOJE, "daily", mid, bloqueios="espera revisão")
+            db.commit()
+            com_fala, _ = appmod._contagem_atas(db, [HOJE])
+        self.assertEqual(com_fala.get(mid, 0), 0)      # so impedimento nao conta semente
+
+    def test_export_combina_impedimentos(self):
+        con = sqlite3.connect(DB)
+        ids = [r[0] for r in con.execute(
+            "SELECT id FROM members WHERE COALESCE(tipo,'equipe')='equipe' AND active=1 ORDER BY name")]
+        con.close()
+        with appmod.app.test_request_context():
+            db = appmod.get_db()
+            appmod._salvar_fala(db, HOJE, "daily", ids[0], bloqueios="meu bloqueio")
+            db.commit()
+            ata = appmod._ata_para_fmt(db, HOJE, "daily")
+        import ata_fmt as af
+        t = af.montar_texto(ata, "pt")
+        self.assertIn("meu bloqueio", t)
+        # sem nenhum impedimento o documento fica "Nenhum" (igual ao modelo)
+        with appmod.app.test_request_context():
+            db = appmod.get_db()
+            vazio = appmod._ata_para_fmt(db, "2020-01-01", "daily")
+        self.assertIn("Impedimentos: Nenhum", af.montar_texto(vazio, "pt"))
+
+    def test_presenca_tem_campo_impedimento(self):
+        con = sqlite3.connect(DB)
+        mid = con.execute("SELECT id FROM members LIMIT 1").fetchone()[0]
+        con.execute("UPDATE members SET pin_hash=NULL, pin_salt=NULL WHERE id=?", (mid,))
+        con.commit(); con.close()
+        with self.client.session_transaction() as sess:
+            sess["eu"] = mid
+        for evento in ("daily", "encerramento"):
+            cod = appmod.codigo_do_evento(HOJE, evento)
+            html = self.client.get("/presenca/%s/%s" % (evento, cod)).get_data(as_text=True)
+            self.assertIn('data-campo="bloqueios"', html)
+            self.assertIn("Algum impedimento?", html)
+
+    def test_relator_salva_impedimento_pessoal(self):
+        # o test_client e localhost = admin/relator; salva o impedimento de outra pessoa
+        con = sqlite3.connect(DB)
+        ids = [r[0] for r in con.execute(
+            "SELECT id FROM members WHERE COALESCE(tipo,'equipe')='equipe' AND active=1 ORDER BY name")]
+        con.execute("INSERT OR IGNORE INTO atas(data,tipo,relator_id) VALUES(?,?,?)", (HOJE, "daily", ids[0]))
+        con.commit(); con.close()
+        r = self.client.post("/api/ata/salvar",
+                             json={"data": HOJE, "tipo": "daily", "campo": "bloqueio_pessoal",
+                                   "member_id": ids[1], "valor": "travado por acesso"},
+                             headers={"X-Requested-With": "fetch"})
+        self.assertEqual(r.status_code, 200)
+        con = sqlite3.connect(DB)
+        b = con.execute("SELECT bloqueios FROM ata_falas WHERE data=? AND tipo='daily' AND member_id=?",
+                        (HOJE, ids[1])).fetchone()[0]
+        con.close()
+        self.assertEqual(b, "travado por acesso")
+        # o impedimento pessoal NAO rende semente
+        with appmod.app.test_request_context():
+            db = appmod.get_db()
+            com_fala, _ = appmod._contagem_atas(db, [HOJE])
+        self.assertEqual(com_fala.get(ids[1], 0), 0)
+
+    def test_ata_tem_campo_impedimento_por_pessoa(self):
+        con = sqlite3.connect(DB)
+        ids = [r[0] for r in con.execute(
+            "SELECT id FROM members WHERE COALESCE(tipo,'equipe')='equipe' AND active=1")]
+        con.execute("INSERT OR IGNORE INTO atas(data,tipo,relator_id) VALUES(?,?,?)", (HOJE, "daily", ids[0]))
+        con.commit(); con.close()
+        html = self.client.get("/ata/%s/daily" % HOJE).get_data(as_text=True)
+        self.assertIn('data-campo="bloqueio_pessoal"', html)
+        self.assertIn("Impedimento", html)
 
 
 if __name__ == "__main__":
