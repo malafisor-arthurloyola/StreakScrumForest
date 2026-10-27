@@ -662,6 +662,11 @@ def _migrar_gitlab(db):
         """
     )
     _migrar_gitlab_cards_colunas(db)
+    # milestone de cada card (a sprint a que ele pertence): colunas aditivas e idempotentes
+    cols_cards = {r["name"] for r in db.execute("PRAGMA table_info(gitlab_cards)").fetchall()}
+    for coluna in ("milestone", "milestone_inicio", "milestone_fim"):
+        if coluna not in cols_cards:
+            db.execute(f"ALTER TABLE gitlab_cards ADD COLUMN {coluna} TEXT NOT NULL DEFAULT ''")
     db.execute("CREATE INDEX IF NOT EXISTS ix_gitlab_cards_usuario ON gitlab_cards (usuario)")
     db.execute(
         "CREATE TABLE IF NOT EXISTS gitlab_usuarios ("
@@ -3010,9 +3015,10 @@ def api_gitlab_snapshot():
             db.execute("UPDATE members SET gitlab_user = ? WHERE id = ?", (username, mid))
     db.execute("DELETE FROM gitlab_cards")
     db.executemany(
-        "INSERT INTO gitlab_cards (iid, coluna, usuario, titulo, url, labels, atualizado_em) "
-        "VALUES (?, ?, ?, ?, ?, ?, datetime('now'))",
-        [(c["iid"], c["coluna"], c["usuario"], c["titulo"], c["url"], c["labels"]) for c in cards],
+        "INSERT INTO gitlab_cards (iid, coluna, usuario, titulo, url, labels, atualizado_em, "
+        "milestone, milestone_inicio, milestone_fim) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), ?, ?, ?)",
+        [(c["iid"], c["coluna"], c["usuario"], c["titulo"], c["url"], c["labels"],
+          c["milestone"], c["milestone_inicio"], c["milestone_fim"]) for c in cards],
     )
     db.execute(
         "INSERT INTO config (chave, valor) VALUES ('gitlab_ultima_sync', datetime('now')) "
@@ -3037,6 +3043,22 @@ def _garantir_config(db):
         db.execute("INSERT OR IGNORE INTO config (chave, valor) VALUES (?, '')", (chave,))
 
 
+def _milestone_atual_do_banco(db):
+    """Titulo da milestone da sprint de hoje, entre as que aparecem nos cards (ou None)."""
+    linhas = db.execute(
+        "SELECT DISTINCT milestone, milestone_inicio, milestone_fim FROM gitlab_cards WHERE milestone <> ''"
+    ).fetchall()
+    if not linhas:
+        return None
+    hoje = date.today().isoformat()
+    try:
+        sprint_n = game.sprint_da_data(hoje, _cfg_sprints(db))
+    except Exception:
+        sprint_n = None
+    return gitlab_sync.milestone_atual(
+        [(r["milestone"], r["milestone_inicio"], r["milestone_fim"]) for r in linhas], hoje, sprint_n)
+
+
 def _cards_do_usuario(db, usuario):
     """Cards do quadro para os campos da daily, a partir das colunas internas.
 
@@ -3051,6 +3073,11 @@ def _cards_do_usuario(db, usuario):
         return {"iid": r["iid"], "titulo": r["titulo"], "url": r["url"],
                 "citacao": f"#{r['iid']} {(r['titulo'] or '').strip()}".strip()}
 
+    # Review / Waiting review / fechados: so da milestone (sprint) de hoje; muda sozinha.
+    atual = _milestone_atual_do_banco(db)
+    fil_sql = " AND milestone = ?" if atual else ""
+    fil_par = (atual,) if atual else ()
+
     fazer = []
     fiz = []
     if usuario:
@@ -3061,16 +3088,16 @@ def _cards_do_usuario(db, usuario):
             fazer.append(_item(r))
         for r in db.execute(
             "SELECT iid, coluna, titulo, url FROM gitlab_cards WHERE usuario = ? "
-            "AND coluna IN ('review', 'em_revisao', 'done') "
-            "ORDER BY atualizado_em DESC, iid DESC LIMIT 15", (usuario,)
+            "AND coluna IN ('review', 'em_revisao', 'done')" + fil_sql + " "
+            "ORDER BY atualizado_em DESC, iid DESC LIMIT 15", (usuario,) + fil_par
         ).fetchall():
             fiz.append(_item(r))
 
     # "Vou revisar": todas as linhas em review/em_revisao do quadro, sem repetir o mesmo card.
     revisar, vistos = [], set()
     for r in db.execute(
-        "SELECT iid, titulo, url FROM gitlab_cards WHERE coluna IN ('review', 'em_revisao') "
-        "ORDER BY atualizado_em DESC, iid DESC"
+        "SELECT iid, titulo, url FROM gitlab_cards WHERE coluna IN ('review', 'em_revisao')"
+        + fil_sql + " ORDER BY atualizado_em DESC, iid DESC", fil_par
     ).fetchall():
         if r["iid"] in vistos:
             continue
@@ -3099,6 +3126,7 @@ def api_gitlab_cards():
         "revisar": revisar,    # Vou revisar (todo o quadro em revisao)
         "ultima_sync": cfg.get("gitlab_ultima_sync", ""),
         "base_url": cfg.get("gitlab_base_url", ""),
+        "milestone": _milestone_atual_do_banco(db) or "",
     })
 
 

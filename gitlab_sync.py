@@ -77,6 +77,18 @@ def _responsaveis_da_issue(issue):
     return nomes
 
 
+def _milestone_da_issue(issue):
+    """(titulo, inicio, fim) da milestone da issue (formato da API: issue['milestone']).
+    Datas em AAAA-MM-DD; vazio quando a issue nao tem milestone ou a data."""
+    ms = issue.get("milestone")
+    if not isinstance(ms, dict):
+        return "", "", ""
+    titulo = _corta(ms.get("title"), MAX_TEXTO)
+    inicio = (ms.get("start_date") or "")[:10]
+    fim = (ms.get("due_date") or "")[:10]
+    return titulo, inicio, fim
+
+
 def _corta(texto, limite):
     texto = "" if texto is None else str(texto)
     return texto[:limite]
@@ -125,6 +137,7 @@ def montar_retrato(issues, label_doing=LABEL_DOING_PADRAO, label_review=LABEL_RE
         titulo = _corta(issue.get("title"), MAX_TEXTO)
         url = _corta(issue.get("web_url"), MAX_URL)
         labels = _corta(", ".join(_labels_da_issue(issue)), MAX_TEXTO)
+        ms_titulo, ms_inicio, ms_fim = _milestone_da_issue(issue)
         for usuario in responsaveis:
             chave = (iid, coluna, usuario)
             if chave in vistos:
@@ -133,6 +146,7 @@ def montar_retrato(issues, label_doing=LABEL_DOING_PADRAO, label_review=LABEL_RE
             cards.append({
                 "iid": iid, "coluna": coluna, "usuario": _corta(usuario, MAX_TEXTO),
                 "titulo": titulo, "url": url, "labels": labels,
+                "milestone": ms_titulo, "milestone_inicio": ms_inicio, "milestone_fim": ms_fim,
             })
 
     for issue in issues or []:
@@ -175,7 +189,13 @@ def validar_cards(cards):
         titulo = c.get("titulo") or ""
         url = c.get("url") or ""
         labels = c.get("labels") or ""
+        milestone = c.get("milestone") or ""
+        ms_inicio = c.get("milestone_inicio") or ""
+        ms_fim = c.get("milestone_fim") or ""
         for valor, limite, nome in (
+            (milestone, MAX_TEXTO, "milestone"),
+            (ms_inicio, 10, "milestone_inicio"),
+            (ms_fim, 10, "milestone_fim"),
             (usuario, MAX_TEXTO, "usuario"),
             (titulo, MAX_TEXTO, "titulo"),
             (url, MAX_URL, "url"),
@@ -196,6 +216,9 @@ def validar_cards(cards):
             "titulo": titulo,
             "url": url,
             "labels": labels,
+            "milestone": milestone,
+            "milestone_inicio": ms_inicio,
+            "milestone_fim": ms_fim,
         })
     return limpos
 
@@ -355,3 +378,55 @@ def sugerir_mapeamento(membros, usuarios):
     for username in candidatos.values():
         contagem[username] = contagem.get(username, 0) + 1
     return {mid: u for mid, u in candidatos.items() if contagem[u] == 1}
+
+
+# ------------------------------------------------------------------ milestone (sprint) atual
+# So estas colunas respeitam a milestone: o que esta em revisao ou foi fechado na sprint ATUAL.
+# Doing e Backlog continuam mostrando tudo (o que a pessoa vai fazer / pegar nao depende da sprint).
+COLUNAS_DA_SPRINT = ("review", "em_revisao", "done")
+
+
+def _numero(texto):
+    """Primeiro numero do texto: 'Sprint 02' -> 2; sem numero -> None."""
+    import re
+    m = re.search(r"\d+", texto or "")
+    return int(m.group()) if m else None
+
+
+def milestone_atual(milestones, hoje, sprint_n=None):
+    """Descobre qual milestone e a da sprint de hoje, sem configurar nada.
+
+    milestones: lista de (titulo, inicio, fim) (datas AAAA-MM-DD ou ''), as que aparecem nos
+    cards. hoje: AAAA-MM-DD. sprint_n: numero da sprint de hoje no calendario do site (opcional).
+
+    Regras, na ordem:
+      1. a milestone cujo periodo contem hoje (inicio <= hoje <= fim);
+      2. se nenhuma contem (ex.: fim de semana entre duas sprints), a que comecou mais
+         recentemente antes de hoje; se ainda nao comecou nenhuma, a mais proxima no futuro;
+      3. sem datas nenhuma: a milestone cujo titulo tem o mesmo numero da sprint de hoje
+         ('Sprint 02' = sprint 2).
+    Devolve o titulo, ou None se nao houver como saber (aí nada e filtrado).
+    """
+    unicas = []
+    vistos = set()
+    for t, i, f in milestones:
+        if t and (t, i, f) not in vistos:
+            vistos.add((t, i, f))
+            unicas.append((t, i or "", f or ""))
+    if not unicas:
+        return None
+    com_data = [m for m in unicas if m[1] and m[2]]
+    for t, i, f in com_data:
+        if i <= hoje <= f:
+            return t
+    if com_data:
+        passadas = sorted((m for m in com_data if m[1] <= hoje), key=lambda m: m[1])
+        if passadas:
+            return passadas[-1][0]
+        futuras = sorted(com_data, key=lambda m: m[1])
+        return futuras[0][0]
+    if sprint_n is not None:
+        for t, _i, _f in unicas:
+            if _numero(t) == sprint_n:
+                return t
+    return None

@@ -210,7 +210,7 @@
       inp.addEventListener('input', function () { clearTimeout(t); t = setTimeout(buscar, 300); });
       inp.addEventListener('focus', buscar);
     }
-    function cabecalhoSync(ultima) {
+    function cabecalhoSync(ultima, milestone) {
       var cab = document.getElementById('gl-sync');
       if (!cab) return;
       var txt = document.getElementById('gl-sync-texto');
@@ -219,7 +219,7 @@
       var d = new Date(ultima.replace(' ', 'T') + 'Z');
       var hh = isNaN(d) ? ultima : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       var antigo = !isNaN(d) && (Date.now() - d.getTime() > 24 * 3600 * 1000);
-      txt.textContent = antigo ? ('GitLab: dados antigos (atualizado às ' + hh + ')') : ('GitLab: atualizado às ' + hh);
+      txt.textContent = (antigo ? ('GitLab: dados antigos (atualizado às ' + hh + ')') : ('GitLab: atualizado às ' + hh)) + (milestone ? ' · revisão e fechados da ' + milestone : '');
       cab.className = 'gl-sync' + (antigo ? ' gl-sync-antigo' : '');
     }
     if (mid) {
@@ -227,7 +227,7 @@
         .then(function (r) { return r.json(); })
         .then(function (res) {
           if (!res || !res.ok) return;
-          cabecalhoSync(res.ultima_sync);
+          cabecalhoSync(res.ultima_sync, res.milestone);
           var cFiz = form.querySelector('.gl-chips[data-chips-para="feito"]');
           var cFazer = form.querySelector('.gl-chips[data-chips-para="planejado"]');
           if (cFiz) montarChips(cFiz, res.fiz || [], 'feito');

@@ -519,6 +519,9 @@ O script também lê os **membros do projeto** (usuário e nome) pela API e os e
 ### Na tela de Membros (admin)
 O campo **"Usuário no GitLab"** de cada pessoa aparece **já preenchido** quando o casamento automático acertou; ao digitar nos demais, o campo sugere os usuários do projeto. Quem continua sem usuário ganha um aviso discreto "sem GitLab" — os cards dele simplesmente não aparecem, nada quebra.
 
+### Só os cards da sprint atual (milestone)
+Os chips de **Waiting review**, **Review** e **fechados** mostram só os cards da **milestone da sprint de hoje** (por exemplo, "Sprint 02") e **mudam sozinhos** quando a sprint muda, sem rodar nada de novo. O site descobre a milestone atual assim: a que tem hoje entre a data de início e a de fim (as datas vêm do GitLab); se hoje cair numa folga entre duas sprints, a última que começou; e, se as milestones não tiverem datas, a que tem o mesmo número da sprint do calendário ("Sprint 02" = sprint 2). Cards **sem milestone** ficam de fora quando existem milestones no quadro. **Doing** e **Backlog** não dependem da milestone (o que você vai fazer ou pegar não muda de sprint). O cabeçalho mostra "… revisão e fechados da Sprint 02". Para isso o script também envia a milestone de cada card: depois de atualizar o site, rode `python scripts/sync_gitlab.py --destino producao` uma vez.
+
 ### Como aparece
 - Na daily (ata e "Minha fala"), sob **Doing** e no novo campo **Waiting review**, aparecem os chips `#123 título`. Tocar acrescenta ao texto (nunca sobrescreve, não duplica) e você pode digitar livre do mesmo jeito.
 - Um cabeçalho discreto mostra **"GitLab: atualizado às HH:MM"**, ou "ainda não sincronizado", ou "dados antigos" se a última sincronização foi há mais de um dia. Se o GitLab estiver fora, **nada é bloqueado**.

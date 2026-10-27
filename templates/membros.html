@@ -88,30 +88,37 @@
 
 {% block scripts %}
 <script>
+function chamarMembros(url, corpo) {
+  // Mostra o motivo se o servidor recusar (ex.: sem permissao) em vez de recarregar calado.
+  return fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(corpo),
+  }).then(function (r) {
+    return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, status: r.status, d: d }; });
+  }).then(function (res) {
+    if (!res.ok || (res.d && res.d.ok === false)) {
+      mostrarToast((res.d && res.d.erro) || ('Não deu certo (erro ' + res.status + ').'), 'info');
+      return;
+    }
+    window.location.reload();
+  }).catch(function () { mostrarToast('Sem conexão com o servidor.', 'info'); });
+}
+
 document.getElementById('novo-membro').addEventListener('submit', function (e) {
   e.preventDefault();
   var input = document.getElementById('nome-novo');
   var nome = input.value.trim();
   if (!nome) return;
   var tipo = document.getElementById('tipo-novo').value;
-  fetch('/api/membros', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: nome, tipo: tipo }),
-  }).then(function (r) { return r.json(); })
-    .then(function () { window.location.reload(); });
+  chamarMembros('/api/membros', { name: nome, tipo: tipo });
 });
 
 document.querySelectorAll('.btn-toggle-tipo').forEach(function (btn) {
   btn.addEventListener('click', function () {
     var memberId = this.dataset.memberId;
     var novo = this.dataset.tipo === 'convidado' ? 'equipe' : 'convidado';
-    fetch('/api/membros/' + memberId, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tipo: novo }),
-    }).then(function (r) { return r.json(); })
-      .then(function () { window.location.reload(); });
+    chamarMembros('/api/membros/' + memberId, { tipo: novo });
   });
 });
 
@@ -120,12 +127,7 @@ document.querySelectorAll('.btn-resetar-pin').forEach(function (btn) {
     var memberId = this.dataset.memberId;
     var nome = this.dataset.memberName;
     if (!confirm('Resetar o PIN de "' + nome + '"? A pessoa vai criar um novo PIN no próximo acesso ao celular.')) return;
-    fetch('/api/membros/' + memberId, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ resetar_pin: true }),
-    }).then(function (r) { return r.json(); })
-      .then(function () { window.location.reload(); });
+    chamarMembros('/api/membros/' + memberId, { resetar_pin: true });
   });
 });
 
@@ -135,12 +137,7 @@ document.querySelectorAll('.btn-salvar-nome').forEach(function (btn) {
     var input = document.querySelector('.input-nome[data-member-id="' + memberId + '"]');
     var nome = input.value.trim();
     if (!nome) return;
-    fetch('/api/membros/' + memberId, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: nome }),
-    }).then(function (r) { return r.json(); })
-      .then(function () { window.location.reload(); });
+    chamarMembros('/api/membros/' + memberId, { name: nome });
   });
 });
 
@@ -148,12 +145,7 @@ document.querySelectorAll('.btn-salvar-gitlab').forEach(function (btn) {
   btn.addEventListener('click', function () {
     var memberId = this.dataset.memberId;
     var input = document.querySelector('.input-gitlab[data-member-id="' + memberId + '"]');
-    fetch('/api/membros/' + memberId, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gitlab_user: input.value.trim() }),
-    }).then(function (r) { return r.json(); })
-      .then(function () { window.location.reload(); });
+    chamarMembros('/api/membros/' + memberId, { gitlab_user: input.value.trim() });
   });
 });
 
@@ -161,12 +153,7 @@ document.querySelectorAll('.btn-toggle-ativo').forEach(function (btn) {
   btn.addEventListener('click', function () {
     var memberId = this.dataset.memberId;
     var ativoAtual = this.dataset.active === '1';
-    fetch('/api/membros/' + memberId, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ active: !ativoAtual }),
-    }).then(function (r) { return r.json(); })
-      .then(function () { window.location.reload(); });
+    chamarMembros('/api/membros/' + memberId, { active: !ativoAtual });
   });
 });
 
