@@ -281,9 +281,22 @@ def escolher_destinos(destino):
     return saida
 
 
-def _base_url_cards(gitlab_url, projeto):
-    """URL base para os links dos cards (#123 -> essa base + /123)."""
-    return f"{gitlab_url.rstrip('/')}/-/issues" if gitlab_url else ""
+def _base_url_cards(gitlab_url, projeto, cards=None):
+    """Base dos links dos cards: a URL do projeto + /-/issues (card #52 -> base + /52).
+
+    Preferimos a base REAL, tirada do link de um card do proprio GitLab
+    (https://host/grupo/projeto/-/issues/52 -> https://host/grupo/projeto/-/issues). Sem cards,
+    montamos a partir do caminho do projeto (GITLAB_PROJECT=grupo/projeto). Com ID numerico
+    e sem cards, nao da para saber o caminho: devolve vazio (o site usa a URL de cada card)."""
+    marca = "/-/issues/"
+    for c in cards or []:
+        url = c.get("url") or ""
+        if marca in url:
+            return url.split(marca)[0] + "/-/issues"
+    projeto = str(projeto or "").strip().strip("/")
+    if gitlab_url and "/" in projeto:
+        return f"{gitlab_url.rstrip('/')}/{projeto}/-/issues"
+    return ""
 
 
 def main(argv=None):
@@ -345,7 +358,7 @@ def main(argv=None):
                 print(f"  {u['username']} | {u['nome']}")
         return 0
 
-    base_cards = _base_url_cards(gitlab_url, _env("GITLAB_PROJECT", ""))
+    base_cards = _base_url_cards(gitlab_url, _env("GITLAB_PROJECT", ""), cards)
     def _n(col):
         return sum(1 for c in cards if c["coluna"] == col)
     print(f"Retrato montado: {len(cards)} linha(s) "

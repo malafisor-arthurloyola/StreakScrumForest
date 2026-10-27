@@ -157,15 +157,16 @@ class TestSnapshot(Base):
         self.assertEqual(con.execute("SELECT COUNT(*) FROM gitlab_cards").fetchone()[0], 1)
         con.close()
 
-    def test_base_url_nao_sobrescreve_dono(self):
+    def test_base_url_se_corrige_a_cada_envio(self):
+        # antes a base ficava presa no primeiro valor (que podia estar errado): agora o GitLab corrige
         con = sqlite3.connect(DB)
-        con.execute("UPDATE config SET valor = 'https://escolha-do-dono' WHERE chave = 'gitlab_base_url'")
+        con.execute("UPDATE config SET valor = 'https://host/-/issues' WHERE chave = 'gitlab_base_url'")
         con.commit(); con.close()
-        self.enviar(self._cards(), base_url="https://empurrada")
+        self.enviar(self._cards(), base_url="https://host/grupo/projeto/-/issues")
         con = sqlite3.connect(DB)
         v = con.execute("SELECT valor FROM config WHERE chave = 'gitlab_base_url'").fetchone()[0]
         con.close()
-        self.assertEqual(v, "https://escolha-do-dono")
+        self.assertEqual(v, "https://host/grupo/projeto/-/issues")
 
     def test_atualiza_ultima_sync(self):
         self.enviar(self._cards())

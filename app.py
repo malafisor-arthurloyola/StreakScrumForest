@@ -3024,17 +3024,26 @@ def api_gitlab_snapshot():
         "INSERT INTO config (chave, valor) VALUES ('gitlab_ultima_sync', datetime('now')) "
         "ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor"
     )
-    # So preenche a base_url se o dono ainda nao configurou uma (nao sobrescreve a escolha dele).
+    # A base dos links dos cards vem do proprio GitLab e se corrige a cada envio (antes ficava
+    # presa no primeiro valor, que podia estar errado).
     if base_url:
-        atual = db.execute("SELECT valor FROM config WHERE chave = 'gitlab_base_url'").fetchone()
-        if not (atual and (atual["valor"] or "").strip()):
-            db.execute(
-                "INSERT INTO config (chave, valor) VALUES ('gitlab_base_url', ?) "
-                "ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor",
-                (base_url,),
-            )
+        db.execute(
+            "INSERT INTO config (chave, valor) VALUES ('gitlab_base_url', ?) "
+            "ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor",
+            (base_url,),
+        )
     db.commit()
     return jsonify({"ok": True, "cards": len(cards), "mapeados": len(mapeados)})
+
+
+def _urls_dos_cards(db):
+    """{numero do card: URL exata} conhecidas pelo quadro (para o link certo na exportacao)."""
+    urls = {}
+    for r in db.execute(
+        "SELECT iid, url FROM gitlab_cards WHERE url <> '' ORDER BY atualizado_em DESC"
+    ).fetchall():
+        urls.setdefault(r["iid"], r["url"])
+    return urls
 
 
 def _garantir_config(db):
@@ -3191,7 +3200,7 @@ def ata_imprimir(data_str, tipo):
     gitlab = cfg.get("gitlab_base_url", "")
     ata = _ata_para_fmt(db, data_str, tipo)
     texto = ata_fmt.montar_texto(ata, idioma)
-    html_ata = ata_fmt.montar_html(ata, idioma, gitlab)
+    html_ata = ata_fmt.montar_html(ata, idioma, gitlab, _urls_dos_cards(db))
     return render_template(
         "ata_imprimir.html",
         data_str=data_str, tipo=tipo, idioma=idioma,
@@ -3210,6 +3219,7 @@ def ata_sprint_page(n):
     idioma = request.args.get("idioma") or cfg.get("idioma_ata", "pt")
     gitlab = cfg.get("gitlab_base_url", "")
     sp = sprints[n - 1]
+    urls_cards = _urls_dos_cards(db)
     dias = [d for d in _dias_letivos(db) if sp["inicio"] <= d <= sp["fim"]]
 
     documentos = []        # atas em ordem (dia, tipo)
@@ -3230,7 +3240,7 @@ def ata_sprint_page(n):
             documentos.append({
                 "data": d, "tipo": tipo,
                 "titulo": ata_fmt.ROTULOS[idioma if idioma in ata_fmt.ROTULOS else "en"][tipo]["titulo"],
-                "html": ata_fmt.montar_html(ata, idioma, gitlab),
+                "html": ata_fmt.montar_html(ata, idioma, gitlab, urls_cards),
             })
             # cards citados (nas falas e nos bloqueios)
             rotulo_doc = f"{d[8:10]}/{d[5:7]} {tipo}"

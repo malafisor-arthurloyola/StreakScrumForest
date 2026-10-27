@@ -82,16 +82,19 @@ def cards_no_texto(texto):
     return vistos
 
 
-def etiquetar_cards_html(texto, gitlab_base_url=""):
-    """Escapa o texto e troca #123 por uma etiqueta. Se gitlab_base_url nao for vazio,
-    a etiqueta vira link; senao, e so um <span> (sem exigir link)."""
+def etiquetar_cards_html(texto, gitlab_base_url="", urls=None):
+    """Escapa o texto e troca #123 por uma etiqueta. O link vem, nesta ordem, da URL exata do
+    card (`urls`: {numero: url}, vinda do quadro do GitLab) ou de gitlab_base_url + /numero;
+    sem nenhum dos dois, e so um <span> (sem exigir link)."""
     from html import escape
     base = (gitlab_base_url or "").rstrip("/")
+    urls = urls or {}
 
     def troca(m):
         n = m.group(1)
-        if base:
-            return f'<a class="card-tag" href="{escape(base)}/{n}">#{n}</a>'
+        destino = urls.get(int(n)) or (f"{base}/{n}" if base else "")
+        if destino:
+            return f'<a class="card-tag" href="{escape(destino)}">#{n}</a>'
         return f'<span class="card-tag">#{n}</span>'
 
     # escapa primeiro, depois aplica a regex (o # e seguro apos escape)
@@ -178,7 +181,7 @@ def montar_texto(ata, idioma="en"):
     return "\n".join(linhas)
 
 
-def montar_html(ata, idioma="en", gitlab_base_url=""):
+def montar_html(ata, idioma="en", gitlab_base_url="", urls=None):
     """HTML da ata (para a area de transferencia / pagina imprimivel), mesmo modelo."""
     from html import escape
     idioma = idioma if idioma in ROTULOS else "en"
@@ -192,7 +195,7 @@ def montar_html(ata, idioma="en", gitlab_base_url=""):
             txt = (f.get(chave) or "").strip()
             if txt:
                 nome = escape(f["nome"])
-                corpo = etiquetar_cards_html(txt, gitlab_base_url)
+                corpo = etiquetar_cards_html(txt, gitlab_base_url, urls)
                 itens.append(f"<li><b>{nome}:</b> {corpo}</li>")
         return "<ul>" + "".join(itens) + "</ul>" if itens else "<ul></ul>"
 
@@ -201,13 +204,13 @@ def montar_html(ata, idioma="en", gitlab_base_url=""):
     if not itens_bloq:
         bloqueios_html = f"<p><b>{rt['bloqueios']}:</b> {r['none']}</p>"
     elif len(itens_bloq) == 1 and itens_bloq[0]["nome"] is None:
-        corpo = etiquetar_cards_html(itens_bloq[0]["texto"], gitlab_base_url)
+        corpo = etiquetar_cards_html(itens_bloq[0]["texto"], gitlab_base_url, urls)
         bloqueios_html = f"<p><b>{rt['bloqueios']}:</b> {corpo}</p>"
     else:
         lis = []
         for b in itens_bloq:
             prefixo = f"<b>{escape(b['nome'])}:</b> " if b["nome"] else ""
-            lis.append(f"<li>{prefixo}{etiquetar_cards_html(b['texto'], gitlab_base_url)}</li>")
+            lis.append(f"<li>{prefixo}{etiquetar_cards_html(b['texto'], gitlab_base_url, urls)}</li>")
         bloqueios_html = f"<p><b>{rt['bloqueios']}:</b></p><ul>" + "".join(lis) + "</ul>"
 
     partes = [
