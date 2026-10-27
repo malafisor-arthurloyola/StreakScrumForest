@@ -72,13 +72,13 @@
       <div class="ata-campo">
         <label>{% if tipo == 'daily' %}O que fiz{% else %}Concluí hoje{% endif %}
           <button type="button" class="gl-ajuda" aria-label="O que é este campo"
-            data-ajuda="O que você concluiu ou avançou desde a última daily. Sugerimos seus cards que foram para Waiting review, Review ou foram fechados nos últimos dias.">i</button>
+            data-ajuda="{{ 'O que você concluiu ou avançou desde a última daily. Sugerimos seus cards que foram para Waiting review, Review ou foram fechados nos últimos dias.' if tipo == 'daily' else 'O que você concluiu hoje. Sugerimos seus cards em Doing, em revisão ou fechados; use a busca para achar outro.' }}">i</button>
           <span class="ata-rot-pt">{{ rot_feito | lower }}</span></label>
         <textarea class="ata-texto" data-campo="feito" data-member-id="{{ l.id }}" rows="2" placeholder="{{ 'Escreva aqui a sua fala' if minha else 'Escreva aqui o que ' ~ l.name ~ ' falou' }}" {{ 'disabled' if not (pode_editar or minha) }}>{{ l.feito }}</textarea>
         {% if tipo == 'daily' and l.planejado_ontem and (pode_editar or minha) %}
         <button type="button" class="btn btn-ghost btn-ontem" data-member-id="{{ l.id }}" data-ontem="{{ l.planejado_ontem }}">usar o que ficou planejado ontem</button>
         {% endif %}
-        {% if tipo == 'daily' and (pode_editar or minha) %}
+        {% if pode_editar or minha %}
         <div class="gl-chips" data-chips-para="feito" data-member-id="{{ l.id }}" hidden></div>
         <div class="gl-backlog">
           <input type="search" class="gl-sprint-busca" data-para="feito" placeholder="buscar card concluído ou em revisão (número ou título)" aria-label="Buscar card">
@@ -89,10 +89,10 @@
       <div class="ata-campo">
         <label>{% if tipo == 'daily' %}O que vou fazer hoje{% else %}Ficou para depois{% endif %}
           <button type="button" class="gl-ajuda" aria-label="O que é este campo"
-            data-ajuda="No que você vai trabalhar hoje. Sugerimos seus cards em Doing; use a busca para puxar um card do Backlog.">i</button>
+            data-ajuda="{{ 'No que você vai trabalhar hoje. Sugerimos seus cards em Doing; use a busca para puxar um card do Backlog.' if tipo == 'daily' else 'O que ficou pendente para o próximo dia. Sugerimos seus cards em Doing; use a busca para puxar um card do Backlog.' }}">i</button>
           <span class="ata-rot-pt">{{ rot_planejado | lower }}</span></label>
         <textarea class="ata-texto" data-campo="planejado" data-member-id="{{ l.id }}" rows="2" {{ 'disabled' if not (pode_editar or minha) }}>{{ l.planejado }}</textarea>
-        {% if tipo == 'daily' and (pode_editar or minha) %}
+        {% if pode_editar or minha %}
         <div class="gl-chips" data-chips-para="planejado" data-member-id="{{ l.id }}" hidden></div>
         <div class="gl-backlog" data-member-id="{{ l.id }}">
           <input type="search" class="gl-backlog-busca" data-member-id="{{ l.id }}" placeholder="buscar no Backlog (número ou título)" aria-label="Buscar card no Backlog">
@@ -334,6 +334,7 @@
   // da para digitar livre. Se o GitLab nunca sincronizou ou a pessoa nao esta mapeada,
   // simplesmente nao aparece chip. Nada aqui bloqueia a ata.
   var ROT_CHIP = { feito: 'Seus cards concluídos / em revisão:', planejado: 'Seus cards em Doing:', review: 'Cards aguardando revisão (toque nos seus):' };
+  var ROT_CHIP_FECH = { feito: 'Seus cards (Doing, em revisão ou fechados):', planejado: 'Seus cards em Doing:' };
   function textoTemCard(valor, iid) {
     var re = new RegExp('#' + iid + '(\\D|$)');
     return re.test(valor || '');
@@ -355,7 +356,7 @@
     if (!cards.length) { cont.hidden = true; return; }
     var rot = document.createElement('span');
     rot.className = 'gl-chips-rot';
-    rot.textContent = ROT_CHIP[campo] || 'Cards do GitLab:';
+    rot.textContent = (TIPO === 'daily' ? ROT_CHIP : ROT_CHIP_FECH)[campo] || 'Cards do GitLab:';
     cont.appendChild(rot);
     cards.forEach(function (c) {
       var b = document.createElement('button');
@@ -420,7 +421,7 @@
     txt.textContent = (antigo ? ('GitLab: dados antigos (atualizado às ' + hh + ')') : ('GitLab: atualizado às ' + hh)) + (milestone ? ' · revisão e fechados da ' + milestone : '');
     cab.className = 'gl-sync nao-imprime' + (antigo ? ' gl-sync-antigo' : '');
   }
-  if (TIPO === 'daily') {
+  {
     var ids = {};
     raiz.querySelectorAll('.gl-chips').forEach(function (c) { ids[c.dataset.memberId] = true; });
     var primeiro = true;
@@ -435,7 +436,11 @@
           var cFiz = raiz.querySelector('.gl-chips[data-chips-para="feito"][data-member-id="' + mid + '"]');
           var cFazer = raiz.querySelector('.gl-chips[data-chips-para="planejado"][data-member-id="' + mid + '"]');
           var cRev = raiz.querySelector('.gl-chips[data-chips-para="review"][data-member-id="' + mid + '"]');
-          if (cFiz) montarChips(cFiz, res.fiz || [], 'feito', mid, ehMinha);
+          var fiz = res.fiz || [];
+          if (TIPO !== 'daily') {      // Day Closing: o que a pessoa concluiu hoje tambem pode estar em Doing
+            var vistos = {}; fiz = (res.fazer || []).concat(fiz).filter(function (c) { if (vistos[c.iid]) return false; vistos[c.iid] = true; return true; });
+          }
+          if (cFiz) montarChips(cFiz, fiz, 'feito', mid, ehMinha);
           if (cFazer) montarChips(cFazer, res.fazer || [], 'planejado', mid, ehMinha);
           if (cRev) montarChips(cRev, res.revisar || [], 'review', mid, ehMinha);
         })

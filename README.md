@@ -525,6 +525,9 @@ Os chips de **Waiting review**, **Review** e **fechados** mostram só os cards d
 ### Links dos cards na exportação
 Na exportação da ata (e na página imprimível/"Copiar para o Google Docs"), cada `#52` vira link para o card **exato** no GitLab (ex.: `https://git.inteli.edu.br/grupo/projeto/-/issues/52`). O site usa a URL que o próprio GitLab informou para cada card; para um número que não está no quadro, usa a base do projeto, que o script envia e se **corrige a cada envio**. Se algum link antigo sair errado, rode `python scripts/sync_gitlab.py --destino producao` uma vez.
 
+### Cards também no Day Closing
+O **Day Closing** (ata e Meu jardim) tem os mesmos chips e buscas: em **Concluí hoje** aparecem seus cards em Doing, em revisão e fechados (mais a busca em Waiting review/Review/fechados da sprint), e em **Ficou para depois** aparecem seus cards em Doing e a busca no **Backlog**. O campo "Vou revisar" continua só na Daily.
+
 ### Pesquisar cards
 - **O que fiz** e **Vou revisar** têm uma caixa **"buscar card"** (na ata, em Meu jardim e na tela de presença): digite o **número** ou parte do **título** e toque no resultado para acrescentá-lo ao texto. A busca olha os cards em **Waiting review, Review e fechados** da **sprint atual**. **Exceção:** se você digitar um **número exato** (ex.: `#42`), o card aparece mesmo que seja de outra sprint, para registrar algo que ficou para trás.
 - **O que vou fazer hoje** continua com a busca no **Backlog**.

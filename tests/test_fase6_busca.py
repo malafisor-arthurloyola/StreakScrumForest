@@ -131,9 +131,29 @@ class TestCaixasDeBuscaNasTelas(unittest.TestCase):
         self.assertIn('data-para="review"', h)
         self.assertIn("gl-busca-sprint.js", h)
 
-    def test_day_closing_nao_tem(self):
+    def test_day_closing_tem_chips_e_buscas_menos_o_vou_revisar(self):
         h = self.client.get("/ata/2026-10-28/fechamento").get_data(as_text=True)
-        self.assertNotIn("gl-sprint-busca", h)
+        self.assertIn('data-chips-para="feito"', h)
+        self.assertIn('data-chips-para="planejado"', h)
+        self.assertIn('class="gl-sprint-busca" data-para="feito"', h)
+        self.assertIn("gl-backlog-busca", h)                   # busca no Backlog em "Ficou para depois"
+        self.assertNotIn('class="gl-sprint-busca" data-para="review"', h)   # "Vou revisar" e so da daily
+        self.assertNotIn('<div class="gl-chips" data-chips-para="review"', h)
+
+    def test_day_closing_do_meu_jardim_tambem(self):
+        hoje = date.today().isoformat()
+        con = sqlite3.connect(DB)
+        con.execute("INSERT OR REPLACE INTO attendance (member_id, event_date, event_type, status) VALUES (?,?,?, 'presente')",
+                    (self.mid, hoje, "encerramento"))
+        con.commit()
+        con.close()
+        with self.client.session_transaction() as sess:
+            sess["eu"] = self.mid
+        h = self.client.get("/eu").get_data(as_text=True)
+        bloco = h[h.index('data-tipo="fechamento"'):]
+        self.assertIn('data-chips-para="feito"', bloco)
+        self.assertIn('data-chips-para="planejado"', bloco)
+        self.assertIn("gl-backlog-busca", bloco)
 
     def test_meu_jardim_e_presenca_tem_a_busca(self):
         con = sqlite3.connect(DB)
