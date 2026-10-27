@@ -3150,6 +3150,33 @@ def api_gitlab_backlog():
     return jsonify({"ok": True, "cards": achados})
 
 
+@app.route("/api/gitlab/buscar")
+def api_gitlab_buscar():
+    """Busca de cards para "O que fiz" e "Vou revisar" (leitura, qualquer um): entre os cards
+    em Waiting review, Review e fechados da SPRINT ATUAL (milestone). Por numero (#123 / 123)
+    ou trecho do titulo. Excecao proposital: se a busca e um NUMERO exato, acha o card mesmo
+    de outra sprint (para registrar algo que ficou para tras). Sem retrato: vazio."""
+    db = get_db()
+    q = (request.args.get("q") or "").strip()
+    limite = _int_ou_none(request.args.get("limit")) or 20
+    limite = max(1, min(limite, 50))
+    colunas = ("review", "em_revisao", "done")
+    atual = _milestone_atual_do_banco(db)
+    exato = q.lstrip("#").isdigit()
+    sql = ("SELECT iid, coluna, usuario, titulo, url FROM gitlab_cards "
+           "WHERE coluna IN ('review', 'em_revisao', 'done')")
+    par = []
+    if atual and not exato:
+        sql += " AND milestone = ?"
+        par.append(atual)
+    sql += " ORDER BY atualizado_em DESC, iid DESC"
+    cards = [dict(r) for r in db.execute(sql, par).fetchall()]
+    achados = gitlab_sync.buscar_cards(cards, colunas, q, limite)
+    for a in achados:
+        a["citacao"] = f"#{a['iid']} {(a['titulo'] or '').strip()}".strip()
+    return jsonify({"ok": True, "cards": achados, "milestone": atual or ""})
+
+
 @app.route("/ata/<data_str>/<tipo>/imprimir")
 def ata_imprimir(data_str, tipo):
     if tipo not in ATA_TIPOS:

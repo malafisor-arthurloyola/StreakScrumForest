@@ -55,6 +55,10 @@
       <label for="pf-feito">{{ rot_feito }}</label>
       <textarea id="pf-feito" data-campo="feito" rows="3" placeholder="Pode citar cards, como #123">{{ fala_atual.feito }}</textarea>
       <div class="gl-chips" data-chips-para="feito" hidden></div>
+      <div class="gl-backlog">
+          <input type="search" class="gl-sprint-busca" data-para="feito" placeholder="buscar card concluído ou em revisão (número ou título)" aria-label="Buscar card">
+          <div class="gl-sprint-res" hidden></div>
+        </div>
       <label for="pf-plan">{{ rot_planejado }}</label>
       <textarea id="pf-plan" data-campo="planejado" rows="3">{{ fala_atual.planejado }}</textarea>
       <div class="gl-chips" data-chips-para="planejado" hidden></div>
@@ -238,4 +242,5 @@
   }
 })();
 </script>
+<script src="{{ url_for('static', filename='gl-busca-sprint.js') }}"></script>
 {% endblock %}

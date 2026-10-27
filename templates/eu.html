@@ -53,7 +53,11 @@
       {% if f.tipo == 'daily' %}<button type="button" class="gl-ajuda" aria-label="O que é este campo" data-ajuda="O que você concluiu ou avançou desde a última daily. Sugerimos seus cards que foram para revisão ou foram fechados nos últimos dias.">i</button>{% endif %}
     </label>
     <textarea class="eu-fala-texto" data-campo="feito" rows="2" placeholder="pode citar cards como #101">{{ f.feito }}</textarea>
-    {% if f.tipo == 'daily' %}<div class="gl-chips" data-chips-para="feito" hidden></div>{% endif %}
+    {% if f.tipo == 'daily' %}<div class="gl-chips" data-chips-para="feito" hidden></div>
+    <div class="gl-backlog">
+          <input type="search" class="gl-sprint-busca" data-para="feito" placeholder="buscar card concluído ou em revisão (número ou título)" aria-label="Buscar card">
+          <div class="gl-sprint-res" hidden></div>
+        </div>{% endif %}
     <label>{{ f.rot_planejado }}
       {% if f.tipo == 'daily' %}<button type="button" class="gl-ajuda" aria-label="O que é este campo" data-ajuda="No que você vai trabalhar hoje. Sugerimos seus cards em Doing; use a busca para puxar um card do Backlog.">i</button>{% endif %}
     </label>
@@ -69,6 +73,10 @@
     </label>
     <textarea class="eu-fala-texto" data-campo="review" rows="2" placeholder="cards que você vai revisar">{{ f.review }}</textarea>
     <div class="gl-chips" data-chips-para="review" hidden></div>
+    <div class="gl-backlog">
+          <input type="search" class="gl-sprint-busca" data-para="review" placeholder="buscar card em revisão (número ou título)" aria-label="Buscar card">
+          <div class="gl-sprint-res" hidden></div>
+        </div>
     {% endif %}
   </article>
   {% endfor %}
@@ -259,4 +267,5 @@
   }
 })();
 </script>
+<script src="{{ url_for('static', filename='gl-busca-sprint.js') }}"></script>
 {% endblock %}

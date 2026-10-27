@@ -71,9 +71,10 @@ class TestScriptsInline(unittest.TestCase):
         for i, bloco in enumerate(re.findall(r"<script>(.*?)</script>", html, flags=re.S)):
             self._checar(bloco, f"/presenca (script {i})")
 
-    def test_app_js(self):
-        with open(os.path.join(RAIZ, "static", "app.js"), encoding="utf-8") as f:
-            self._checar(f.read(), "static/app.js")
+    def test_arquivos_js_estaticos(self):
+        for caminho in sorted(glob.glob(os.path.join(RAIZ, "static", "*.js"))):
+            with open(caminho, encoding="utf-8") as f:
+                self._checar(f.read(), "static/" + os.path.basename(caminho))
 
 
 if __name__ == "__main__":

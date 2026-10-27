@@ -80,6 +80,10 @@
         {% endif %}
         {% if tipo == 'daily' and (pode_editar or minha) %}
         <div class="gl-chips" data-chips-para="feito" data-member-id="{{ l.id }}" hidden></div>
+        <div class="gl-backlog">
+          <input type="search" class="gl-sprint-busca" data-para="feito" placeholder="buscar card concluído ou em revisão (número ou título)" aria-label="Buscar card">
+          <div class="gl-sprint-res" hidden></div>
+        </div>
         {% endif %}
       </div>
       <div class="ata-campo">
@@ -106,6 +110,10 @@
       <textarea class="ata-texto" data-campo="review" data-member-id="{{ l.id }}" rows="2" placeholder="cards que você vai revisar" {{ 'disabled' if not (pode_editar or minha) }}>{{ l.review }}</textarea>
       {% if pode_editar or minha %}
       <div class="gl-chips" data-chips-para="review" data-member-id="{{ l.id }}" hidden></div>
+      <div class="gl-backlog">
+          <input type="search" class="gl-sprint-busca" data-para="review" placeholder="buscar card em revisão (número ou título)" aria-label="Buscar card">
+          <div class="gl-sprint-res" hidden></div>
+        </div>
       {% endif %}
     </div>
     {% endif %}
@@ -439,4 +447,5 @@
   contar();
 })();
 </script>
+<script src="{{ url_for('static', filename='gl-busca-sprint.js') }}"></script>
 {% endblock %}

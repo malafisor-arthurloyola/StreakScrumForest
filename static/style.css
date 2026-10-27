@@ -1766,12 +1766,13 @@ body[data-admin="0"] .so-admin { display: none !important; }
 .gl-ajuda:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
 
 .gl-backlog { margin-top: 8px; }
-.gl-backlog-busca {
+.gl-backlog-busca, .gl-sprint-busca {
   width: 100%; min-height: 40px; padding: 8px 12px; border-radius: var(--r-md);
   border: 1px solid var(--s4); background: var(--s1); color: var(--ink); font: inherit;
 }
-.gl-backlog-busca:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }
-.gl-backlog-res { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.gl-backlog-busca:focus-visible, .gl-sprint-busca:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }
+.gl-backlog-res, .gl-sprint-res { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.gl-sprint-res[hidden] { display: none; }
 
 /* ===== Impedimento pessoal (opcional) na tela de presenca ===== */
 .presenca-opcional { font-size: .82rem; color: var(--ink2); font-weight: 400; }

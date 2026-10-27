@@ -229,17 +229,16 @@ def citacao(card):
     return f"#{card['iid']} {titulo}".strip()
 
 
-def busca_backlog(cards, consulta, limite=20):
-    """Busca no Backlog por numero (#123 ou 123) ou trecho do titulo (sem diferenciar
-    maiuscula/minuscula). `cards` e a lista plana do retrato (so os de coluna 'backlog' sao
-    considerados). Devolve [{iid, titulo, url, responsaveis:[...]}], sem repetir o mesmo
-    card (varios responsaveis viram um unico item com a lista), ate `limite`.
-    """
+def buscar_cards(cards, colunas, consulta, limite=20):
+    """Busca por numero (#123 ou 123) ou trecho do titulo (sem diferenciar maiuscula/minuscula)
+    nos cards das `colunas` indicadas. Devolve [{iid, titulo, url, responsaveis:[...]}], sem
+    repetir o mesmo card (varios responsaveis viram um unico item com a lista), ate `limite`.
+    Consulta vazia devolve os primeiros (na ordem recebida)."""
     q = (consulta or "").strip().lstrip("#").casefold()
     agrupados = {}
     ordem = []
     for c in cards or []:
-        if c.get("coluna") != "backlog":
+        if c.get("coluna") not in colunas:
             continue
         iid = c["iid"]
         if iid not in agrupados:
@@ -249,18 +248,18 @@ def busca_backlog(cards, consulta, limite=20):
         usuario = (c.get("usuario") or "").strip()
         if usuario and usuario not in agrupados[iid]["responsaveis"]:
             agrupados[iid]["responsaveis"].append(usuario)
-    saida = []
-    for iid in ordem:
-        item = agrupados[iid]
-        if not q:
-            saida.append(item)
-        elif q.isdigit() and str(iid) == q:
-            saida.append(item)
-        elif q in (item["titulo"] or "").casefold():
-            saida.append(item)
-        if len(saida) >= limite:
-            break
-    return saida
+    if not q:
+        return [agrupados[i] for i in ordem][:limite]
+    # o numero exato vem primeiro; depois quem tem o texto no titulo
+    exatos = [agrupados[i] for i in ordem if q.isdigit() and str(i) == q]
+    por_titulo = [agrupados[i] for i in ordem
+                  if not (q.isdigit() and str(i) == q) and q in (agrupados[i]["titulo"] or "").casefold()]
+    return (exatos + por_titulo)[:limite]
+
+
+def busca_backlog(cards, consulta, limite=20):
+    """Busca no Backlog (so os cards de coluna 'backlog'). Veja buscar_cards."""
+    return buscar_cards(cards, ("backlog",), consulta, limite)
 
 
 # ------------------------------------------------------------------ usuarios do projeto
