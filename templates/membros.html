@@ -156,6 +156,8 @@ document.querySelectorAll('.btn-salvar-gitlab').forEach(function (btn) {
       .then(function () { window.location.reload(); });
   });
 });
+
+document.querySelectorAll('.btn-toggle-ativo').forEach(function (btn) {
   btn.addEventListener('click', function () {
     var memberId = this.dataset.memberId;
     var ativoAtual = this.dataset.active === '1';
