@@ -34,6 +34,7 @@ SEED_FLORESCEU = 20       # ao florescer (bonus unico)
 SEED_BOAS_VINDAS = 20     # ao registrar a 1a presenca (bonus unico)
 SEED_ATA = 1              # por ata (daily/fechamento) com a fala da pessoa preenchida
 SEED_RELATOR = 1          # por fala de OUTRA pessoa que o relator (Scrum) preencheu na ata
+SEED_RELATOR_MAX_POR_ATA = 3   # limite do bonus do relator por ata (Daily ou Day Closing)
 
 SEED_MILESTONES = [
     (5,  3),
@@ -227,6 +228,11 @@ def calcular_membro(dias_letivos_lista, registros_por_data, meta):
     }
 
 
+def _minimo_semana(n_letivos):
+    """Presencas para fechar a semana: 4, ou (dias letivos - 1) em semana com feriado."""
+    return n_letivos - 1 if n_letivos < 5 else 4
+
+
 def calcular_semanas_fechadas(semanas_projeto, registros_por_data):
     """
     Retorna numero de semanas fechadas (>= 4 presenças, ou >= dias_letivos_semana - 1).
@@ -237,12 +243,7 @@ def calcular_semanas_fechadas(semanas_projeto, registros_por_data):
     for dias_sem in semanas_projeto:
         if not dias_sem:
             continue
-        n_letivos = len(dias_sem)
-        semana_tem_feriado = n_letivos < 5
-        if semana_tem_feriado:
-            minimo = n_letivos - 1
-        else:
-            minimo = 4
+        minimo = _minimo_semana(len(dias_sem))
         presencas = sum(
             1 for d in dias_sem if registros_por_data.get(d, {}).get("presente", False)
         )
@@ -526,3 +527,105 @@ def nivel_presenca(presentes, total):
     if razao >= 0.5:
         return 2
     return 1
+
+
+# ---------------------------------------------------------------- extrato de sementes
+ROTULO_ATA = {"daily": "Daily", "fechamento": "Day Closing"}
+ROTULO_EVENTO = {"daily": "Daily", "dev": "Dev", "encerramento": "Encerramento"}
+
+
+def extrato_sementes(dias_letivos_lista, semanas_projeto, registros_por_data, meta,
+                     dias_cheios=None, falas=(), relatadas=None):
+    """Lista cada ganho de sementes, com data e motivo: o "extrato" da pessoa.
+
+    A soma dos valores e IGUAL a calcular_sementes(...)["total"] com os mesmos dados (ha teste
+    para isso): o extrato so conta a historia, nao muda nenhuma regra.
+
+    falas: [(data, tipo)] das atas em que a pessoa deixou a fala preenchida (+SEED_ATA cada).
+    relatadas: {(data, tipo): [nomes]} das falas de OUTRAS pessoas que ela preencheu como relator
+    (+SEED_RELATOR cada, no maximo SEED_RELATOR_MAX_POR_ATA por ata).
+    Cada item: {'data', 'fonte', 'rotulo', 'valor', 'detalhe'}.
+    """
+    dias = list(dias_letivos_lista)
+    dias_set = set(dias)
+    linhas = []
+
+    def _add(data, fonte, rotulo, valor, detalhe=""):
+        if valor:
+            linhas.append({"data": data, "fonte": fonte, "rotulo": rotulo, "valor": valor, "detalhe": detalhe})
+
+    # presenca nos eventos (um item por dia)
+    primeira_presenca = None
+    for d in dias:
+        reg = registros_por_data.get(d, {})
+        if not reg.get("presente", False):
+            continue
+        if primeira_presenca is None:
+            primeira_presenca = d
+        eventos = reg.get("eventos")
+        if eventos is None:
+            eventos = {"daily"}
+        validos = [e for e in SEED_POR_EVENTO if e in eventos]
+        _add(d, "eventos", "Presença", sum(SEED_POR_EVENTO[e] for e in validos),
+             " + ".join(ROTULO_EVENTO[e] for e in validos))
+
+    # boas-vindas: no dia da primeira presenca
+    if primeira_presenca:
+        _add(primeira_presenca, "boas_vindas", "Boas-vindas", SEED_BOAS_VINDAS, "primeira presença registrada")
+
+    # semana fechada: no dia em que as presencas da semana atingiram o minimo
+    for dias_sem in semanas_projeto:
+        if not dias_sem:
+            continue
+        minimo = _minimo_semana(len(dias_sem))
+        feitas = 0
+        for d in dias_sem:
+            if registros_por_data.get(d, {}).get("presente", False):
+                feitas += 1
+                if feitas == minimo:
+                    _add(d, "semanas", "Semana fechada", SEED_SEMANA_FECHADA,
+                         f"{minimo} presenças na semana de {dias_sem[0][8:10]}/{dias_sem[0][5:7]}")
+                    break
+
+    # marcos de sequencia: no dia em que a sequencia chegou ao limiar (uma vez cada)
+    streak = 0
+    atingidos = set()
+    for d in dias:
+        reg = registros_por_data.get(d, {})
+        if reg.get("presente", False):
+            streak += 1
+            for limiar, bonus in SEED_MILESTONES:
+                if streak >= limiar and limiar not in atingidos:
+                    atingidos.add(limiar)
+                    _add(d, "marcos", "Marco de sequência", bonus, f"{limiar} dias seguidos")
+        elif reg.get("faltou", False):
+            streak = 0
+
+    # dia cheio do time
+    for d in sorted(dias_cheios or ()):
+        if d in dias_set and registros_por_data.get(d, {}).get("presente", False):
+            _add(d, "dia_cheio", "Dia cheio do time", SEED_DIA_CHEIO, "todo o time presente")
+
+    # floresceu: no primeiro dia em que a planta chegou ao ultimo estagio
+    for i, d in enumerate(dias):
+        if calcular_membro(dias[: i + 1], registros_por_data, meta)["floresceu"]:
+            _add(d, "floresceu", "Floresceu", SEED_FLORESCEU, "a planta chegou ao último estágio")
+            break
+
+    # atas preenchidas (adubo)
+    for data, tipo in sorted(set(falas)):
+        if data in dias_set:
+            _add(data, "ata", f"{ROTULO_ATA.get(tipo, tipo)} preenchida", SEED_ATA, "sua fala está na ata")
+
+    # bonus do relator: por fala de outra pessoa que ele preencheu, com limite por ata
+    for (data, tipo), nomes in sorted((relatadas or {}).items()):
+        if data not in dias_set or not nomes:
+            continue
+        n = min(len(nomes), SEED_RELATOR_MAX_POR_ATA)
+        detalhe = ", ".join(nomes[:n])
+        if len(nomes) > n:
+            detalhe += f" (limite de {SEED_RELATOR_MAX_POR_ATA} por ata; {len(nomes) - n} sem bônus)"
+        _add(data, "relator", f"Scrum: preencheu a {ROTULO_ATA.get(tipo, tipo)} de colegas", SEED_RELATOR * n, detalhe)
+
+    linhas.sort(key=lambda x: (x["data"], x["fonte"]))
+    return linhas

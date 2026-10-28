@@ -113,6 +113,13 @@ Outras ações no site publicado:
 3. No PythonAnywhere: `cd ~/StreakScrumForest && git pull` e **Reload**.
 4. Abra o site publicado e confira (Ctrl + F5).
 
+## Aba Sementes: extrato e "por que a diferença?"
+
+Em **Sementes** (`/sementes`), escolha um nome em "Acompanhar o progresso" (se você entrou no Meu jardim, ela já abre em você):
+- **Total ganho, gasto na loja e saldo** de cada pessoa, com **todas** as fontes: presença nos eventos, semanas fechadas, marcos, dia cheio, Floresceu, boas-vindas, **atas preenchidas** e **Scrum (falas de colegas preenchidas)**.
+- **Extrato**, ganho por ganho: cada linha traz a **data**, o **motivo** (ex.: "Daily preenchida", "Scrum: preencheu a Daily de colegas — Guilherme, Pablo", "Marco de sequência: 5 dias seguidos", "Compra na loja") e o **saldo acumulado** até ali. O total do extrato é **sempre igual** ao saldo real (há teste para isso).
+- **Comparar com outra pessoa**: a tabela "De onde vem a diferença" mostra só as fontes em que os dois diferem (e o gasto na loja), para entender, por exemplo, por que alguém tem menos sementes.
+
 ## Quem pode alterar o quê (administrador x visitante)
 
 O site é aberto a quem tem o código de acesso do grupo, mas **só o administrador altera o que é de
@@ -465,7 +472,7 @@ Substitui o Google Docs: a ata da daily e do fechamento do dia, pronta para entr
 - **Fala própria no celular**: em `/eu`, quem está logado vê "Minha fala de hoje" e escreve a própria parte (Done/Doing). O relator vê o que já veio preenchido e completa. Ninguém é obrigado.
 - **Cards `#123`**: viram etiqueta no texto; não exigem nem geram link (config opcional `gitlab_base_url`; a integração real com o GitLab fica fora de escopo).
 - **Impedimentos**: texto livre por ata, aparecem no relatório até serem marcados como resolvidos (lista "Blockers abertos/resolvidos" na ata da sprint). Impedimento **nunca rende semente**.
-- **Recompensa (adubo)**: +1 semente por pessoa por ata (Daily e Day Closing) em que a fala esteja preenchida (feito ou planejado), sem avaliar conteúdo nem tamanho — máximo +2 por dia. O **relator (Scrum) ganha +1 por cada fala de outra pessoa que preenche** (por pessoa e por ata); a fala dele mesmo rende o +1 normal; fala que a própria pessoa escreveu no celular não dá bônus ao relator. A planta fica "adubada" (brilho e flores extras), só visual. Dedicado passa de 285 para ~375 (ver `docs/BALANCEAMENTO.md`).
+- **Recompensa (adubo)**: +1 semente por pessoa por ata (Daily e Day Closing) em que a fala esteja preenchida (feito ou planejado), sem avaliar conteúdo nem tamanho — máximo +2 por dia. O **relator (Scrum) ganha +1 por cada fala de outra pessoa que preenche** (por pessoa e por ata, **no máximo 3 por ata**); a fala dele mesmo rende o +1 normal; fala que a própria pessoa escreveu no celular não dá bônus ao relator. A planta fica "adubada" (brilho e flores extras), só visual. Dedicado passa de 285 para ~375 (ver `docs/BALANCEAMENTO.md`).
 - **Exportação**: página imprimível (`/ata/<data>/<tipo>/imprimir`, com `@media print` para salvar em PDF) e botão **"Copiar para o Google Docs"** (copia HTML + texto puro no modelo exato, com `Present:` automático).
 - **Ata da sprint** (`/ata/sprint/<n>`, linkada do Resumo da Sprint): todas as dailies e fechamentos da sprint em ordem, os cards citados agrupados, os impedimentos abertos e resolvidos e o panorama de presença — para a Review e a Retro.
 

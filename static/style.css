@@ -1776,3 +1776,32 @@ body[data-admin="0"] .so-admin { display: none !important; }
 
 /* ===== Impedimento pessoal (opcional) na tela de presenca ===== */
 .presenca-opcional { font-size: .82rem; color: var(--ink2); font-weight: 400; }
+
+/* ===== Aba Sementes: extrato e diferencas ===== */
+.fonte-lista-wide li.fonte-total { background: var(--s3); font-weight: 800; }
+.fonte-lista-wide li.fonte-gasto { background: transparent; border: 1px dashed var(--s4); }
+.fonte-lista-wide li.fonte-gasto b { color: var(--ink2); }
+.extrato { margin-top: 12px; background: var(--s1); border-radius: 14px; padding: 4px 12px 12px; }
+.extrato > summary { cursor: pointer; font-weight: 700; padding: 10px 0; color: var(--acc); }
+.extrato-tabela { display: grid; gap: 4px; max-height: 420px; overflow-y: auto; }
+.extrato-linha { display: grid; grid-template-columns: 46px 1fr 44px 54px; gap: 8px; align-items: start; padding: 8px 6px; border-radius: 10px; background: var(--s2); }
+.extrato-data { color: var(--ink2); font-weight: 700; font-size: 0.88rem; }
+.extrato-motivo { display: grid; gap: 2px; }
+.extrato-motivo .sem-ponto { display: inline-block; margin-right: 6px; vertical-align: -1px; }
+.extrato-motivo small { color: var(--ink2); font-size: 0.8rem; }
+.extrato-valor { font-weight: 800; text-align: right; color: var(--acc); }
+.extrato-valor.negativo { color: #ff9a8a; }
+.extrato-acum { text-align: right; color: var(--ink2); font-size: 0.85rem; }
+.diferencas { margin-top: 16px; background: var(--s1); border-radius: 14px; padding: 12px 14px; }
+.diferencas h3 { margin: 0 0 8px; font-size: 1.05rem; }
+.dif-tabela { display: grid; gap: 4px; }
+.dif-linha { display: grid; grid-template-columns: 1fr 64px 64px 64px; gap: 8px; padding: 7px 8px; border-radius: 8px; background: var(--s2); align-items: center; }
+.dif-linha span:not(:first-child) { text-align: right; }
+.dif-cab { background: transparent; color: var(--ink2); font-size: 0.82rem; font-weight: 700; }
+.dif-pos { color: var(--acc); font-weight: 800; }
+.dif-neg { color: #ff9a8a; font-weight: 800; }
+.dif-total { background: var(--s3); font-weight: 800; }
+@media (max-width: 560px) {
+  .dif-linha { grid-template-columns: 1fr 52px 52px 56px; font-size: 0.88rem; }
+  .extrato-linha { grid-template-columns: 40px 1fr 40px 46px; }
+}

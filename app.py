@@ -61,6 +61,8 @@ CORES_FONTE = {
     "dia_cheio": "#ffd35c",
     "floresceu": "#4fdb9b",
     "boas_vindas": "#ff8d76",
+    "ata": "#b59bff",
+    "relator": "#5fd6ff",
 }
 
 app = Flask(__name__)
@@ -837,15 +839,32 @@ def _e_equipe(membro_row):
     return (tipo or "equipe") == "equipe"
 
 
+def _relatadas_por_ata(db, dias_letivos_lista):
+    """{relator_id: {(data, tipo): [nomes de quem ele preencheu]}}: falas de OUTRAS pessoas que o
+    relator preencheu naquela ata. So conta a fala que o relator escreveu pela pessoa (origem
+    'relator'); falas antigas, sem marca (origem ''), contam. Texto vazio nao conta."""
+    saida = {}
+    if not dias_letivos_lista:
+        return saida
+    marc = ",".join("?" * len(dias_letivos_lista))
+    for r in db.execute(
+        f"SELECT a.relator_id AS rid, f.data AS data, f.tipo AS tipo, m.name AS nome "
+        f"FROM ata_falas f JOIN atas a ON a.data = f.data AND a.tipo = f.tipo "
+        f"JOIN members m ON m.id = f.member_id "
+        f"WHERE a.relator_id IS NOT NULL AND f.member_id <> a.relator_id AND f.data IN ({marc}) "
+        f"AND (TRIM(f.feito) <> '' OR TRIM(f.planejado) <> '') AND f.origem IN ('relator', '') "
+        f"ORDER BY f.data, f.tipo, m.name",
+        tuple(dias_letivos_lista),
+    ).fetchall():
+        saida.setdefault(r["rid"], {}).setdefault((r["data"], r["tipo"]), []).append(r["nome"])
+    return saida
+
+
 def _contagem_atas(db, dias_letivos_lista):
     """Por membro: (1) numero de atas (em DIA LETIVO) com a fala preenchida (feito OU
     planejado nao vazio) e (2) numero de falas de OUTRAS pessoas que ele preencheu como
-    relator (uma por pessoa e por ata; a dele mesmo conta so no item 1). Base do adubo.
-
-    So conta a fala que o relator escreveu pela pessoa: se a pessoa a escreveu no proprio
-    celular (origem 'proprio'), nao rende bonus ao relator. Falas antigas, sem marca
-    (origem ''), contam. Fim de semana, feriado ou dia fora do periodo nao rende nada: a
-    recompensa so vale em dias letivos, igual ao resto do jogo."""
+    relator, com LIMITE por ata (game.SEED_RELATOR_MAX_POR_ATA). A fala dele mesmo conta so
+    no item 1. Fim de semana, feriado ou dia fora do periodo nao rende nada."""
     com_fala, relatadas = {}, {}
     if not dias_letivos_lista:
         return com_fala, relatadas
@@ -857,16 +876,52 @@ def _contagem_atas(db, dias_letivos_lista):
         tuple(dias_letivos_lista),
     ).fetchall():
         com_fala[r["member_id"]] = r["n"]
-    for r in db.execute(
-        f"SELECT a.relator_id AS rid, COUNT(*) AS n FROM ata_falas f "
-        f"JOIN atas a ON a.data = f.data AND a.tipo = f.tipo "
-        f"WHERE a.relator_id IS NOT NULL AND f.member_id <> a.relator_id AND f.data IN ({marc}) "
-        f"AND (TRIM(f.feito) <> '' OR TRIM(f.planejado) <> '') AND f.origem IN ('relator', '') "
-        f"GROUP BY a.relator_id",
-        tuple(dias_letivos_lista),
-    ).fetchall():
-        relatadas[r["rid"]] = r["n"]
+    for rid, por_ata in _relatadas_por_ata(db, dias_letivos_lista).items():
+        relatadas[rid] = sum(min(len(nomes), game.SEED_RELATOR_MAX_POR_ATA) for nomes in por_ata.values())
     return com_fala, relatadas
+
+
+def _falas_do_membro(db, member_id, dias_letivos_lista):
+    """[(data, tipo)] das atas em que o membro tem fala preenchida (dias letivos)."""
+    if not dias_letivos_lista:
+        return []
+    marc = ",".join("?" * len(dias_letivos_lista))
+    return [
+        (r["data"], r["tipo"]) for r in db.execute(
+            f"SELECT data, tipo FROM ata_falas WHERE member_id = ? AND data IN ({marc}) "
+            f"AND (TRIM(feito) <> '' OR TRIM(planejado) <> '')",
+            (member_id, *dias_letivos_lista),
+        ).fetchall()
+    ]
+
+
+def _extrato_do_membro(db, member_id, dias_letivos_lista, semanas, glob, cheios, meta):
+    """Extrato (ganhos e gastos) de um membro, para a aba Sementes."""
+    reg = _reg_membro(glob, member_id)
+    ganhos = game.extrato_sementes(
+        dias_letivos_lista, semanas, reg, meta, dias_cheios=cheios,
+        falas=_falas_do_membro(db, member_id, dias_letivos_lista),
+        relatadas=_relatadas_por_ata(db, dias_letivos_lista).get(member_id, {}),
+    )
+    gastos = []
+    for r in db.execute(
+        "SELECT item_id, custo, comprado_em FROM compras WHERE member_id = ? AND desfeita_em IS NULL "
+        "ORDER BY comprado_em", (member_id,)
+    ).fetchall():
+        it = catalog.item(r["item_id"]) or {}
+        gastos.append({"data": (r["comprado_em"] or "")[:10], "fonte": "gasto", "rotulo": "Compra na loja",
+                       "valor": -int(r["custo"]), "detalhe": it.get("nome", r["item_id"])})
+    todas = sorted(ganhos + gastos, key=lambda x: (x["data"], 0 if x["valor"] > 0 else 1))
+    acumulado = 0
+    for linha in todas:
+        acumulado += linha["valor"]
+        linha["acumulado"] = acumulado
+    total_ganho = sum(x["valor"] for x in ganhos)
+    total_gasto = -sum(x["valor"] for x in gastos)
+    return {
+        "linhas": list(reversed(todas)),          # mais recente primeiro
+        "ganho": total_ganho, "gasto": total_gasto, "saldo": max(total_ganho - total_gasto, 0),
+    }
 
 
 def _coluna(row, nome):
@@ -2193,6 +2248,9 @@ def _contexto_sementes(db, member_id, compare_id=None):
         "floresceu": game.SEED_FLORESCEU,
         "boas_vindas": game.SEED_BOAS_VINDAS,
         "marcos": game.SEED_MILESTONES,
+        "ata": game.SEED_ATA,
+        "relator": game.SEED_RELATOR,
+        "relator_max": game.SEED_RELATOR_MAX_POR_ATA,
     }
 
     # Composicao do perfil "dedicado" (3 eventos, 45 dias, time perfeito), derivada das
@@ -2202,7 +2260,8 @@ def _contexto_sementes(db, member_id, compare_id=None):
     regs_dedicado = {
         d: {"presente": True, "eventos": set(game.SEED_POR_EVENTO)} for d in dias
     }
-    ded = game.calcular_sementes(dias, semanas, regs_dedicado, True, dias_cheios=set(dias))
+    ded = game.calcular_sementes(dias, semanas, regs_dedicado, True, dias_cheios=set(dias),
+                                 atas_com_fala=2 * len(dias))
     composicao = [
         {"id": "eventos", "rotulo": "Presença nos eventos", "valor": ded["por_presenca"]},
         {"id": "semanas", "rotulo": "Semanas fechadas", "valor": ded["por_semanas_fechadas"]},
@@ -2210,6 +2269,7 @@ def _contexto_sementes(db, member_id, compare_id=None):
         {"id": "dia_cheio", "rotulo": "Dia cheio do time", "valor": ded["por_dia_cheio"]},
         {"id": "floresceu", "rotulo": "Floresceu", "valor": ded["por_floresceu"]},
         {"id": "boas_vindas", "rotulo": "Boas-vindas", "valor": ded["por_boas_vindas"]},
+        {"id": "ata", "rotulo": "Atas preenchidas", "valor": ded["por_ata"]},
     ]
     total_ded = ded["total"]
     acumulado = 0
@@ -2231,6 +2291,8 @@ def _contexto_sementes(db, member_id, compare_id=None):
     glob = _registros_globais(db)
     ativos_ids = [r["id"] for r in membros]
     cheios = game.dia_cheio(ativos_ids, {d: v for d, v in glob.items() if d in dias_set})
+    com_fala_todos, relatadas_todos = _contagem_atas(db, dias_letivos_lista)
+    gastos_todos = _gastos_por_membro(db)
 
     def _detalhe_membro(mid):
         if not mid:
@@ -2240,13 +2302,18 @@ def _contexto_sementes(db, member_id, compare_id=None):
         ).fetchone()
         if not m:
             return None, None
-        reg = _registros_membro(db, mid)
+        reg = _reg_membro(glob, mid)            # com os eventos de cada dia (igual ao saldo real)
         estado = game.calcular_membro(dias_letivos_lista, reg, meta)
         ganho = game.calcular_sementes(
-            dias_letivos_lista, semanas_proj, reg, estado["floresceu"], dias_cheios=cheios
+            dias_letivos_lista, semanas_proj, reg, estado["floresceu"], dias_cheios=cheios,
+            atas_com_fala=com_fala_todos.get(mid, 0), falas_relatadas=relatadas_todos.get(mid, 0),
         )
         pessoa = {"id": m["id"], "name": m["name"]}
+        gasto = gastos_todos.get(mid, 0)
         det = {
+            "gasto": gasto,
+            "saldo": max(ganho["total"] - gasto, 0),
+            "extrato": _extrato_do_membro(db, mid, dias_letivos_lista, semanas_proj, glob, cheios, meta),
             "streak": estado["streak"],
             "melhor_streak": estado["melhor_streak"],
             "proximo": game.proximo_marco(estado["streak"]),
@@ -2261,6 +2328,22 @@ def _contexto_sementes(db, member_id, compare_id=None):
     if member_id and compare_id and compare_id != member_id:
         comparar, detalhe_b = _detalhe_membro(compare_id)
 
+    # "Por que a diferenca?": fonte a fonte, so o que muda de uma pessoa para a outra
+    diferencas = []
+    if detalhe and detalhe_b:
+        for chave, rotulo in (
+            ("por_presenca", "Presença nos eventos"), ("por_semanas_fechadas", "Semanas fechadas"),
+            ("por_marcos", "Marcos de sequência"), ("por_dia_cheio", "Dia cheio do time"),
+            ("por_floresceu", "Floresceu"), ("por_boas_vindas", "Boas-vindas"),
+            ("por_ata", "Atas preenchidas"), ("por_relator", "Scrum: falas de colegas preenchidas"),
+        ):
+            va, vb = detalhe["ganho"].get(chave, 0), detalhe_b["ganho"].get(chave, 0)
+            if va != vb:
+                diferencas.append({"rotulo": rotulo, "a": va, "b": vb, "delta": va - vb})
+        if detalhe["gasto"] != detalhe_b["gasto"]:
+            diferencas.append({"rotulo": "Gasto na loja (desconta do saldo)", "a": -detalhe["gasto"],
+                               "b": -detalhe_b["gasto"], "delta": -detalhe["gasto"] + detalhe_b["gasto"]})
+
     return {
         "fontes": fontes,
         "membros": [dict(m) for m in membros],
@@ -2268,6 +2351,7 @@ def _contexto_sementes(db, member_id, compare_id=None):
         "detalhe": detalhe,
         "comparar": comparar,
         "detalhe_b": detalhe_b,
+        "diferencas": diferencas,
         "composicao": composicao,
         "total_dedicado": total_ded,
         "cores": CORES_FONTE,
@@ -2277,6 +2361,8 @@ def _contexto_sementes(db, member_id, compare_id=None):
 @app.route("/sementes")
 def sementes_page():
     db = get_db()
+    if request.args.get("m", type=int) is None and _eu_id() is not None:
+        return redirect(url_for("sementes_page", m=_eu_id()) + "#progresso")
     return render_template(
         "sementes.html",
         **_contexto_sementes(

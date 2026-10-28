@@ -86,7 +86,7 @@ do zero. Bônus único, não se repete.
 **Jeito 7: Ata da daily (adubo, +1 por ata)**: cada ata (a **Daily** e o **Day Closing** do dia) em que
 a pessoa deixa a fala registrada — texto não vazio em "feito" **ou** em "planejado" — rende **+1**. Não
 avalia conteúdo nem tamanho: escreveu, ganhou. Como há 2 atas por dia, o máximo é **+2 por pessoa por
-dia**. O **relator** (Scrum) ganha **+1 por cada fala de OUTRA pessoa que ele preenche** na ata (uma por pessoa e por ata; na Daily e no Day Closing), à parte (bônus de relator). A fala dele mesmo rende só o +1 normal. Só vale a fala que o relator escreveu pela pessoa: se a pessoa a escreveu no próprio celular, não rende ao relator (o sistema guarda quem escreveu por último).
+dia**. O **relator** (Scrum) ganha **+1 por cada fala de OUTRA pessoa que ele preenche** na ata (uma por pessoa e por ata; na Daily e no Day Closing), com **limite de 3 por ata** (`SEED_RELATOR_MAX_POR_ATA`), à parte (bônus de relator). A fala dele mesmo rende só o +1 normal. Só vale a fala que o relator escreveu pela pessoa: se a pessoa a escreveu no próprio celular, não rende ao relator (o sistema guarda quem escreveu por último).
 Impedimentos são texto livre e **nunca rendem semente** (senão viraria exploit). A planta fica
 "adubada" no dia (brilho e flores extras), mas isso é só visual: o crescimento continua por presença.
 
@@ -145,7 +145,7 @@ os bônus de constância, de time, de boas-vindas e de ata (Jeitos 2 a 7).
 
 Leitura: a ata vira a maior fonte de "esforço extra" depois dos eventos. Cada pessoa controla quanto
 ganha dela só escrevendo a própria fala; o relator ganha +1 por cada colega que ele preenche (mais trabalho, mais semente).
-O bônus de relator não entra nos totais acima porque depende do rodízio. Ordem de grandeza: num dia em que ele preenche as duas atas de todos os outros 6, são até +12; com rodízio entre 7 pessoas, cada um relata ~6 dias do projeto, ou seja, até ~+72 no máximo, e na prática bem menos (quem escreve a própria fala não conta). Se pesar demais, dá para limitar por ata em `SEED_RELATOR`/`_contagem_atas`.
+O bônus de relator não entra nos totais acima porque depende do rodízio. Com o limite de 3 por ata, o máximo é **+6 por dia** (duas atas); com rodízio entre 7 pessoas, cada um relata ~6 dias, ou seja, no máximo ~+36 no projeto por esse bônus, e na prática menos (quem escreve a própria fala não conta).
 
 ### 4.5 Curva de saldo acumulado (sem gastar), por fim de semana
 

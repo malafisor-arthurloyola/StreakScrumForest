@@ -99,6 +99,20 @@
     <p class="fonte-grande">+{{ fontes.boas_vindas }}</p>
     <p class="fonte-nota">Um presente único na sua primeira presença registrada.</p>
   </article>
+
+  <article class="card fonte-card" style="--cor: {{ cores.ata }}">
+    <span class="fonte-faixa"></span>
+    <h2>Preencher a ata</h2>
+    <p class="fonte-grande">+{{ fontes.ata }}<small>/ata</small></p>
+    <p class="fonte-nota">Cada ata (Daily e Day Closing) em que a sua fala está preenchida. Até +{{ fontes.ata * 2 }} por dia. Editar depois não rende de novo.</p>
+  </article>
+
+  <article class="card fonte-card" style="--cor: {{ cores.relator }}">
+    <span class="fonte-faixa"></span>
+    <h2>Scrum (relator)</h2>
+    <p class="fonte-grande">+{{ fontes.relator }}<small>/colega</small></p>
+    <p class="fonte-nota">Para cada colega cuja fala o relator preenche na ata (a dele mesmo rende o +{{ fontes.ata }} normal). Limite de {{ fontes.relator_max }} por ata. Fala que a pessoa escreve no próprio celular não conta para o relator.</p>
+  </article>
 </section>
 
 <section class="card sementes-multiplica" aria-label="A sequência multiplica?">
@@ -134,6 +148,7 @@
     <div class="kpi kpi-destaque">
       <span class="kpi-rotulo">Total ganho</span>
       <span class="kpi-valor">{{ det.ganho.total }}</span>
+      <span class="kpi-nota">gasto na loja: {{ det.gasto }} · saldo: <b>{{ det.saldo }}</b></span>
     </div>
   </div>
   <ul class="fonte-lista fonte-lista-wide">
@@ -145,7 +160,32 @@
     {% if 'por_boas_vindas' in det.ganho %}
     <li><span class="sem-ponto" style="background: {{ cores.boas_vindas }}"></span><span>Boas-vindas</span><b>+{{ det.ganho.por_boas_vindas }}</b></li>
     {% endif %}
+    <li><span class="sem-ponto" style="background: {{ cores.ata }}"></span><span>Atas preenchidas</span><b>+{{ det.ganho.por_ata }}</b></li>
+    <li><span class="sem-ponto" style="background: {{ cores.relator }}"></span><span>Scrum: falas de colegas preenchidas</span><b>+{{ det.ganho.por_relator }}</b></li>
+    <li class="fonte-total"><span>Total ganho</span><b>{{ det.ganho.total }}</b></li>
+    {% if det.gasto %}<li class="fonte-gasto"><span>Gasto na loja</span><b>-{{ det.gasto }}</b></li>{% endif %}
+    <li class="fonte-total"><span>Saldo para gastar</span><b>{{ det.saldo }}</b></li>
   </ul>
+
+  <details class="extrato">
+    <summary>Ver o extrato de {{ pessoa.name }}, ganho por ganho ({{ det.extrato.linhas | length }})</summary>
+    <div class="extrato-tabela" role="table" aria-label="Extrato de sementes de {{ pessoa.name }}">
+      {% for l in det.extrato.linhas %}
+      <div class="extrato-linha" role="row">
+        <span class="extrato-data" role="cell">{{ l.data[8:10] }}/{{ l.data[5:7] }}</span>
+        <span class="extrato-motivo" role="cell">
+          <span class="sem-ponto" style="background: {{ cores[l.fonte] if l.fonte in cores else '#ff8d76' }}"></span>
+          <b>{{ l.rotulo }}</b>{% if l.detalhe %}<small>{{ l.detalhe }}</small>{% endif %}
+        </span>
+        <span class="extrato-valor{{ ' negativo' if l.valor < 0 }}" role="cell">{{ '+' if l.valor > 0 }}{{ l.valor }}</span>
+        <span class="extrato-acum" role="cell" title="total acumulado naquele ponto">{{ l.acumulado }}</span>
+      </div>
+      {% else %}
+      <p class="vazio">Ainda não há ganhos registrados.</p>
+      {% endfor %}
+    </div>
+    <p class="fonte-nota">Cada linha é uma semente que entrou (ou saiu, na loja). A última coluna é o saldo acumulado até ali. O total do extrato é igual ao total acima.</p>
+  </details>
 </div>
 {% endmacro %}
 
@@ -167,6 +207,24 @@
       {{ progresso(comparar, detalhe_b) }}
     </div>
     <p class="fonte-nota">Comparação lado a lado, sem ranking: os números de cada pessoa, sem apontar "melhor" ou "pior".</p>
+
+    <section class="diferencas" aria-label="Por que a diferença">
+      <h3>De onde vem a diferença entre {{ atual.name }} e {{ comparar.name }}</h3>
+      {% if diferencas %}
+      <div class="dif-tabela" role="table">
+        <div class="dif-linha dif-cab" role="row"><span>Fonte</span><span>{{ atual.name }}</span><span>{{ comparar.name }}</span><span>Diferença</span></div>
+        {% for d in diferencas %}
+        <div class="dif-linha" role="row">
+          <span>{{ d.rotulo }}</span><span>{{ d.a }}</span><span>{{ d.b }}</span>
+          <span class="{{ 'dif-pos' if d.delta > 0 else 'dif-neg' }}">{{ '+' if d.delta > 0 }}{{ d.delta }}</span>
+        </div>
+        {% endfor %}
+        <div class="dif-linha dif-total" role="row"><span>Saldo atual</span><span>{{ detalhe.saldo }}</span><span>{{ detalhe_b.saldo }}</span><span>{{ detalhe.saldo - detalhe_b.saldo }}</span></div>
+      </div>
+      {% else %}
+      <p class="fonte-nota">Os dois têm exatamente as mesmas sementes em todas as fontes.</p>
+      {% endif %}
+    </section>
     {% else %}
     {{ progresso(atual, detalhe) }}
     {% endif %}
@@ -186,17 +244,4 @@
     <p class="vazio">Escolha um nome acima para ver o progresso da pessoa: sequência, próximo marco e quanto já rendeu cada fonte. Depois dá para comparar com outra pessoa.</p>
   {% endif %}
 </section>
-{% endblock %}
-
-{% block scripts %}
-<script>
-(function () {
-  try {
-    var KEY = 'jardim.quemSou';
-    var tem = location.search.indexOf('m=') !== -1;
-    var salvo = localStorage.getItem(KEY);
-    if (!tem && salvo) location.replace('/sementes?m=' + encodeURIComponent(salvo) + '#progresso');
-  } catch (e) {}
-})();
-</script>
 {% endblock %}
