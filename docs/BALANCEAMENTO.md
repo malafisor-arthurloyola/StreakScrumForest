@@ -86,7 +86,7 @@ do zero. Bônus único, não se repete.
 **Jeito 7: Ata da daily (adubo, +1 por ata)**: cada ata (a **Daily** e o **Day Closing** do dia) em que
 a pessoa deixa a fala registrada — texto não vazio em "feito" **ou** em "planejado" — rende **+1**. Não
 avalia conteúdo nem tamanho: escreveu, ganhou. Como há 2 atas por dia, o máximo é **+2 por pessoa por
-dia**. O **relator** (quem redige a ata) ganha **+1 por ata que redigiu**, à parte (bônus de relator).
+dia**. O **relator** (Scrum) ganha **+1 por cada fala de OUTRA pessoa que ele preenche** na ata (uma por pessoa e por ata; na Daily e no Day Closing), à parte (bônus de relator). A fala dele mesmo rende só o +1 normal. Só vale a fala que o relator escreveu pela pessoa: se a pessoa a escreveu no próprio celular, não rende ao relator (o sistema guarda quem escreveu por último).
 Impedimentos são texto livre e **nunca rendem semente** (senão viraria exploit). A planta fica
 "adubada" no dia (brilho e flores extras), mas isso é só visual: o crescimento continua por presença.
 
@@ -131,7 +131,7 @@ deixou a fala registrada nas duas atas de cada dia.
 | Ata da daily (adubo) | 45 dias x 2 atas x 1 | 90 |
 | **Total** | | **375** |
 
-O total **375** é sem contar o bônus de relator (quem redige ganha +1 por ata, à parte, conforme o
+O total **375** é sem contar o bônus de relator (+1 por fala de outra pessoa que ele preenche, à parte, conforme o
 rodízio). Impedimentos não entram. Só 135 de 375 vêm de "estar presente em cada evento"; o resto são
 os bônus de constância, de time, de boas-vindas e de ata (Jeitos 2 a 7).
 
@@ -144,8 +144,8 @@ os bônus de constância, de time, de boas-vindas e de ata (Jeitos 2 a 7).
 | **Só daily**: 45 dias, nunca dev/enc., fala só na daily | 195 | **240** | 195 de antes + 45 (só a daily) |
 
 Leitura: a ata vira a maior fonte de "esforço extra" depois dos eventos. Cada pessoa controla quanto
-ganha dela só escrevendo a própria fala; o relator ganha um pouquinho a mais pelo trabalho de redigir.
-O bônus de relator não entra nos totais acima porque depende do rodízio (quem relata quantas vezes).
+ganha dela só escrevendo a própria fala; o relator ganha +1 por cada colega que ele preenche (mais trabalho, mais semente).
+O bônus de relator não entra nos totais acima porque depende do rodízio. Ordem de grandeza: num dia em que ele preenche as duas atas de todos os outros 6, são até +12; com rodízio entre 7 pessoas, cada um relata ~6 dias do projeto, ou seja, até ~+72 no máximo, e na prática bem menos (quem escreve a própria fala não conta). Se pesar demais, dá para limitar por ata em `SEED_RELATOR`/`_contagem_atas`.
 
 ### 4.5 Curva de saldo acumulado (sem gastar), por fim de semana
 
@@ -232,7 +232,7 @@ total esperado (`tests/test_catalog.py`, `tests/test_game.py`) avisam se o equil
   fonte, **boas-vindas (+20)**, bônus único na primeira presença (dedicado 265 -> 285, típico 191 -> 211,
   só daily 175 -> 195). Selo/acessório **Fundador** (cosmético, não rende semente), ligado a `fundador_ate`.
 - **Fase 4 (ata da daily)**: 7ª fonte, **ata (adubo, +1 por ata com fala)** — a Daily e o Day Closing
-  de cada dia, máximo +2 por pessoa por dia; o relator ganha +1 por ata que redige (à parte). Impedimento
+  de cada dia, máximo +2 por pessoa por dia; o relator ganha +1 por fala de outra pessoa que preenche (à parte). Impedimento
   nunca rende semente. Dedicado 285 -> 375 (sem contar o bônus de relator). Constantes `SEED_ATA` e
   `SEED_RELATOR` em `game.py`.
 - **Fase 6c (campos da daily + GitLab)**: a daily passou a ter três campos em português ("O que fiz",

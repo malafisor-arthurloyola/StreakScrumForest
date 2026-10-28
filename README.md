@@ -270,7 +270,9 @@ membro vira um cartao compacto.
 ## Jardim vivo (branch `feature/jardim-vivo`)
 
 - **Céu por horário**: o cenário muda com a hora do dia (madrugada, amanhecer, manhã, meio-dia,
-  tarde, entardecer e noite), com sol e lua percorrendo o céu. A regra está em `game.periodo_do_dia`
+  tarde, entardecer e noite), com sol e lua percorrendo o céu. Os estágios seguem o horário das
+  aulas: **8h manhã** (a daily), **14h tarde** e **15h45 entardecer**, o "mais tarde" do encerramento;
+  antes das 8h é amanhecer (a partir das 5h) e depois das 18h30 é noite. A regra está em `game.periodo_do_dia`
   e se repete em `periodoPorHora` (`static/app.js`), que usa a hora do navegador.
 - **A planta muda todo dia**: cada presença avança uma barra até o próximo estágio ("faltam N dias"),
   faz nascer um brotinho no vaso e dá uma leve crescida. Os estágios agora são uniformes (um novo a
@@ -463,7 +465,7 @@ Substitui o Google Docs: a ata da daily e do fechamento do dia, pronta para entr
 - **Fala própria no celular**: em `/eu`, quem está logado vê "Minha fala de hoje" e escreve a própria parte (Done/Doing). O relator vê o que já veio preenchido e completa. Ninguém é obrigado.
 - **Cards `#123`**: viram etiqueta no texto; não exigem nem geram link (config opcional `gitlab_base_url`; a integração real com o GitLab fica fora de escopo).
 - **Impedimentos**: texto livre por ata, aparecem no relatório até serem marcados como resolvidos (lista "Blockers abertos/resolvidos" na ata da sprint). Impedimento **nunca rende semente**.
-- **Recompensa (adubo)**: +1 semente por pessoa por ata (Daily e Day Closing) em que a fala esteja preenchida (feito ou planejado), sem avaliar conteúdo nem tamanho — máximo +2 por dia. O relator ganha +1 por ata que redige. A planta fica "adubada" (brilho e flores extras), só visual. Dedicado passa de 285 para ~375 (ver `docs/BALANCEAMENTO.md`).
+- **Recompensa (adubo)**: +1 semente por pessoa por ata (Daily e Day Closing) em que a fala esteja preenchida (feito ou planejado), sem avaliar conteúdo nem tamanho — máximo +2 por dia. O **relator (Scrum) ganha +1 por cada fala de outra pessoa que preenche** (por pessoa e por ata); a fala dele mesmo rende o +1 normal; fala que a própria pessoa escreveu no celular não dá bônus ao relator. A planta fica "adubada" (brilho e flores extras), só visual. Dedicado passa de 285 para ~375 (ver `docs/BALANCEAMENTO.md`).
 - **Exportação**: página imprimível (`/ata/<data>/<tipo>/imprimir`, com `@media print` para salvar em PDF) e botão **"Copiar para o Google Docs"** (copia HTML + texto puro no modelo exato, com `Present:` automático).
 - **Ata da sprint** (`/ata/sprint/<n>`, linkada do Resumo da Sprint): todas as dailies e fechamentos da sprint em ordem, os cards citados agrupados, os impedimentos abertos e resolvidos e o panorama de presença — para a Review e a Retro.
 

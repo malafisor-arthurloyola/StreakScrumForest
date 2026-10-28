@@ -33,7 +33,7 @@ SEED_DIA_CHEIO = 1        # por dia cheio do time, para cada presente
 SEED_FLORESCEU = 20       # ao florescer (bonus unico)
 SEED_BOAS_VINDAS = 20     # ao registrar a 1a presenca (bonus unico)
 SEED_ATA = 1              # por ata (daily/fechamento) com a fala da pessoa preenchida
-SEED_RELATOR = 1          # por ata que a pessoa redigiu (relator)
+SEED_RELATOR = 1          # por fala de OUTRA pessoa que o relator (Scrum) preencheu na ata
 
 SEED_MILESTONES = [
     (5,  3),
@@ -124,19 +124,20 @@ def nivel_chama(streak):
 
 
 def periodo_do_dia(hora):
-    """hora em decimal (ex.: 14.5 = 14h30). Mesma regra de atualizarCena() em app.js."""
+    """hora em decimal (ex.: 14.5 = 14h30). Mesma regra de atualizarCena() em app.js.
+    Os estagios seguem as aulas: 8h manha, 14h tarde, 15h45 entardecer (encerramento)."""
     if hora < 5:
         return "madrugada"
-    if hora < 7.5:
+    if hora < 8:
         return "amanhecer"
     if hora < 12:
-        return "manha"
+        return "manha"          # 8h: comeca a manha (a daily)
     if hora < 14:
         return "meiodia"
-    if hora < 17.5:
-        return "tarde"
-    if hora < 19:
-        return "entardecer"
+    if hora < 15.75:
+        return "tarde"          # 14h: comeca a tarde
+    if hora < 18.5:
+        return "entardecer"     # 15h45: "mais tarde", o horario do encerramento
     return "noite"
 
 
@@ -251,14 +252,15 @@ def calcular_semanas_fechadas(semanas_projeto, registros_por_data):
 
 
 def calcular_sementes(dias_letivos_lista, semanas_projeto, registros_por_data, floresceu,
-                      dias_cheios=None, atas_com_fala=0, atas_relatadas=0):
+                      dias_cheios=None, atas_com_fala=0, falas_relatadas=0):
     """
     Calcula sementes ganhas (nunca perde por falta).
     Retorna dict com total e detalhes.
 
     atas_com_fala: numero de atas (daily/fechamento) em que a pessoa deixou a fala
     preenchida (feito OU planejado nao vazio) -> +SEED_ATA cada (adubo).
-    atas_relatadas: numero de atas que a pessoa redigiu como relator -> +SEED_RELATOR cada.
+    falas_relatadas: numero de falas de OUTRAS pessoas que ela preencheu como relator (uma por
+    pessoa e por ata) -> +SEED_RELATOR cada. A fala dela mesma rende o +SEED_ATA normal.
     Impedimentos nunca entram aqui (nao rendem semente).
     """
     dias_presentes = sum(
@@ -306,7 +308,7 @@ def calcular_sementes(dias_letivos_lista, semanas_projeto, registros_por_data, f
 
     # atas (Fase 4): adubo fixo, sem avaliar conteudo. Impedimentos nao entram.
     por_ata = SEED_ATA * max(0, int(atas_com_fala))
-    por_relator = SEED_RELATOR * max(0, int(atas_relatadas))
+    por_relator = SEED_RELATOR * max(0, int(falas_relatadas))
 
     total = (seeds_eventos + semenas_fechadas * SEED_SEMANA_FECHADA + marcos + bonus_floresceu
              + por_dia_cheio + por_boas_vindas + por_ata + por_relator)

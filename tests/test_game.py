@@ -373,10 +373,10 @@ class TestNivelChama(unittest.TestCase):
 class TestCenaDoDia(unittest.TestCase):
     def test_periodos(self):
         casos = {
-            0: "madrugada", 4.9: "madrugada", 5: "amanhecer", 7.4: "amanhecer",
-            7.5: "manha", 11.9: "manha", 12: "meiodia", 13.9: "meiodia",
-            14: "tarde", 17.4: "tarde", 17.5: "entardecer", 18.9: "entardecer",
-            19: "noite", 23.9: "noite",
+            0: "madrugada", 4.9: "madrugada", 5: "amanhecer", 7.9: "amanhecer",
+            8: "manha", 11.9: "manha", 12: "meiodia", 13.9: "meiodia",
+            14: "tarde", 15.7: "tarde", 15.75: "entardecer", 18.4: "entardecer",
+            18.5: "noite", 23.9: "noite",
         }
         for hora, esperado in casos.items():
             self.assertEqual(periodo_do_dia(hora), esperado, hora)

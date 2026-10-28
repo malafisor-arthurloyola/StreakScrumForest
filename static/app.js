@@ -147,11 +147,11 @@ function confete(memberId, cores) {
 /* Ceu que acompanha a hora. Mesma regra de game.periodo_do_dia (Python). */
 function periodoPorHora(h) {
   if (h < 5) return 'madrugada';
-  if (h < 7.5) return 'amanhecer';
-  if (h < 12) return 'manha';
+  if (h < 8) return 'amanhecer';
+  if (h < 12) return 'manha';        // 8h: comeca a manha (a daily)
   if (h < 14) return 'meiodia';
-  if (h < 17.5) return 'tarde';
-  if (h < 19) return 'entardecer';
+  if (h < 15.75) return 'tarde';     // 14h: comeca a tarde
+  if (h < 18.5) return 'entardecer'; // 15h45: "mais tarde", horario do encerramento
   return 'noite';
 }
 

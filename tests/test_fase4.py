@@ -87,7 +87,7 @@ class TestRecompensa(unittest.TestCase):
         self.assertEqual(r["por_ata"], 2 * game.SEED_ATA)
 
     def test_relator_rende_por_relator(self):
-        r = self._calc(atas_relatadas=3)
+        r = self._calc(falas_relatadas=3)
         self.assertEqual(r["por_relator"], 3 * game.SEED_RELATOR)
 
     def test_sem_atas_zero(self):
@@ -129,13 +129,14 @@ class TestRecompensaNaRota(Fase4Base):
             cf, _ = appmod._contagem_atas(appmod.get_db(), appmod._dias_letivos(appmod.get_db()))
         self.assertEqual(cf.get(a), 2)
 
-    def test_relator_conta(self):
-        a = self.ids()[0]
-        self.presente(a, DATA)
+    def test_relator_conta_por_fala_de_outra_pessoa(self):
+        a, b, c = self.ids()[:3]
         self.salvar(data=DATA, tipo="daily", campo="relator", valor=a)
+        self.salvar(data=DATA, tipo="daily", campo="feito", member_id=b, valor="fiz algo")      # pelo relator
+        self.salvar(data=DATA, tipo="daily", campo="planejado", member_id=c, valor="vou fazer")  # pelo relator
         with appmod.app.test_request_context():
             _, rel = appmod._contagem_atas(appmod.get_db(), appmod._dias_letivos(appmod.get_db()))
-        self.assertEqual(rel.get(a), 1)
+        self.assertEqual(rel.get(a), 2)
 
     def test_ata_em_dia_nao_letivo_nao_rende(self):
         # 2026-10-24 e sabado (nao letivo): preencher ata nao pode dar semente

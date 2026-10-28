@@ -647,6 +647,10 @@ def _migrar_gitlab(db):
         db.execute("ALTER TABLE ata_falas ADD COLUMN review TEXT NOT NULL DEFAULT ''")
     if "bloqueios" not in cols_falas:
         db.execute("ALTER TABLE ata_falas ADD COLUMN bloqueios TEXT NOT NULL DEFAULT ''")
+    if "origem" not in cols_falas:
+        # quem escreveu a fala por ultimo: 'relator' (o Scrum preencheu pela pessoa) ou 'proprio'.
+        # Vazio = fala anterior a esta regra (conta para o relator, por boa-fe).
+        db.execute("ALTER TABLE ata_falas ADD COLUMN origem TEXT NOT NULL DEFAULT ''")
     db.execute(
         """
         CREATE TABLE IF NOT EXISTS gitlab_cards (
@@ -834,10 +838,14 @@ def _e_equipe(membro_row):
 
 
 def _contagem_atas(db, dias_letivos_lista):
-    """Por membro: numero de atas (em DIA LETIVO) com a fala preenchida (feito OU
-    planejado nao vazio) e numero de atas que a pessoa redigiu (relator). Base do adubo.
-    Fim de semana, feriado ou dia fora do periodo nao rende: a recompensa so conta
-    atas cujas datas sao dias letivos, igual ao resto do jogo."""
+    """Por membro: (1) numero de atas (em DIA LETIVO) com a fala preenchida (feito OU
+    planejado nao vazio) e (2) numero de falas de OUTRAS pessoas que ele preencheu como
+    relator (uma por pessoa e por ata; a dele mesmo conta so no item 1). Base do adubo.
+
+    So conta a fala que o relator escreveu pela pessoa: se a pessoa a escreveu no proprio
+    celular (origem 'proprio'), nao rende bonus ao relator. Falas antigas, sem marca
+    (origem ''), contam. Fim de semana, feriado ou dia fora do periodo nao rende nada: a
+    recompensa so vale em dias letivos, igual ao resto do jogo."""
     com_fala, relatadas = {}, {}
     if not dias_letivos_lista:
         return com_fala, relatadas
@@ -850,11 +858,14 @@ def _contagem_atas(db, dias_letivos_lista):
     ).fetchall():
         com_fala[r["member_id"]] = r["n"]
     for r in db.execute(
-        f"SELECT relator_id, COUNT(*) AS n FROM atas "
-        f"WHERE relator_id IS NOT NULL AND data IN ({marc}) GROUP BY relator_id",
+        f"SELECT a.relator_id AS rid, COUNT(*) AS n FROM ata_falas f "
+        f"JOIN atas a ON a.data = f.data AND a.tipo = f.tipo "
+        f"WHERE a.relator_id IS NOT NULL AND f.member_id <> a.relator_id AND f.data IN ({marc}) "
+        f"AND (TRIM(f.feito) <> '' OR TRIM(f.planejado) <> '') AND f.origem IN ('relator', '') "
+        f"GROUP BY a.relator_id",
         tuple(dias_letivos_lista),
     ).fetchall():
-        relatadas[r["relator_id"]] = r["n"]
+        relatadas[r["rid"]] = r["n"]
     return com_fala, relatadas
 
 
@@ -882,7 +893,7 @@ def get_member_stats(db, dias_letivos_lista=None):
     gastos = _gastos_por_membro(db)
     posses, equip = _posses_e_equipados(db)
     fundador_ate = _get_config(db).get("fundador_ate", "2026-10-23")
-    atas_com_fala, atas_relatadas = _contagem_atas(db, dias_letivos_lista)
+    atas_com_fala, falas_relatadas = _contagem_atas(db, dias_letivos_lista)
 
     resultado = []
     for m in membros:
@@ -895,7 +906,7 @@ def get_member_stats(db, dias_letivos_lista=None):
         ganho = game.calcular_sementes(
             dias_letivos_lista, semanas, reg, estado["floresceu"], dias_cheios=cheios,
             atas_com_fala=atas_com_fala.get(m["id"], 0),
-            atas_relatadas=atas_relatadas.get(m["id"], 0),
+            falas_relatadas=falas_relatadas.get(m["id"], 0),
         )
         gasto = gastos.get(m["id"], 0)
         resultado.append({
@@ -2460,7 +2471,8 @@ ATA_ROTULOS_FALA = {
 }
 
 
-def _salvar_fala(db, data_str, tipo, member_id, feito=None, planejado=None, review=None, bloqueios=None):
+def _salvar_fala(db, data_str, tipo, member_id, feito=None, planejado=None, review=None, bloqueios=None,
+                 origem=None):
     """Grava (upsert) a fala de uma pessoa na ata; so os campos informados mudam."""
     _garantir_ata(db, data_str, tipo)
     db.execute(
@@ -2480,6 +2492,9 @@ def _salvar_fala(db, data_str, tipo, member_id, feito=None, planejado=None, revi
     if bloqueios is not None:
         db.execute("UPDATE ata_falas SET bloqueios = ?, atualizada_em = datetime('now') "
                    "WHERE data = ? AND tipo = ? AND member_id = ?", (bloqueios, data_str, tipo, member_id))
+    if origem and any(v is not None for v in (feito, planejado, review, bloqueios)):
+        db.execute("UPDATE ata_falas SET origem = ? WHERE data = ? AND tipo = ? AND member_id = ?",
+                   (origem, data_str, tipo, member_id))
 
 
 def _definir_status(db, member_id, data_str, evento, status):
@@ -2553,11 +2568,11 @@ def presenca_page(evento, codigo):
             _definir_status(db, membro["id"], hoje, evento, "presente")
         ganhou_ata = False
         if tipo_ata and (feito or planejado):
-            _salvar_fala(db, hoje, tipo_ata, membro["id"], feito, planejado)
+            _salvar_fala(db, hoje, tipo_ata, membro["id"], feito, planejado, origem="proprio")
             ganhou_ata = True
         # impedimento salvo a parte (so quando o campo veio no pedido); nao conta semente
         if tipo_ata and tem_bloqueio:
-            _salvar_fala(db, hoje, tipo_ata, membro["id"], bloqueios=bloqueios)
+            _salvar_fala(db, hoje, tipo_ata, membro["id"], bloqueios=bloqueios, origem="proprio")
         db.commit()
         return jsonify({
             "ok": True,
@@ -2800,7 +2815,7 @@ def api_ata_salvar():
         if mid is None:
             return _erro("Pessoa inválida.")
         texto = (p.get("valor") or "")
-        _salvar_fala(db, data_str, tipo, mid, **{campo: texto})
+        _salvar_fala(db, data_str, tipo, mid, origem="relator", **{campo: texto})
         # relatar a fala de alguem conta como presenca (a menos que ele tenha avisado)
         if texto.strip():
             evento = ATA_EVENTO[tipo]
@@ -2816,14 +2831,14 @@ def api_ata_salvar():
         mid = _int_ou_none(p.get("member_id"))
         if mid is None:
             return _erro("Pessoa inválida.")
-        _salvar_fala(db, data_str, tipo, mid, review=(p.get("valor") or ""))
+        _salvar_fala(db, data_str, tipo, mid, review=(p.get("valor") or ""), origem="relator")
     elif campo == "bloqueio_pessoal":
         # impedimento de UMA pessoa (o relator pode preencher por ela). Nunca rende semente
         # e nao mexe na presenca. Diferente do 'bloqueios' (impedimento geral do dia).
         mid = _int_ou_none(p.get("member_id"))
         if mid is None:
             return _erro("Pessoa inválida.")
-        _salvar_fala(db, data_str, tipo, mid, bloqueios=(p.get("valor") or ""))
+        _salvar_fala(db, data_str, tipo, mid, bloqueios=(p.get("valor") or ""), origem="relator")
     elif campo == "status":
         mid = _int_ou_none(p.get("member_id"))
         valor = p.get("valor") or ""
@@ -2916,7 +2931,7 @@ def api_ata_minha_fala():
         (data_str, tipo, membro["id"]),
     )
     db.execute(
-        f"UPDATE ata_falas SET {campo} = ?, atualizada_em = datetime('now') "
+        f"UPDATE ata_falas SET {campo} = ?, origem = 'proprio', atualizada_em = datetime('now') "
         "WHERE data = ? AND tipo = ? AND member_id = ?",
         (p.get("valor") or "", data_str, tipo, membro["id"]),
     )
