@@ -162,6 +162,7 @@
     {% endif %}
     <li><span class="sem-ponto" style="background: {{ cores.ata }}"></span><span>Atas preenchidas</span><b>+{{ det.ganho.por_ata }}</b></li>
     <li><span class="sem-ponto" style="background: {{ cores.relator }}"></span><span>Scrum: falas de colegas preenchidas</span><b>+{{ det.ganho.por_relator }}</b></li>
+    <li><span class="sem-ponto" style="background: {{ cores.meta }}"></span><span>Metas personalizadas cumpridas</span><b>+{{ det.ganho.por_metas }}</b></li>
     <li class="fonte-total"><span>Total ganho</span><b>{{ det.ganho.total }}</b></li>
     {% if det.gasto %}<li class="fonte-gasto"><span>Gasto na loja</span><b>-{{ det.gasto }}</b></li>{% endif %}
     <li class="fonte-total"><span>Saldo para gastar</span><b>{{ det.saldo }}</b></li>

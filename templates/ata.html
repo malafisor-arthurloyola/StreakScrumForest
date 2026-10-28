@@ -70,7 +70,7 @@
     </div>
     <div class="ata-dois">
       <div class="ata-campo">
-        <label>{% if tipo == 'daily' %}O que fiz{% else %}Concluí hoje{% endif %}
+        <label>{% if tipo == 'daily' %}O que eu fiz de ontem para hoje{% else %}Concluí hoje{% endif %}
           <button type="button" class="gl-ajuda" aria-label="O que é este campo"
             data-ajuda="{{ 'O que você concluiu ou avançou desde a última daily. Sugerimos seus cards que foram para Waiting review, Review ou foram fechados nos últimos dias.' if tipo == 'daily' else 'O que você concluiu hoje. Sugerimos seus cards em Doing, em revisão ou fechados; use a busca para achar outro.' }}">i</button>
           <span class="ata-rot-pt">{{ rot_feito | lower }}</span></label>

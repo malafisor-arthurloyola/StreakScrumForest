@@ -123,6 +123,53 @@
   </form>
 </section>
 
+<section aria-label="Metas com recompensa" id="desafios">
+  <h2 class="secao-titulo">Metas com recompensa</h2>
+  <p class="fonte-nota">Combinados do time, como entregar certos artefatos até uma data. Quem for marcado recebe as sementes quando a meta é cumprida dentro do prazo. Perder o prazo não tira nada de ninguém.</p>
+  {% if desafios %}
+  <div class="metas">
+    {% for d in desafios %}
+    <article class="meta desafio{{ ' meta-cumprida' if d.no_prazo }}">
+      <div class="meta-topo">
+        <b>{{ d.titulo }}</b>
+        {% if d.no_prazo %}<span class="selo-comprado">Cumprida</span>
+        {% elif d.cumprida_em %}<span class="selo-comprado selo-fora">Fora do prazo</span>{% endif %}
+        <button type="button" class="btn-x so-admin" data-desafio="remover" data-id="{{ d.id }}" aria-label="Remover meta">×</button>
+      </div>
+      <span class="meta-nums">Até {{ d.prazo[8:10] }}/{{ d.prazo[5:7] }} · +{{ d.sementes }} sementes ·
+        {% if d.para_time %}time inteiro{% else %}{% for mid in d.membros %}{{ (equipe | selectattr('id', 'equalto', mid) | list | first).name if (equipe | selectattr('id', 'equalto', mid) | list) else '?' }}{{ ', ' if not loop.last }}{% endfor %}{% endif %}
+        {% if d.cumprida_em %} · entregue em {{ d.cumprida_em[8:10] }}/{{ d.cumprida_em[5:7] }}{% endif %}</span>
+      <div class="desafio-acoes so-admin">
+        {% if d.cumprida_em %}
+        <button type="button" class="btn btn-ghost" data-desafio="reabrir" data-id="{{ d.id }}">Reabrir</button>
+        {% else %}
+        <button type="button" class="btn btn-primary" data-desafio="cumprir" data-id="{{ d.id }}">Marcar como cumprida</button>
+        {% endif %}
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="vazio">Nenhuma meta com recompensa ainda.</p>
+  {% endif %}
+  <form class="form-desafio so-admin" id="form-desafio">
+    <label for="d-titulo">Nova meta</label>
+    <input type="text" id="d-titulo" maxlength="100" placeholder="Ex.: entregar o canvas e o backlog" required>
+    <label for="d-prazo">Prazo</label>
+    <input type="date" id="d-prazo" required>
+    <label for="d-sementes">Sementes</label>
+    <input type="number" id="d-sementes" min="1" max="{{ seed_meta_max }}" value="5" required>
+    <fieldset class="d-quem">
+      <legend>Quem recebe</legend>
+      <label><input type="checkbox" id="d-time" checked> Time inteiro</label>
+      {% for m in equipe %}
+      <label class="d-pessoa"><input type="checkbox" name="d-membro" value="{{ m.id }}"> {{ m.name }}</label>
+      {% endfor %}
+    </fieldset>
+    <button type="submit" class="btn btn-primary">Criar meta</button>
+  </form>
+</section>
+
 <section aria-label="Bosque da equipe" id="bosque">
   <h2 class="secao-titulo">Bosque da equipe</h2>
   {% if bosque %}
@@ -269,6 +316,44 @@
   document.getElementById('form-meta').addEventListener('submit', function (e) {
     e.preventDefault();
     chamar({ acao: 'adicionar', sprint: SPRINT, tipo: tipo.value, alvo: parseInt(alvo.value, 10) }).then(recarregar);
+  });
+  function chamarPremio(dados) {
+    return fetch('/api/metas-premio', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dados),
+    }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (!res.ok) { mostrarToast(res.j.erro || 'Não deu certo.', 'info'); return; }
+        location.hash = '#desafios';
+        location.reload();
+      });
+  }
+  var formD = document.getElementById('form-desafio');
+  if (formD) {
+    var chkTime = document.getElementById('d-time');
+    var pessoas = formD.querySelectorAll('input[name="d-membro"]');
+    function sincroniza() { pessoas.forEach(function (c) { c.disabled = chkTime.checked; if (chkTime.checked) c.checked = false; }); }
+    chkTime.addEventListener('change', sincroniza);
+    sincroniza();
+    formD.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var ids = [];
+      pessoas.forEach(function (c) { if (c.checked) ids.push(parseInt(c.value, 10)); });
+      chamarPremio({
+        acao: 'criar', titulo: document.getElementById('d-titulo').value,
+        prazo: document.getElementById('d-prazo').value,
+        sementes: parseInt(document.getElementById('d-sementes').value, 10),
+        para_time: chkTime.checked, membros: ids,
+      });
+    });
+  }
+  document.querySelectorAll('[data-desafio]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var acao = b.getAttribute('data-desafio');
+      if (acao === 'remover' && !confirm('Remover esta meta?')) return;
+      chamarPremio({ acao: acao, id: parseInt(b.getAttribute('data-id'), 10) });
+    });
   });
   document.querySelectorAll('[data-meta-remover]').forEach(function (b) {
     b.addEventListener('click', function () {

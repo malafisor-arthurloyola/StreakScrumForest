@@ -1805,3 +1805,12 @@ body[data-admin="0"] .so-admin { display: none !important; }
   .dif-linha { grid-template-columns: 1fr 52px 52px 56px; font-size: 0.88rem; }
   .extrato-linha { grid-template-columns: 40px 1fr 40px 46px; }
 }
+
+/* ===== Metas com recompensa ===== */
+.desafio .meta-nums { display: block; margin-top: 6px; }
+.desafio-acoes { margin-top: 10px; }
+.selo-fora { background: var(--s3); color: var(--ink2); }
+.form-desafio { display: grid; gap: 8px; margin-top: 14px; background: var(--s1); border-radius: 14px; padding: 12px 14px; }
+.form-desafio input[type="text"], .form-desafio input[type="date"], .form-desafio input[type="number"] { max-width: 420px; }
+.d-quem { border: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.d-quem legend { font-weight: 700; margin-bottom: 4px; }

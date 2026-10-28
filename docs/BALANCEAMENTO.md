@@ -147,6 +147,8 @@ Leitura: a ata vira a maior fonte de "esforço extra" depois dos eventos. Cada p
 ganha dela só escrevendo a própria fala; o relator ganha +1 por cada colega que ele preenche (mais trabalho, mais semente).
 O bônus de relator não entra nos totais acima porque depende do rodízio. Com o limite de 3 por ata, o máximo é **+6 por dia** (duas atas); com rodízio entre 7 pessoas, cada um relata ~6 dias, ou seja, no máximo ~+36 no projeto por esse bônus, e na prática menos (quem escreve a própria fala não conta).
 
+**Metas com recompensa** (combinados definidos pelo admin, ex.: entregar artefatos até quarta) também ficam fora dos totais: o valor é escolhido por meta (1 a 30 sementes, `SEED_META_MAX`) e só rende se for cumprida até o prazo. Sem prazo cumprido, nada muda para ninguém (sem punição). Como é decisão humana, o teto é o bom senso do grupo: recomendação de 3 a 10 sementes por meta.
+
 ### 4.5 Curva de saldo acumulado (sem gastar), por fim de semana
 
 Os valores abaixo já incluem as boas-vindas (+20), creditadas na primeira semana com presença.

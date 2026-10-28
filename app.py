@@ -63,6 +63,7 @@ CORES_FONTE = {
     "boas_vindas": "#ff8d76",
     "ata": "#b59bff",
     "relator": "#5fd6ff",
+    "meta": "#ffb457",
 }
 
 app = Flask(__name__)
@@ -247,7 +248,7 @@ def guarda_de_acesso():
 # Os demais so VEEM. Cada pessoa continua dona da propria loja, da propria fala e da propria
 # presenca (via /eu e QR).
 ENDPOINTS_ADMIN = {
-    "api_metas", "api_calendario", "api_feriados", "api_attendance", "api_marcar_todos",
+    "api_metas", "api_metas_premio", "api_calendario", "api_feriados", "api_attendance", "api_marcar_todos",
     "api_add_membro", "api_editar_membro", "api_excluir_membro",
     "qr_page", "baixar_banco",
 }
@@ -562,6 +563,22 @@ def init_db():
             tipo TEXT NOT NULL CHECK (tipo IN ('presenca_pct', 'dias_cheios', 'sequencia_time')),
             alvo INTEGER NOT NULL,
             criada_em TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS metas_premio (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            titulo TEXT NOT NULL,
+            prazo TEXT NOT NULL,
+            sementes INTEGER NOT NULL,
+            para_time INTEGER NOT NULL DEFAULT 0,
+            cumprida_em TEXT,
+            criada_em TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS metas_premio_membros (
+            meta_id INTEGER NOT NULL REFERENCES metas_premio(id) ON DELETE CASCADE,
+            member_id INTEGER NOT NULL REFERENCES members(id),
+            PRIMARY KEY (meta_id, member_id)
         );
 
         CREATE TABLE IF NOT EXISTS atas (
@@ -902,6 +919,7 @@ def _extrato_do_membro(db, member_id, dias_letivos_lista, semanas, glob, cheios,
         dias_letivos_lista, semanas, reg, meta, dias_cheios=cheios,
         falas=_falas_do_membro(db, member_id, dias_letivos_lista),
         relatadas=_relatadas_por_ata(db, dias_letivos_lista).get(member_id, {}),
+        metas=_premios_de_metas_do_membro(db, member_id),
     )
     gastos = []
     for r in db.execute(
@@ -949,6 +967,7 @@ def get_member_stats(db, dias_letivos_lista=None):
     posses, equip = _posses_e_equipados(db)
     fundador_ate = _get_config(db).get("fundador_ate", "2026-10-23")
     atas_com_fala, falas_relatadas = _contagem_atas(db, dias_letivos_lista)
+    metas_premio, equipe_ids = _metas_premio(db), _ids_equipe(db)
 
     resultado = []
     for m in membros:
@@ -962,6 +981,7 @@ def get_member_stats(db, dias_letivos_lista=None):
             dias_letivos_lista, semanas, reg, estado["floresceu"], dias_cheios=cheios,
             atas_com_fala=atas_com_fala.get(m["id"], 0),
             falas_relatadas=falas_relatadas.get(m["id"], 0),
+            bonus_metas=sum(x["valor"] for x in game.premios_de_metas(metas_premio, m["id"], equipe_ids)),
         )
         gasto = gastos.get(m["id"], 0)
         resultado.append({
@@ -1577,6 +1597,9 @@ def dashboard():
         meta=ctx["meta"],
         total_dias=len(ctx["dias"]),
         stage_names=game.STAGE_NAMES,
+        desafios=_metas_premio(db),
+        equipe=[m for m in ctx["ativos"]],
+        seed_meta_max=game.SEED_META_MAX,
         **_painel_coletivo(db, ctx),
     )
 
@@ -1637,6 +1660,82 @@ def api_metas():
         return jsonify({"ok": True, "id": cur.lastrowid})
 
     abort(400)
+
+
+def _metas_premio(db):
+    """Metas personalizadas (com recompensa em sementes), com os escolhidos de cada uma."""
+    metas = []
+    for r in db.execute("SELECT * FROM metas_premio ORDER BY prazo, id").fetchall():
+        m = dict(r)
+        m["membros"] = [x["member_id"] for x in db.execute(
+            "SELECT member_id FROM metas_premio_membros WHERE meta_id = ?", (r["id"],)).fetchall()]
+        m["no_prazo"] = bool(m["cumprida_em"]) and m["cumprida_em"] <= m["prazo"]
+        metas.append(m)
+    return metas
+
+
+def _ids_equipe(db):
+    return [m["id"] for m in db.execute("SELECT * FROM members WHERE active = 1").fetchall() if _e_equipe(m)]
+
+
+def _premios_de_metas_do_membro(db, member_id, metas=None, equipe=None):
+    return game.premios_de_metas(
+        _metas_premio(db) if metas is None else metas, member_id,
+        _ids_equipe(db) if equipe is None else equipe)
+
+
+@app.route("/api/metas-premio", methods=["POST"])
+def api_metas_premio():
+    p = request.get_json(force=True, silent=True) or {}
+    acao = p.get("acao")
+    db = get_db()
+    mid = _int_ou_none(p.get("id"))
+
+    if acao in ("remover", "cumprir", "reabrir"):
+        if mid is None or not db.execute("SELECT 1 FROM metas_premio WHERE id = ?", (mid,)).fetchone():
+            return _erro("Meta não encontrada.", 404)
+        if acao == "remover":
+            db.execute("DELETE FROM metas_premio_membros WHERE meta_id = ?", (mid,))
+            db.execute("DELETE FROM metas_premio WHERE id = ?", (mid,))
+        elif acao == "reabrir":
+            db.execute("UPDATE metas_premio SET cumprida_em = NULL WHERE id = ?", (mid,))
+        else:
+            quando = (p.get("data") or "").strip() or date.today().isoformat()
+            try:
+                datetime.strptime(quando, "%Y-%m-%d")
+            except ValueError:
+                return _erro("Data inválida.")
+            db.execute("UPDATE metas_premio SET cumprida_em = ? WHERE id = ?", (quando, mid))
+        db.commit()
+        return jsonify({"ok": True})
+
+    if acao != "criar":
+        abort(400)
+    titulo = (p.get("titulo") or "").strip()
+    if not titulo:
+        return _erro("Dê um nome para a meta.")
+    prazo = (p.get("prazo") or "").strip()
+    try:
+        datetime.strptime(prazo, "%Y-%m-%d")
+    except ValueError:
+        return _erro("Escolha o prazo da meta.")
+    sementes = _int_ou_none(p.get("sementes"))
+    if sementes is None or not 1 <= sementes <= game.SEED_META_MAX:
+        return _erro(f"A recompensa vai de 1 a {game.SEED_META_MAX} sementes.")
+    para_time = bool(p.get("para_time"))
+    escolhidos = []
+    if not para_time:
+        validos = {r["id"] for r in db.execute("SELECT id FROM members WHERE active = 1").fetchall()}
+        escolhidos = sorted({i for i in (_int_ou_none(x) for x in (p.get("membros") or [])) if i in validos})
+        if not escolhidos:
+            return _erro("Escolha quem recebe a recompensa, ou marque o time inteiro.")
+    cur = db.execute(
+        "INSERT INTO metas_premio (titulo, prazo, sementes, para_time) VALUES (?, ?, ?, ?)",
+        (titulo[:100], prazo, sementes, int(para_time)))
+    db.executemany("INSERT INTO metas_premio_membros (meta_id, member_id) VALUES (?, ?)",
+                   [(cur.lastrowid, i) for i in escolhidos])
+    db.commit()
+    return jsonify({"ok": True, "id": cur.lastrowid})
 
 
 def _presenca_por_evento(db, decorridos, ativos_ids):
@@ -2307,6 +2406,7 @@ def _contexto_sementes(db, member_id, compare_id=None):
         ganho = game.calcular_sementes(
             dias_letivos_lista, semanas_proj, reg, estado["floresceu"], dias_cheios=cheios,
             atas_com_fala=com_fala_todos.get(mid, 0), falas_relatadas=relatadas_todos.get(mid, 0),
+            bonus_metas=sum(x["valor"] for x in _premios_de_metas_do_membro(db, mid)),
         )
         pessoa = {"id": m["id"], "name": m["name"]}
         gasto = gastos_todos.get(mid, 0)
@@ -2336,6 +2436,7 @@ def _contexto_sementes(db, member_id, compare_id=None):
             ("por_marcos", "Marcos de sequência"), ("por_dia_cheio", "Dia cheio do time"),
             ("por_floresceu", "Floresceu"), ("por_boas_vindas", "Boas-vindas"),
             ("por_ata", "Atas preenchidas"), ("por_relator", "Scrum: falas de colegas preenchidas"),
+            ("por_metas", "Metas personalizadas cumpridas"),
         ):
             va, vb = detalhe["ganho"].get(chave, 0), detalhe_b["ganho"].get(chave, 0)
             if va != vb:
@@ -2552,7 +2653,7 @@ def _data_completa(data_str):
 ATA_EVENTO = {"daily": "daily", "fechamento": "encerramento"}
 EVENTO_ATA = {v: k for k, v in ATA_EVENTO.items()}
 ATA_ROTULOS_FALA = {
-    "daily": ("O que fiz desde ontem", "O que vou fazer hoje"),
+    "daily": ("O que eu fiz de ontem para hoje", "O que vou fazer hoje"),
     "fechamento": ("O que concluí hoje", "O que fica para amanhã"),
 }
 

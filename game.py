@@ -253,7 +253,7 @@ def calcular_semanas_fechadas(semanas_projeto, registros_por_data):
 
 
 def calcular_sementes(dias_letivos_lista, semanas_projeto, registros_por_data, floresceu,
-                      dias_cheios=None, atas_com_fala=0, falas_relatadas=0):
+                      dias_cheios=None, atas_com_fala=0, falas_relatadas=0, bonus_metas=0):
     """
     Calcula sementes ganhas (nunca perde por falta).
     Retorna dict com total e detalhes.
@@ -310,9 +310,10 @@ def calcular_sementes(dias_letivos_lista, semanas_projeto, registros_por_data, f
     # atas (Fase 4): adubo fixo, sem avaliar conteudo. Impedimentos nao entram.
     por_ata = SEED_ATA * max(0, int(atas_com_fala))
     por_relator = SEED_RELATOR * max(0, int(falas_relatadas))
+    por_metas = max(0, int(bonus_metas))
 
     total = (seeds_eventos + semenas_fechadas * SEED_SEMANA_FECHADA + marcos + bonus_floresceu
-             + por_dia_cheio + por_boas_vindas + por_ata + por_relator)
+             + por_dia_cheio + por_boas_vindas + por_ata + por_relator + por_metas)
     return {
         "total": total,
         "por_presenca": seeds_eventos,
@@ -324,6 +325,7 @@ def calcular_sementes(dias_letivos_lista, semanas_projeto, registros_por_data, f
         "por_boas_vindas": por_boas_vindas,
         "por_ata": por_ata,
         "por_relator": por_relator,
+        "por_metas": por_metas,
         "semanas_fechadas": semenas_fechadas,
     }
 
@@ -535,7 +537,7 @@ ROTULO_EVENTO = {"daily": "Daily", "dev": "Dev", "encerramento": "Encerramento"}
 
 
 def extrato_sementes(dias_letivos_lista, semanas_projeto, registros_por_data, meta,
-                     dias_cheios=None, falas=(), relatadas=None):
+                     dias_cheios=None, falas=(), relatadas=None, metas=()):
     """Lista cada ganho de sementes, com data e motivo: o "extrato" da pessoa.
 
     A soma dos valores e IGUAL a calcular_sementes(...)["total"] com os mesmos dados (ha teste
@@ -544,6 +546,7 @@ def extrato_sementes(dias_letivos_lista, semanas_projeto, registros_por_data, me
     falas: [(data, tipo)] das atas em que a pessoa deixou a fala preenchida (+SEED_ATA cada).
     relatadas: {(data, tipo): [nomes]} das falas de OUTRAS pessoas que ela preencheu como relator
     (+SEED_RELATOR cada, no maximo SEED_RELATOR_MAX_POR_ATA por ata).
+    metas: premios de metas personalizadas, da funcao premios_de_metas.
     Cada item: {'data', 'fonte', 'rotulo', 'valor', 'detalhe'}.
     """
     dias = list(dias_letivos_lista)
@@ -627,5 +630,35 @@ def extrato_sementes(dias_letivos_lista, semanas_projeto, registros_por_data, me
             detalhe += f" (limite de {SEED_RELATOR_MAX_POR_ATA} por ata; {len(nomes) - n} sem bônus)"
         _add(data, "relator", f"Scrum: preencheu a {ROTULO_ATA.get(tipo, tipo)} de colegas", SEED_RELATOR * n, detalhe)
 
+    for p in metas:
+        _add(p["data"], "meta", "Meta cumprida", p["valor"], p["titulo"])
+
     linhas.sort(key=lambda x: (x["data"], x["fonte"]))
     return linhas
+
+
+# ---------------------------------------------------------------- metas personalizadas
+SEED_META_MAX = 30
+
+
+def premios_de_metas(metas, member_id, equipe_ids):
+    """Sementes que as metas personalizadas rendem a uma pessoa.
+
+    metas: [{'titulo', 'prazo', 'sementes', 'para_time', 'cumprida_em', 'membros': [ids]}].
+    Rende quando a meta foi marcada como cumprida ate o prazo (inclusive); fora do prazo ou
+    ainda aberta nao rende nada e nao tira nada de ninguem. Meta do time vale para todos da
+    equipe; as demais, so para quem foi escolhido. Cada meta rende no maximo SEED_META_MAX.
+    Retorna [{'data', 'titulo', 'valor'}].
+    """
+    premios = []
+    for m in metas:
+        feita = m.get("cumprida_em")
+        if not feita or feita > m["prazo"]:
+            continue
+        alvo = set(equipe_ids) if m.get("para_time") else set(m.get("membros") or ())
+        if member_id not in alvo:
+            continue
+        valor = max(0, min(int(m["sementes"]), SEED_META_MAX))
+        if valor:
+            premios.append({"data": feita, "titulo": m["titulo"], "valor": valor})
+    return premios
