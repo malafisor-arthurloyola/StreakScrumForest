@@ -4,6 +4,13 @@ Site local para controlar a presenca dos membros do grupo em 3 eventos diarios o
 **Daily**, **Presenca no Dev** e **Encerramento**. Cada presenca faz a planta de cada membro crescer.
 Dados ficam salvos em um banco SQLite real (`data/strikes.db`), nao em localStorage.
 
+## Documentação
+
+- [docs/GDD.md](docs/GDD.md): **Game Design Document**. O que o jogo é, as regras, a economia de sementes, a loja,
+  a ata e a rodada de fala, os papéis, a direção de arte e o que ainda é ideia.
+- [docs/BALANCEAMENTO.md](docs/BALANCEAMENTO.md): as contas por trás das sementes e dos preços.
+- [docs/HANDOFF-KIRO.md](docs/HANDOFF-KIRO.md) e [docs/HANDOFF-KIRO-2.md](docs/HANDOFF-KIRO-2.md): notas de passagem entre agentes.
+
 ## Como rodar
 
 Pre-requisito: Python 3.9+ instalado.
@@ -637,7 +644,7 @@ Para restaurar: feche o servidor, copie o backup desejado para `data/strikes.db`
 
 ### Telas
 
-- **Hoje** (`/`): faixa de jardim com plantas dos membros ativos; tabela de presenca com tres botoes
+- **Hoje** (`/`): faixa de jardim com plantas dos membros ativos; **rodada de fala** da Daily e da Day Closing (so o Scrum/admin, no dia de hoje); tabela de presenca com tres botoes
   por evento (Presente / Avisou / Faltou); coluna de sequencia atual. Navega por datas. Aviso visual
   quando o dia nao e letivo (feriado, fim de semana, fora do periodo).
 - **Historico** (`/historico`): lista todos os dias registrados com faltas, justificadas e numero
@@ -739,21 +746,32 @@ Ao fim deve aparecer algo como `Ran 447 tests ... OK`.
 ## Estrutura do projeto
 
 ```
-app.py                  # backend Flask + rotas + migracao
-game.py                 # logica de jogo (pura, testavel, sem Flask)
-tests/test_game.py      # 48 testes unitarios
-data/strikes.db         # banco SQLite (criado automaticamente)
-data/backups/           # backups automaticos
-templates/
-  base.html             # layout base
-  _planta.html          # macro SVG parametrico da planta
-  dia.html              # tela Hoje
-  dashboard.html        # dashboard e jardim grande
-  historico.html        # historico de dias
-  membros.html          # gerenciar membros
-  calendario.html       # configurar periodo e feriados
-static/style.css        # estilos (tema escuro)
-static/app.js           # logica de marcacao e toasts
+app.py                  # backend Flask: rotas, migracoes, papeis, ata, loja, holofote
+game.py                 # regras do jogo (puras, testaveis, sem Flask): estagios, sequencia, sementes, metas
+catalog.py              # catalogo da loja (especies, vasos, companheiros, acessorios, plantas extras)
+ata_fmt.py              # exportacao da ata (texto e HTML, pt e en)
+gitlab_sync.py          # regras do retrato do GitLab (milestone atual, mapeamento de usuarios)
+qr_puro.py              # gerador de QR em Python puro
+backup.py               # backups diarios do banco
+wsgi.py                 # entrada para o PythonAnywhere
+data/                   # banco SQLite e backups (nunca vao para o git)
+docs/
+  GDD.md                # Game Design Document
+  BALANCEAMENTO.md      # contas das sementes e dos precos
+  HANDOFF-KIRO*.md      # notas de passagem entre agentes
+scripts/
+  gerar_especies.py     # gera as especies desenhadas em SVG (templates/_especies.html)
+  sync_gitlab.py        # envia o retrato do GitLab para o site
+  criar_banco_demo.py   # banco de demonstracao para testar sem tocar no real
+  backup_db.py          # backup manual
+templates/              # paginas (Jinja) e macros de planta, cena e especies
+static/
+  style.css             # estilos (tema escuro)
+  app.js                # marcacao de presenca, jogo na tela, toasts, convidados
+  holofote.js           # holofote e painel da rodada de fala (todas as telas)
+  rodada.js             # controle da rodada de fala na tela Hoje (Scrum)
+  gl-busca-sprint.js    # busca de cards do GitLab
+tests/                  # mais de 600 testes (unittest)
 ```
 
 ## Resumo das mudancas (Fase A — Jardim da Equipe)

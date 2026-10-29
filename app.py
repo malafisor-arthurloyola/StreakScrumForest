@@ -1707,10 +1707,8 @@ def api_holofote():
     return jsonify({"ok": True, "member_id": mid, "modo": modo, "tipo": tipo})
 
 
-@app.route("/api/holofote", methods=["GET"])
-def api_holofote_ver():
-    """Estado do holofote para todas as telas: quem esta falando, quem preenche e o que ja foi escrito."""
-    db = get_db()
+def _holofote_atual(db):
+    """(member_id, modo, tipo) do holofote aceso agora; member_id None se apagado ou esquecido."""
     row = db.execute(
         "SELECT (SELECT valor FROM config WHERE chave = 'holofote_membro') AS m, "
         "(SELECT valor FROM config WHERE chave = 'holofote_modo') AS modo, "
@@ -1720,20 +1718,32 @@ def api_holofote_ver():
     mid = _int_ou_none(row["m"]) if row and row["m"] else None
     if mid is not None and (row["idade"] is None or row["idade"] > HOLOFOTE_VALE_SEGUNDOS):
         mid = None
+    modo = row["modo"] if row and row["modo"] in ("celular", "scrum") else "celular"
+    tipo = row["tipo"] if row and row["tipo"] in ATA_TIPOS else "daily"
+    return mid, modo, tipo
+
+
+@app.route("/api/holofote", methods=["GET"])
+def api_holofote_ver():
+    """Estado do holofote para todas as telas: quem esta falando, quem preenche e o que ja foi escrito.
+    Com ?comjogo=1 devolve tambem o estado do jogo da pessoa (para a tela acender a chama dela)."""
+    db = get_db()
+    mid, modo, tipo = _holofote_atual(db)
     hoje = date.today().isoformat()
-    resp = {"ok": True, "member_id": mid, "modo": (row["modo"] if row and row["modo"] in ("celular", "scrum") else "celular"),
-            "data": hoje, "tipo": (row["tipo"] if row and row["tipo"] in ATA_TIPOS else "daily"),
+    resp = {"ok": True, "member_id": mid, "modo": modo, "data": hoje, "tipo": tipo,
             "eu": _eu_id(), "pode_scrum": False, "nome": "", "status": "",
             "falas": {"feito": "", "planejado": "", "review": ""}}
     if mid is not None:
-        resp["pode_scrum"] = bool(_pode_editar_ata(db, hoje, resp["tipo"]))
+        resp["pode_scrum"] = bool(_pode_editar_ata(db, hoje, tipo))
         m = db.execute("SELECT name FROM members WHERE id = ?", (mid,)).fetchone()
         resp["nome"] = m["name"] if m else ""
-        resp["status"] = _status_do_evento(db, hoje, ATA_EVENTO[resp["tipo"]]).get(mid) or ""
+        resp["status"] = _status_do_evento(db, hoje, ATA_EVENTO[tipo]).get(mid) or ""
         f = db.execute("SELECT feito, planejado, review FROM ata_falas WHERE data = ? AND tipo = ? AND member_id = ?",
-                       (hoje, resp["tipo"], mid)).fetchone()
+                       (hoje, tipo, mid)).fetchone()
         if f:
             resp["falas"] = {"feito": f["feito"] or "", "planejado": f["planejado"] or "", "review": f["review"] or ""}
+        if request.args.get("comjogo") == "1":
+            resp["jogo_resposta"] = _resposta_jogo(db, mid, hoje)
     return jsonify(resp)
 
 
@@ -3189,8 +3199,17 @@ def api_ata_minha_fala():
         "WHERE data = ? AND tipo = ? AND member_id = ?",
         (p.get("valor") or "", data_str, tipo, membro["id"]),
     )
+    resposta = {"ok": True}
+    # Se o Scrum acendeu o holofote para ESTA pessoa, nesta reuniao e hoje, ela esta na sala:
+    # escrever a fala conta como presenca (no QR e igual). Fora da vez dela, nada muda.
+    if campo in ("feito", "planejado") and (p.get("valor") or "").strip() and data_str == date.today().isoformat():
+        em_vez, _, tipo_vez = _holofote_atual(db)
+        if em_vez == membro["id"] and tipo_vez == tipo:
+            evento = ATA_EVENTO[tipo]
+            if _status_do_evento(db, data_str, evento).get(membro["id"]) not in ("presente", "justificada"):
+                _definir_status(db, membro["id"], data_str, evento, "presente")
     db.commit()
-    return jsonify({"ok": True})
+    return jsonify(resposta)
 
 
 # ------------------------------------------------------------ Fase 6: GitLab (so leitura)

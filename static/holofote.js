@@ -30,6 +30,7 @@
   var escondido = null;
   var cacheCards = {};
   var timers = {};
+  var ultimoStatus = {};          // situacao vista por ultimo de cada pessoa, para acender a chama quando mudar
 
   function postar(url, corpo) {
     return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) })
@@ -207,6 +208,13 @@
     var nova = [j.member_id, j.tipo, j.modo, tipoEdicao].join('|');
     if (escondido === nova) { destacarPlantas(null); return; }   // fechou o painel: some tambem o escurecido e o destaque (so para quem fechou)
     destacarPlantas(j.member_id);
+    // a situacao mudou por fora (a pessoa preencheu no celular e ficou presente): atualiza a chama dela aqui
+    var antes = ultimoStatus[j.member_id];
+    ultimoStatus[j.member_id] = j.status;
+    if (antes !== undefined && antes !== j.status && window.aplicarJogoNaTela) {
+      fetch('/api/holofote?comjogo=1').then(function (r) { return r.json(); })
+        .then(function (x) { if (x && x.jogo_resposta) aplicarJogoNaTela(x.jogo_resposta, x.nome); }).catch(function () {});
+    }
     if (nova !== chave || !pop) { montar(j, tipoEdicao); chave = nova; }
     // atualiza o texto sem atropelar quem esta digitando
     pop.querySelectorAll('textarea').forEach(function (ta) {
@@ -216,11 +224,29 @@
     });
   }
 
+  // Quanto consultar o servidor (o site publicado tem uma cota de processamento por dia):
+  //  - holofote aceso: a cada 1 s, para o painel e o texto acompanharem quase ao vivo;
+  //  - ate 10 min depois de um holofote (a proxima pessoa, ou a Day Closing logo em seguida): a cada 5 s;
+  //  - parado: a cada 30 s.
+  // Abas escondidas (celular com a tela apagada) nao consultam; ao voltar para a aba, consulta na hora.
+  var RAPIDO = 1000, RECENTE = 5000, PARADO = 30000, JANELA_RECENTE = 10 * 60 * 1000;
+  var espera = null;
+  var ultimoAtivo = 0;
+  function agendar_proxima(ativo) {
+    clearTimeout(espera);
+    if (ativo) ultimoAtivo = Date.now();
+    var intervalo = ativo ? RAPIDO : (Date.now() - ultimoAtivo < JANELA_RECENTE ? RECENTE : PARADO);
+    espera = setTimeout(buscar, intervalo);
+  }
   function buscar() {
-    return fetch('/api/holofote').then(function (r) { return r.json(); }).then(aplicar).catch(function () {});
+    clearTimeout(espera);
+    if (document.hidden) { agendar_proxima(false); return Promise.resolve(); }
+    return fetch('/api/holofote').then(function (r) { return r.json(); })
+      .then(function (j) { aplicar(j); agendar_proxima(!!(j && j.member_id)); })
+      .catch(function () { agendar_proxima(false); });
   }
 
   document.addEventListener('holofote:refresh', buscar);     // a rodada avisa quando acende outra pessoa
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) buscar(); });
   buscar();
-  setInterval(buscar, 3000);
 })();
