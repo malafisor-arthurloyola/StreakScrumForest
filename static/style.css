@@ -1815,3 +1815,16 @@ body[data-admin="0"] .so-admin { display: none !important; }
 .form-desafio input[type="text"], .form-desafio input[type="date"], .form-desafio input[type="number"] { max-width: 420px; }
 .d-quem { border: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; }
 .d-quem legend { font-weight: 700; margin-bottom: 4px; }
+
+/* ===== Espécies redesenhadas: pétalas caindo e prévia de estágio na loja ===== */
+.planta .petala-cai { transform-box: fill-box; opacity: 0; animation: petala-cai 6s linear infinite; }
+@keyframes petala-cai {
+  0% { transform: translate(0, 0) rotate(0); opacity: 0; }
+  10% { opacity: 0.95; }
+  100% { transform: translate(-16px, 90px) rotate(300deg); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .planta .petala-cai { animation: none; } }
+.previa-estagio { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 10px 0 14px; padding: 10px 14px; background: var(--s1); border-radius: 14px; }
+.previa-estagio label { font-weight: 700; }
+.previa-estagio input[type="range"] { flex: 1; min-width: 180px; accent-color: var(--acc); }
+.previa-estagio output { font-weight: 800; color: var(--acc); min-width: 120px; }

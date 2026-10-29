@@ -11,6 +11,12 @@
   <a class="btn btn-ghost" href="{{ url_for('album_page', m=atual.id if atual else None) }}">Ver coleção</a>
 </header>
 
+<div class="previa-estagio">
+  <label for="previa-est">Prévia do estágio</label>
+  <input type="range" id="previa-est" min="1" max="10" step="1" value="{{ estagio_previa }}">
+  <output id="previa-nome" for="previa-est"></output>
+</div>
+
 {% if not pode_agir %}
 <p class="aviso-leitura">
   {% if eu_id %}Você está vendo a loja de outra pessoa. {% else %}Para comprar e equipar na sua loja, <a href="{{ url_for('eu_page') }}">entre no seu jardim</a> com o PIN. {% endif %}Cada um mexe só na sua; o administrador pode mexer na de qualquer perfil.
@@ -137,6 +143,23 @@
 (function () {
   var atual = {{ atual.id if atual else 'null' }};
   var PODE_AGIR = {{ 'true' if pode_agir else 'false' }};
+  var NOMES_EST = {{ stage_names | tojson }};
+  var barra = document.getElementById('previa-est');
+  var nomeEst = document.getElementById('previa-nome');
+  function previa() {
+    var est = parseInt(barra.value, 10);
+    nomeEst.textContent = est + ' · ' + (NOMES_EST[est] || '');
+    document.querySelectorAll('.item-vitrine .planta').forEach(function (svg) {
+      svg.dataset.stage = est;
+      svg.querySelectorAll('[data-min]').forEach(function (g) {
+        var min = parseInt(g.dataset.min, 10);
+        var max = g.dataset.max ? parseInt(g.dataset.max, 10) : 99;
+        g.classList.toggle('on', est >= min && est <= max);
+      });
+    });
+  }
+  barra.addEventListener('input', previa);
+  previa();
   if (!PODE_AGIR) {
     document.querySelectorAll('[data-acao]').forEach(function (b) { b.hidden = true; });
   }

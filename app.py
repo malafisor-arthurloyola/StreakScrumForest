@@ -2334,6 +2334,8 @@ def loja_page():
     # Qualquer um pode ver a loja/colecao de alguem. Compra e equipa a propria pessoa
     # (logada com o PIN) ou o administrador, que escolhe o perfil.
     ctx["pode_agir"] = m is not None and ((eu is not None and eu == m) or eh_admin())
+    ctx["estagio_previa"] = PREVIEW_BASE["estagio"]
+    ctx["stage_names"] = game.STAGE_NAMES
     return render_template("loja.html", **ctx)
 
 
