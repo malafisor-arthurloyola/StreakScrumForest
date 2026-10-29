@@ -56,8 +56,12 @@
 <section class="card ata-rodada nao-imprime" id="rodada" aria-labelledby="rodada-titulo" data-data="{{ data_str }}">
   <div class="rodada-topo">
     <div>
-      <h2 id="rodada-titulo">Rodada de fala da Daily</h2>
-      <p class="ata-dica">Sorteie a ordem. A planta de cada pessoa acende, a tela escurece e aparecem os campos da daily com os cards sugeridos. Por padrão, quem está na vez preenche no próprio celular; você pode preencher por ela.</p>
+      <h2 id="rodada-titulo">Rodada de fala</h2>
+      <p class="ata-dica">Sorteie a ordem. A planta de cada pessoa acende, a tela escurece e aparecem os campos com os cards sugeridos. Por padrão, quem está na vez preenche no próprio celular; você pode preencher por ela.</p>
+      <div class="rodada-tipo" id="rodada-tipo" role="radiogroup" aria-label="Qual reunião">
+        <button type="button" class="chip-modo" role="radio" data-tipo="daily" aria-checked="true">Daily</button>
+        <button type="button" class="chip-modo" role="radio" data-tipo="fechamento" aria-checked="false">Day Closing</button>
+      </div>
     </div>
     <button type="button" class="btn btn-primary" id="rodada-iniciar">Sortear a ordem e começar</button>
   </div>

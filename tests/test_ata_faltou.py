@@ -94,6 +94,23 @@ class TestHolofote(unittest.TestCase):
         j2 = self.client.get("/api/holofote").get_json()
         self.assertEqual((j2["modo"], j2["pode_scrum"], j2["falas"]["feito"]), ("scrum", True, "#52 revisado"))
 
+    def test_day_closing_tem_dois_campos_e_grava_na_ata_do_fechamento(self):
+        self.client.post("/api/holofote", json={"member_id": self.mid, "tipo": "fechamento", "modo": "scrum"})
+        j = self.client.get("/api/holofote").get_json()
+        self.assertEqual((j["tipo"], j["modo"]), ("fechamento", "scrum"))
+        hoje = j["data"]
+        r = self.client.post("/api/ata/salvar", json={"data": hoje, "tipo": "fechamento", "campo": "planejado",
+                                                     "member_id": self.mid, "valor": "revisar o #7"})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(self.client.get("/api/holofote").get_json()["falas"]["planejado"], "revisar o #7")
+        # a ata da Daily do mesmo dia nao foi tocada
+        self.client.post("/api/holofote", json={"member_id": self.mid, "tipo": "daily"})
+        self.assertEqual(self.client.get("/api/holofote").get_json()["falas"]["planejado"], "")
+
+    def test_tipo_invalido_vira_daily(self):
+        self.client.post("/api/holofote", json={"member_id": self.mid, "tipo": "outra"})
+        self.assertEqual(self.client.get("/api/holofote").get_json()["tipo"], "daily")
+
     def test_modo_invalido_vira_celular(self):
         r = self.client.post("/api/holofote", json={"member_id": self.mid, "modo": "qualquer"})
         self.assertEqual(r.get_json()["modo"], "celular")

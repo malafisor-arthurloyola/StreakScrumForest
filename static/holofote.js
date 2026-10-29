@@ -5,11 +5,26 @@
    Quem preenche: por padrao a propria pessoa, no celular dela (e todos veem o texto aparecer);
    o Scrum pode assumir e preencher por ela (e ganha o bonus de relator, como na ata). */
 (function () {
-  var CAMPOS = [
-    ['feito', 'O que eu fiz de ontem para hoje', 'fiz'],
-    ['planejado', 'O que vou fazer hoje', 'fazer'],
-    ['review', 'Cards aguardando revisão', 'revisar'],
-  ];
+  // campos e origem dos cards sugeridos, por tipo de ata (a Day Closing nao tem o campo de revisao)
+  var CAMPOS_POR_TIPO = {
+    daily: [
+      ['feito', 'O que eu fiz de ontem para hoje', 'fiz'],
+      ['planejado', 'O que vou fazer hoje', 'fazer'],
+      ['review', 'Cards aguardando revisão', 'revisar'],
+    ],
+    fechamento: [
+      ['feito', 'O que concluí hoje', 'concluidos'],
+      ['planejado', 'O que fica para amanhã', 'fazer'],
+    ],
+  };
+  function campos(j) { return CAMPOS_POR_TIPO[j.tipo] || CAMPOS_POR_TIPO.daily; }
+  function cardsDe(res, origem) {
+    if (origem === 'concluidos') {          // Day Closing: o que concluiu hoje pode ainda estar em Doing
+      var vistos = {};
+      return (res.fazer || []).concat(res.fiz || []).filter(function (c) { if (vistos[c.iid]) return false; vistos[c.iid] = true; return true; });
+    }
+    return res[origem] || [];
+  }
   var pop = null;
   var chave = '';
   var escondido = null;
@@ -65,10 +80,10 @@
     var mid = j.member_id;
     function pintar(res) {
       if (!res || !res.ok || !pop) return;
-      CAMPOS.forEach(function (c) {
+      campos(j).forEach(function (c) {
         var ta = pop.querySelector('textarea[data-campo="' + c[0] + '"]');
         var cont = pop.querySelector('.hf-chips[data-campo="' + c[0] + '"]');
-        if (ta && cont) montarChips(cont, res[c[2]] || [], ta, function () { agendar(j, c[0], ta, tipoEdicao); });
+        if (ta && cont) montarChips(cont, cardsDe(res, c[2]), ta, function () { agendar(j, c[0], ta, tipoEdicao); });
       });
     }
     if (cacheCards[mid]) { pintar(cacheCards[mid]); return; }
@@ -98,14 +113,14 @@
     pop = document.createElement('div');
     pop.className = 'hf-pop';
     pop.setAttribute('role', 'dialog');
-    pop.setAttribute('aria-label', 'Rodada de fala: vez de ' + j.nome);
+    pop.setAttribute('aria-label', 'Rodada de fala (' + (j.tipo === 'fechamento' ? 'Day Closing' : 'Daily') + '): vez de ' + j.nome);
     var rotulo = tipoEdicao === 'proprio' ? 'Sua vez! Preencha aqui e todos veem o que você escrever.'
       : tipoEdicao === 'scrum' ? 'O Scrum está preenchendo por ' + j.nome + '.'
       : j.nome + ' está preenchendo no celular.';
     var html = '<div class="hf-topo"><div><p class="hf-vez">Vez de</p><h2 class="hf-nome"></h2></div>' +
       '<div class="hf-acoes"><button type="button" class="btn btn-ghost hf-fechar">Fechar</button></div></div>' +
       '<p class="hf-modo"></p>';
-    CAMPOS.forEach(function (c) {
+    campos(j).forEach(function (c) {
       html += '<div class="hf-campo"><label>' + c[1] + (c[0] === 'review' ? ' <small>(não conta semente)</small>' : '') + '</label>' +
         '<textarea rows="2" data-campo="' + c[0] + '"' + (tipoEdicao ? '' : ' readonly') + '></textarea>' +
         '<div class="gl-chips hf-chips" data-campo="' + c[0] + '" hidden></div></div>';
@@ -145,7 +160,7 @@
     if (!j || !j.ok || !j.member_id) { escondido = null; destacarPlantas(null); fechar(); return; }
     destacarPlantas(j.member_id);
     var tipoEdicao = quemEdita(j);
-    var nova = [j.member_id, j.modo, tipoEdicao].join('|');
+    var nova = [j.member_id, j.tipo, j.modo, tipoEdicao].join('|');
     if (escondido === nova) return;            // a pessoa fechou o painel desta vez
     if (nova !== chave || !pop) { montar(j, tipoEdicao); chave = nova; }
     // atualiza o texto sem atropelar quem esta digitando

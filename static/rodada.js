@@ -5,7 +5,9 @@
   var box = document.getElementById('rodada');
   if (!box) return;
   var DATA = box.dataset.data;
-  var CHAVE = 'rodada-hoje:' + DATA;
+  var TIPO = (new Date().getHours() * 60 + new Date().getMinutes() >= 15 * 60 + 45) ? 'fechamento' : 'daily';   // depois das 15h45 abre na Day Closing
+  var chipsTipo = document.querySelectorAll('#rodada-tipo [data-tipo]');
+  function chave() { return 'rodada-hoje:' + DATA + ':' + TIPO; }
   var painel = document.getElementById('rodada-painel');
   var botIni = document.getElementById('rodada-iniciar');
   var estado = null;      // { ordem: [ids], i: n, modo: 'celular' | 'scrum' }
@@ -16,14 +18,14 @@
     if (a) nomes[it.dataset.memberId] = a.textContent.trim();
   });
 
-  function ler() { try { return JSON.parse(localStorage.getItem(CHAVE)); } catch (e) { return null; } }
-  function gravar() { try { if (estado) localStorage.setItem(CHAVE, JSON.stringify(estado)); else localStorage.removeItem(CHAVE); } catch (e) {} }
+  function ler() { try { return JSON.parse(localStorage.getItem(chave())); } catch (e) { return null; } }
+  function gravar() { try { if (estado) localStorage.setItem(chave(), JSON.stringify(estado)); else localStorage.removeItem(chave()); } catch (e) {} }
   function postar(url, corpo) {
     return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) })
       .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); });
   }
   function estadoDaAta() {
-    return fetch('/api/ata/estado?data=' + DATA + '&tipo=daily').then(function (r) { return r.json(); });
+    return fetch('/api/ata/estado?data=' + DATA + '&tipo=' + TIPO).then(function (r) { return r.json(); });
   }
   function statusDe(res, mid) {
     var l = ((res && res.linhas) || []).filter(function (x) { return String(x.id) === String(mid); })[0];
@@ -37,10 +39,20 @@
   }
 
   function acender() {
-    postar('/api/holofote', { member_id: parseInt(estado.ordem[estado.i], 10), modo: estado.modo });
+    postar('/api/holofote', { member_id: parseInt(estado.ordem[estado.i], 10), modo: estado.modo, tipo: TIPO });
+  }
+
+  function desenharTipo() {
+    chipsTipo.forEach(function (b) {
+      var ativo = b.dataset.tipo === TIPO;
+      b.classList.toggle('ativo', ativo);
+      b.setAttribute('aria-checked', ativo ? 'true' : 'false');
+      b.disabled = !!estado;            // so troca de reuniao entre rodadas
+    });
   }
 
   function mostrar() {
+    desenharTipo();
     if (!estado) { painel.hidden = true; botIni.hidden = false; return; }
     var mid = estado.ordem[estado.i];
     var nome = nomes[mid] || 'Pessoa';
@@ -85,7 +97,7 @@
       if (!ids.length) { if (window.mostrarToast) mostrarToast('Todos já estão marcados como avisou ou faltou.', 'info'); return; }
       estado = { ordem: embaralhar(ids), i: 0, modo: 'celular' };
       // quem conduz vira o relator da ata (se ainda nao ha um): assim o bonus de relator vale
-      postar('/api/ata/assumir', { data: DATA, tipo: 'daily' });
+      postar('/api/ata/assumir', { data: DATA, tipo: TIPO });
       mostrar();
     });
   }
@@ -107,10 +119,20 @@
       if (!estado) return;
       var mid = estado.ordem[estado.i];
       var novo = b.getAttribute('aria-pressed') === 'true' ? '' : b.dataset.rst;
-      postar('/api/ata/salvar', { data: DATA, tipo: 'daily', campo: 'status', member_id: mid, valor: novo }).then(function (res) {
+      postar('/api/ata/salvar', { data: DATA, tipo: TIPO, campo: 'status', member_id: mid, valor: novo }).then(function (res) {
         if (!res.ok) { if (window.mostrarToast) mostrarToast((res.j && res.j.erro) || 'Não salvou.', 'info'); return; }
         if (novo === 'justificada' || novo === 'faltou') setTimeout(avancar, 450); else mostrar();
       });
+    });
+  });
+
+  chipsTipo.forEach(function (b) {
+    b.addEventListener('click', function () {
+      if (estado || b.dataset.tipo === TIPO) return;
+      TIPO = b.dataset.tipo;
+      estado = ler();
+      if (estado && (!estado.ordem || !estado.ordem.length || estado.i >= estado.ordem.length)) estado = null;
+      mostrar();
     });
   });
 

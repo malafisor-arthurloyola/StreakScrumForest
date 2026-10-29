@@ -1896,3 +1896,5 @@ body.holofote-escuro .cena.holofote-ativo { position: relative; z-index: 901; }
 .hf-rodape { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 @media (max-width: 700px) { .hf-pop { max-height: 58vh; } .hf-nome { font-size: 1.4rem; } }
 .rodada-modo { margin: 0; color: var(--ink2); }
+.rodada-tipo { display: flex; gap: 8px; margin-top: 8px; }
+.rodada-tipo .chip-modo[disabled] { opacity: 0.55; cursor: not-allowed; }
