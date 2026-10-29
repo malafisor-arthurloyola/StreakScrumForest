@@ -58,10 +58,20 @@
 
   function textoTemCard(valor, iid) { return new RegExp('#' + iid + '(\\D|$)').test(valor || ''); }
 
-  function montarChips(cont, cards, ta, aoMudar) {
+  function montarChips(cont, cards, ta, aoMudar, editavel) {
     cont.innerHTML = '';
     if (!cards || !cards.length) { cont.hidden = true; return; }
+    var rot = document.createElement('span');
+    rot.className = 'gl-chips-rot';
+    rot.textContent = editavel ? 'Cards sugeridos (toque para acrescentar):' : 'Cards sugeridos:';
+    cont.appendChild(rot);
     cards.forEach(function (c) {
+      if (!editavel) {                       // so leitura: o Scrum pode ler os cards em voz alta
+        var s = document.createElement('span');
+        s.className = 'gl-chip gl-chip-leitura'; s.textContent = c.citacao;
+        cont.appendChild(s);
+        return;
+      }
       var b = document.createElement('button');
       b.type = 'button'; b.className = 'gl-chip'; b.textContent = c.citacao;
       b.addEventListener('click', function () {
@@ -83,7 +93,7 @@
       campos(j).forEach(function (c) {
         var ta = pop.querySelector('textarea[data-campo="' + c[0] + '"]');
         var cont = pop.querySelector('.hf-chips[data-campo="' + c[0] + '"]');
-        if (ta && cont) montarChips(cont, cardsDe(res, c[2]), ta, function () { agendar(j, c[0], ta, tipoEdicao); });
+        if (ta && cont) montarChips(cont, cardsDe(res, c[2]), ta, function () { agendar(j, c[0], ta, tipoEdicao); }, !!tipoEdicao);
       });
     }
     if (cacheCards[mid]) { pintar(cacheCards[mid]); return; }
@@ -99,6 +109,7 @@
       var v = ta.value;
       salvarCampo(j, campo, v, tipoEdicao).then(function (res) {
         if (res && res.ok && ta.value === v) delete ta.dataset.sujo;
+        if (res && res.ok && res.j && res.j.jogo_resposta && window.aplicarJogoNaTela) aplicarJogoNaTela(res.j.jogo_resposta, j.nome);
       }).catch(function () {});
     }, 700);
   }
@@ -119,6 +130,13 @@
       : j.nome + ' está preenchendo no celular.';
     var html = '<div class="hf-topo"><div><p class="hf-vez">Vez de</p><h2 class="hf-nome"></h2></div>' +
       '<div class="hf-acoes"><button type="button" class="btn btn-ghost hf-fechar">Fechar</button></div></div>' +
+      (j.pode_scrum ? '<div class="hf-alterna" role="group" aria-label="Quem preenche">' +
+        '<button type="button" class="chip-modo hf-quem" data-modo="celular"></button>' +
+        '<button type="button" class="chip-modo hf-quem" data-modo="scrum">Eu preencho por <span class="hf-quem-nome"></span></button></div>' : '') +
+      (j.pode_scrum ? '<div class="hf-status" role="group" aria-label="Situação de ' + j.nome + '">' +
+        '<button type="button" class="ata-st st-presente" data-hst="presente">Presente</button>' +
+        '<button type="button" class="ata-st st-aviso" data-hst="justificada">Avisou</button>' +
+        '<button type="button" class="ata-st st-faltou" data-hst="faltou">Faltou</button></div>' : '') +
       '<p class="hf-modo"></p>';
     campos(j).forEach(function (c) {
       html += '<div class="hf-campo"><label>' + c[1] + (c[0] === 'review' ? ' <small>(não conta semente)</small>' : '') + '</label>' +
@@ -126,18 +144,45 @@
         '<div class="gl-chips hf-chips" data-campo="' + c[0] + '" hidden></div></div>';
     });
     if (j.pode_scrum) {
-      html += '<div class="hf-rodape"><button type="button" class="btn btn-ghost hf-trocar"></button>' +
+      html += '<div class="hf-rodape"><button type="button" class="btn btn-ghost hf-encerrar">Encerrar rodada</button>' +
         '<button type="button" class="btn btn-primary hf-prox">Próxima pessoa</button></div>';
     }
     pop.innerHTML = html;
     pop.querySelector('.hf-nome').textContent = j.nome;
     pop.querySelector('.hf-modo').textContent = rotulo;
-    pop.querySelector('.hf-fechar').addEventListener('click', function () { escondido = chave; fechar(); chave = escondido; });
-    var trocar = pop.querySelector('.hf-trocar');
-    if (trocar) {
-      trocar.textContent = j.modo === 'scrum' ? 'Deixar ' + j.nome + ' preencher no celular' : 'Preencher por ' + j.nome;
-      trocar.addEventListener('click', function () {
-        postar('/api/holofote', { member_id: j.member_id, modo: j.modo === 'scrum' ? 'celular' : 'scrum' }).then(buscar);
+    pop.querySelector('.hf-fechar').addEventListener('click', function () { escondido = chave; fechar(); chave = escondido; destacarPlantas(null); });
+    pop.querySelectorAll('.hf-quem').forEach(function (b) {
+      if (b.dataset.modo === 'celular') b.textContent = j.nome + ' preenche no celular';
+      var nome = b.querySelector('.hf-quem-nome'); if (nome) nome.textContent = j.nome;
+      b.setAttribute('aria-pressed', b.dataset.modo === j.modo ? 'true' : 'false');
+      b.addEventListener('click', function () {
+        if (b.dataset.modo === j.modo) return;
+        postar('/api/holofote', { member_id: j.member_id, modo: b.dataset.modo, tipo: j.tipo }).then(function () {
+          document.dispatchEvent(new CustomEvent('holofote:modo', { detail: { modo: b.dataset.modo } }));
+          buscar();
+        });
+      });
+    });
+    pop.querySelectorAll('[data-hst]').forEach(function (b) {
+      b.setAttribute('aria-pressed', j.status === b.dataset.hst ? 'true' : 'false');
+      b.addEventListener('click', function () {
+        var novo = b.getAttribute('aria-pressed') === 'true' ? '' : b.dataset.hst;
+        // marca na hora (sem esperar o servidor) para o toque ser visivel
+        pop.querySelectorAll('[data-hst]').forEach(function (x) { x.setAttribute('aria-pressed', x.dataset.hst === novo ? 'true' : 'false'); });
+        postar('/api/ata/salvar', { data: j.data, tipo: j.tipo, campo: 'status', member_id: j.member_id, valor: novo }).then(function (res) {
+          if (!res.ok) { if (window.mostrarToast) mostrarToast((res.j && res.j.erro) || 'Não salvou.', 'info'); buscar(); return; }
+          if (res.j.jogo_resposta && window.aplicarJogoNaTela) aplicarJogoNaTela(res.j.jogo_resposta, j.nome);
+          // quem avisou ou faltou nao vai falar: a rodada (se estiver nesta tela) passa para a proxima pessoa
+          if (novo === 'justificada' || novo === 'faltou') setTimeout(function () { document.dispatchEvent(new CustomEvent('holofote:avancar', { detail: { id: j.member_id } })); }, 450);
+          else buscar();
+        });
+      });
+    });
+    var enc = pop.querySelector('.hf-encerrar');
+    if (enc) {
+      enc.addEventListener('click', function () {
+        var b = document.getElementById('rodada-fim');
+        if (b) b.click(); else postar('/api/holofote', { member_id: null }).then(buscar);
       });
     }
     var prox = pop.querySelector('.hf-prox');
@@ -151,17 +196,17 @@
       pop.querySelectorAll('textarea').forEach(function (ta) {
         ta.addEventListener('input', function () { ta.dataset.sujo = '1'; agendar(j, ta.dataset.campo, ta, tipoEdicao); });
       });
-      carregarCards(j, tipoEdicao);
     }
+    carregarCards(j, tipoEdicao);          // os cards aparecem para todos; so quem edita pode tocar neles
     document.body.appendChild(pop);
   }
 
   function aplicar(j) {
     if (!j || !j.ok || !j.member_id) { escondido = null; destacarPlantas(null); fechar(); return; }
-    destacarPlantas(j.member_id);
     var tipoEdicao = quemEdita(j);
     var nova = [j.member_id, j.tipo, j.modo, tipoEdicao].join('|');
-    if (escondido === nova) return;            // a pessoa fechou o painel desta vez
+    if (escondido === nova) { destacarPlantas(null); return; }   // fechou o painel: some tambem o escurecido e o destaque (so para quem fechou)
+    destacarPlantas(j.member_id);
     if (nova !== chave || !pop) { montar(j, tipoEdicao); chave = nova; }
     // atualiza o texto sem atropelar quem esta digitando
     pop.querySelectorAll('textarea').forEach(function (ta) {
@@ -175,6 +220,7 @@
     return fetch('/api/holofote').then(function (r) { return r.json(); }).then(aplicar).catch(function () {});
   }
 
+  document.addEventListener('holofote:refresh', buscar);     // a rodada avisa quando acende outra pessoa
   buscar();
   setInterval(buscar, 3000);
 })();

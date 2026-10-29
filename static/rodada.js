@@ -39,7 +39,8 @@
   }
 
   function acender() {
-    postar('/api/holofote', { member_id: parseInt(estado.ordem[estado.i], 10), modo: estado.modo, tipo: TIPO });
+    postar('/api/holofote', { member_id: parseInt(estado.ordem[estado.i], 10), modo: estado.modo, tipo: TIPO })
+      .then(function () { document.dispatchEvent(new Event('holofote:refresh')); });
   }
 
   function desenharTipo() {
@@ -77,7 +78,7 @@
 
   function encerrar(aviso) {
     estado = null; gravar(); mostrar();
-    postar('/api/holofote', { member_id: null });
+    postar('/api/holofote', { member_id: null }).then(function () { document.dispatchEvent(new Event('holofote:refresh')); });
     if (aviso && window.mostrarToast) mostrarToast('Rodada concluída. Quem ainda não preencheu pode usar o QR ou o Meu jardim.', 'info');
   }
 
@@ -120,9 +121,22 @@
       var novo = b.getAttribute('aria-pressed') === 'true' ? '' : b.dataset.rst;
       postar('/api/ata/salvar', { data: DATA, tipo: TIPO, campo: 'status', member_id: mid, valor: novo }).then(function (res) {
         if (!res.ok) { if (window.mostrarToast) mostrarToast((res.j && res.j.erro) || 'Não salvou.', 'info'); return; }
+        if (res.j.jogo_resposta && window.aplicarJogoNaTela) aplicarJogoNaTela(res.j.jogo_resposta, nomes[mid]);
         if (novo === 'justificada' || novo === 'faltou') setTimeout(avancar, 450); else mostrar();
       });
     });
+  });
+
+  // quem esta no painel marcou Avisou ou Faltou: segue para a proxima pessoa (se ainda for a mesma da vez)
+  document.addEventListener('holofote:avancar', function (e) {
+    if (!estado || !e.detail) return;
+    if (String(estado.ordem[estado.i]) === String(e.detail.id)) avancar();
+  });
+
+  // o Scrum trocou "quem preenche" pelo proprio painel: a rodada passa a lembrar disso
+  document.addEventListener('holofote:modo', function (e) {
+    if (!estado || !e.detail) return;
+    estado.modo = e.detail.modo; gravar(); mostrar();
   });
 
   chipsTipo.forEach(function (b) {

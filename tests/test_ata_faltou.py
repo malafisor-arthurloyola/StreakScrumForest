@@ -44,6 +44,14 @@ class TestAtaFaltou(unittest.TestCase):
         self.assertEqual(self._status("").status_code, 200)
         self.assertIsNone(self._no_banco())
 
+    def test_marcar_presente_pela_ata_devolve_o_jogo_para_acender_a_chama(self):
+        r = self._status("presente").get_json()
+        jr = r["jogo_resposta"]
+        self.assertTrue(jr["ok"])
+        self.assertEqual(jr["jogo"]["id"], self.mid)
+        self.assertIn("aceso", jr["jogo"])
+        self.assertIn("sementes_membros", jr)
+
     def test_valor_invalido_continua_recusado(self):
         self.assertEqual(self._status("sumiu").status_code, 400)
 
@@ -87,6 +95,7 @@ class TestHolofote(unittest.TestCase):
         self.assertEqual((j["modo"], j["tipo"]), ("celular", "daily"))
         self.assertTrue(j["nome"])
         self.assertEqual(set(j["falas"]), {"feito", "planejado", "review"})
+        self.assertEqual(j["status"], "")
         # o Scrum assume e preenche por ela: o texto aparece para todo mundo
         self.client.post("/api/holofote", json={"member_id": self.mid, "modo": "scrum"})
         hoje = j["data"]

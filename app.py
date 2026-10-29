@@ -1723,12 +1723,13 @@ def api_holofote_ver():
     hoje = date.today().isoformat()
     resp = {"ok": True, "member_id": mid, "modo": (row["modo"] if row and row["modo"] in ("celular", "scrum") else "celular"),
             "data": hoje, "tipo": (row["tipo"] if row and row["tipo"] in ATA_TIPOS else "daily"),
-            "eu": _eu_id(), "pode_scrum": False, "nome": "",
+            "eu": _eu_id(), "pode_scrum": False, "nome": "", "status": "",
             "falas": {"feito": "", "planejado": "", "review": ""}}
     if mid is not None:
         resp["pode_scrum"] = bool(_pode_editar_ata(db, hoje, resp["tipo"]))
         m = db.execute("SELECT name FROM members WHERE id = ?", (mid,)).fetchone()
         resp["nome"] = m["name"] if m else ""
+        resp["status"] = _status_do_evento(db, hoje, ATA_EVENTO[resp["tipo"]]).get(mid) or ""
         f = db.execute("SELECT feito, planejado, review FROM ata_falas WHERE data = ? AND tipo = ? AND member_id = ?",
                        (hoje, resp["tipo"], mid)).fetchone()
         if f:
@@ -2019,6 +2020,60 @@ def api_feriados():
     abort(400)
 
 
+def _resposta_jogo(db, member_id, event_date):
+    """Estado do jogo apos mexer na presenca de alguem: o que a tela precisa para acender a chama,
+    subir a planta e atualizar as sementes. Usado por /api/attendance e pela ata/rodada."""
+    dias_letivos_lista = _dias_letivos(db)
+    meta = game.meta_floracao(len(dias_letivos_lista))
+
+    # Recalcula o estado de todos os ativos de uma vez: assim o cliente atualiza o
+    # contador de sementes de cada um. Quando esta marcacao fecha o dia cheio, todos
+    # os presentes ganham +1, nao so quem foi marcado (bug corrigido na Fase 1.1).
+    todos = get_member_stats(db, dias_letivos_lista)
+    por_id = {s["id"]: s for s in todos}
+    stats = por_id.get(member_id)
+    estado = _estado_jogo_membro(db, member_id, dias_letivos_lista)
+
+    progresso, dias_ate_proximo = game.progresso_estagio(
+        estado["g"], meta, estado["estagio"]
+    )
+    extras = _extras_dia(db, [member_id], event_date, set(dias_letivos_lista))[member_id]
+
+    # Dia cheio desta data (apos a marcacao). O cliente compara com o valor anterior
+    # que ele mesmo guarda para decidir se mostra a celebracao (Fase 1.2).
+    dia_cheio_hoje = _dia_cheio_na_data(db, event_date, dias_letivos_lista)
+
+    sementes_por_membro = [
+        {"id": s["id"], "sementes": s["sementes"], "sementes_ganhas": s["sementes_ganhas"]}
+        for s in todos
+    ]
+
+    return {
+        "ok": True,
+        "dia_cheio": dia_cheio_hoje,
+        "sementes_membros": sementes_por_membro,
+        "jogo": {
+            "id": member_id,
+            "sementes": stats["sementes"],
+            "g": estado["g"],
+            "meta": meta,
+            "estagio": estado["estagio"],
+            "estagio_nome": game.STAGE_NAMES[estado["estagio"]],
+            "vigor": estado["vigor"],
+            "streak": estado["streak"],
+            "chama": game.nivel_chama(estado["streak"]),
+            "floresceu": estado["floresceu"],
+            "frutos": estado["frutos"],
+            "progresso": progresso,
+            "dias_ate_proximo": dias_ate_proximo,
+            "data": event_date,
+            "dia_estado": extras["dia_estado"],
+            "dia_status": extras["dia_status"],
+            "aceso": extras["aceso"],
+        },
+    }
+
+
 @app.route("/api/attendance", methods=["POST"])
 def api_attendance():
     payload = request.get_json(force=True, silent=True) or {}
@@ -2061,55 +2116,7 @@ def api_attendance():
         )
     db.commit()
 
-    dias_letivos_lista = _dias_letivos(db)
-    meta = game.meta_floracao(len(dias_letivos_lista))
-
-    # Recalcula o estado de todos os ativos de uma vez: assim o cliente atualiza o
-    # contador de sementes de cada um. Quando esta marcacao fecha o dia cheio, todos
-    # os presentes ganham +1, nao so quem foi marcado (bug corrigido na Fase 1.1).
-    todos = get_member_stats(db, dias_letivos_lista)
-    por_id = {s["id"]: s for s in todos}
-    stats = por_id.get(member_id)
-    estado = _estado_jogo_membro(db, member_id, dias_letivos_lista)
-
-    progresso, dias_ate_proximo = game.progresso_estagio(
-        estado["g"], meta, estado["estagio"]
-    )
-    extras = _extras_dia(db, [member_id], event_date, set(dias_letivos_lista))[member_id]
-
-    # Dia cheio desta data (apos a marcacao). O cliente compara com o valor anterior
-    # que ele mesmo guarda para decidir se mostra a celebracao (Fase 1.2).
-    dia_cheio_hoje = _dia_cheio_na_data(db, event_date, dias_letivos_lista)
-
-    sementes_por_membro = [
-        {"id": s["id"], "sementes": s["sementes"], "sementes_ganhas": s["sementes_ganhas"]}
-        for s in todos
-    ]
-
-    return jsonify({
-        "ok": True,
-        "dia_cheio": dia_cheio_hoje,
-        "sementes_membros": sementes_por_membro,
-        "jogo": {
-            "id": member_id,
-            "sementes": stats["sementes"],
-            "g": estado["g"],
-            "meta": meta,
-            "estagio": estado["estagio"],
-            "estagio_nome": game.STAGE_NAMES[estado["estagio"]],
-            "vigor": estado["vigor"],
-            "streak": estado["streak"],
-            "chama": game.nivel_chama(estado["streak"]),
-            "floresceu": estado["floresceu"],
-            "frutos": estado["frutos"],
-            "progresso": progresso,
-            "dias_ate_proximo": dias_ate_proximo,
-            "data": event_date,
-            "dia_estado": extras["dia_estado"],
-            "dia_status": extras["dia_status"],
-            "aceso": extras["aceso"],
-        },
-    })
+    return jsonify(_resposta_jogo(db, member_id, event_date))
 
 
 @app.route("/api/attendance/marcar_todos", methods=["POST"])
@@ -3065,6 +3072,7 @@ def api_ata_salvar():
             if atual not in ("presente", "justificada"):
                 _definir_status(db, mid, data_str, evento, "presente")
                 resposta["status"] = "presente"
+                resposta["_jogo_de"] = mid
     elif campo == "review":
         # "Em revisao" (Waiting review) da daily: so guarda, NUNCA rende semente e nao
         # mexe na presenca (nem toda revisao e uma fala da daily).
@@ -3088,6 +3096,7 @@ def api_ata_salvar():
             return _erro("Pedido inválido.")
         _definir_status(db, mid, data_str, ATA_EVENTO[tipo], valor)
         resposta["status"] = valor
+        resposta["_jogo_de"] = mid
     elif campo == "relator":
         mid = _int_ou_none(p.get("valor"))
         db.execute(
@@ -3112,6 +3121,9 @@ def api_ata_salvar():
     else:
         return _erro("Campo inválido.")
     db.commit()
+    quem = resposta.pop("_jogo_de", None)
+    if quem is not None:
+        resposta["jogo_resposta"] = _resposta_jogo(db, quem, data_str)
     return jsonify(resposta)
 
 

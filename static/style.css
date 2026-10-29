@@ -1873,7 +1873,7 @@ body[data-admin="0"] .so-admin { display: none !important; }
 @media (prefers-reduced-motion: reduce) { .canteiro-item.holofote::before { animation: none; } .cena.holofote-ativo .canteiro-item { transition: none; } }
 
 /* ===== Painel do holofote (daily): fundo escuro, planta acesa e os tres campos ===== */
-body.holofote-escuro::before { content: ""; position: fixed; inset: 0; background: rgba(4, 10, 8, 0.62); z-index: 900; pointer-events: none; }
+body.holofote-escuro::before { content: ""; position: fixed; inset: 0; background: rgba(4, 10, 8, 0.62); z-index: 900; }     /* segura os cliques: nada atras do painel e tocado sem querer */
 body.holofote-escuro .cena.holofote-ativo { position: relative; z-index: 901; }
 .hf-pop {
   position: fixed; z-index: 1000; left: 50%; bottom: calc(76px + env(safe-area-inset-bottom)); transform: translateX(-50%);
@@ -1898,3 +1898,6 @@ body.holofote-escuro .cena.holofote-ativo { position: relative; z-index: 901; }
 .rodada-modo { margin: 0; color: var(--ink2); }
 .rodada-tipo { display: flex; gap: 8px; margin-top: 8px; }
 .rodada-tipo .chip-modo[disabled]:not([aria-pressed="true"]) { opacity: 0.55; cursor: not-allowed; }
+.hf-alterna { display: flex; gap: 8px; flex-wrap: wrap; }
+.gl-chip-leitura { cursor: default; }
+.hf-status { display: flex; gap: 8px; flex-wrap: wrap; }

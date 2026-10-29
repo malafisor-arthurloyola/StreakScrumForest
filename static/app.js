@@ -295,6 +295,39 @@ if (!EH_ADMIN) {
     .forEach(function (el) { el.disabled = true; });
 }
 
+/* Aplica na tela o que o servidor devolve apos mexer na presenca de alguem (chama, planta, sementes).
+   Usada pelo clique em Presente/Avisou/Faltou e tambem pela rodada de fala e pelo painel do holofote. */
+function aplicarJogoNaTela(data, nome) {
+    if (!data.jogo) return;
+    var j = data.jogo;
+    var antes = aplicarEstagio(j);
+    var streakAntes = atualizarChama(j);
+    atualizarProximo(j);
+    atualizarSemana(j);
+    // Atualiza o contador de todos os ativos (dia cheio da +1 para todos);
+    // se o servidor nao mandar a lista, cai no do membro marcado.
+    if (data.sementes_membros) atualizarSementesTodos(data.sementes_membros);
+    else atualizarSementes(j);
+    verificarDiaCheio(data);
+
+
+    if (j.dia_status === 'regada' && antes.dia !== 'regada') {
+      regar(j.id);
+    }
+
+    if (j.estagio > antes.estagio) {
+      confete(j.id);
+      mostrarToast((nome ? nome + ' chegou ao estágio ' : 'Chegou ao estágio ') + j.estagio + ': ' + j.estagio_nome, 'sucesso');
+    }
+
+    if (j.streak > streakAntes && MARCOS_SEQUENCIA.indexOf(j.streak) !== -1) {
+      confete(j.id, CORES_CHAMA);
+      mostrarToast((nome ? nome + ': ' : '') + j.streak + ' dias seguidos!', 'sucesso');
+    }
+
+}
+window.aplicarJogoNaTela = aplicarJogoNaTela;
+
 document.querySelectorAll('.status-toggle').forEach(function (wrapper) {
   wrapper.querySelectorAll('.btn-status').forEach(function (btn) {
     btn.addEventListener('click', function () {
@@ -322,38 +355,13 @@ document.querySelectorAll('.status-toggle').forEach(function (wrapper) {
           });
           if (novoStatus) btn.classList.add('active');
 
-          if (!data.jogo) return;
-          var j = data.jogo;
-          var antes = aplicarEstagio(j);
-          var streakAntes = atualizarChama(j);
-          atualizarProximo(j);
-          atualizarSemana(j);
-          // Atualiza o contador de todos os ativos (dia cheio da +1 para todos);
-          // se o servidor nao mandar a lista, cai no do membro marcado.
-          if (data.sementes_membros) atualizarSementesTodos(data.sementes_membros);
-          else atualizarSementes(j);
-          verificarDiaCheio(data);
-
           var nome = '';
           var linha = wrapper.closest('[data-member-row]');
           if (linha) {
             var el = linha.querySelector('.linha-nome');
             if (el) nome = el.textContent.trim();
           }
-
-          if (j.dia_status === 'regada' && antes.dia !== 'regada') {
-            regar(j.id);
-          }
-
-          if (j.estagio > antes.estagio) {
-            confete(j.id);
-            mostrarToast((nome ? nome + ' chegou ao estágio ' : 'Chegou ao estágio ') + j.estagio + ': ' + j.estagio_nome, 'sucesso');
-          }
-
-          if (j.streak > streakAntes && MARCOS_SEQUENCIA.indexOf(j.streak) !== -1) {
-            confete(j.id, CORES_CHAMA);
-            mostrarToast((nome ? nome + ': ' : '') + j.streak + ' dias seguidos!', 'sucesso');
-          }
+          aplicarJogoNaTela(data, nome);
         })
         .catch(function () {
           alert('Não foi possível salvar. Verifique se o servidor ainda está rodando.');
