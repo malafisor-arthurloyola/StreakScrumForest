@@ -47,11 +47,9 @@ class TestAtaFaltou(unittest.TestCase):
     def test_valor_invalido_continua_recusado(self):
         self.assertEqual(self._status("sumiu").status_code, 400)
 
-    def test_a_ata_tem_o_botao_faltou_e_a_rodada_mostra_a_situacao(self):
+    def test_a_ata_tem_o_botao_faltou(self):
         h = self.client.get(f"/ata/{DATA}/daily").get_data(as_text=True)
         self.assertIn('data-st="faltou"', h)
-        self.assertIn('data-rst="faltou"', h)
-        self.assertIn('data-rst="justificada"', h)
 
 
 class TestHolofote(unittest.TestCase):
@@ -82,6 +80,35 @@ class TestHolofote(unittest.TestCase):
         con.commit()
         con.close()
         self.assertIsNone(self.client.get("/api/holofote").get_json()["member_id"])
+
+    def test_estado_traz_modo_nome_e_o_que_ja_foi_escrito(self):
+        self.client.post("/api/holofote", json={"member_id": self.mid})
+        j = self.client.get("/api/holofote").get_json()
+        self.assertEqual((j["modo"], j["tipo"]), ("celular", "daily"))
+        self.assertTrue(j["nome"])
+        self.assertEqual(set(j["falas"]), {"feito", "planejado", "review"})
+        # o Scrum assume e preenche por ela: o texto aparece para todo mundo
+        self.client.post("/api/holofote", json={"member_id": self.mid, "modo": "scrum"})
+        hoje = j["data"]
+        self.client.post("/api/ata/salvar", json={"data": hoje, "tipo": "daily", "campo": "feito", "member_id": self.mid, "valor": "#52 revisado"})
+        j2 = self.client.get("/api/holofote").get_json()
+        self.assertEqual((j2["modo"], j2["pode_scrum"], j2["falas"]["feito"]), ("scrum", True, "#52 revisado"))
+
+    def test_modo_invalido_vira_celular(self):
+        r = self.client.post("/api/holofote", json={"member_id": self.mid, "modo": "qualquer"})
+        self.assertEqual(r.get_json()["modo"], "celular")
+
+    def test_a_tela_hoje_tem_o_controle_da_rodada(self):
+        from datetime import date as _d
+        hoje = _d.today().isoformat()
+        with appmod.app.test_request_context():
+            letivo = hoje in appmod._dias_letivos(appmod.get_db())
+        if not letivo:
+            self.skipTest("hoje nao e dia letivo")
+        h = self.client.get(f"/dia/{hoje}").get_data(as_text=True)
+        self.assertIn('id="rodada-iniciar"', h)
+        self.assertIn('data-rst="faltou"', h)
+        self.assertIn("rodada.js", h)
 
     def test_so_o_admin_acende(self):
         os.environ["ADMIN_LOCAL"] = "0"

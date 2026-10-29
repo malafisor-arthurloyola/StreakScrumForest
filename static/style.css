@@ -1871,3 +1871,28 @@ body[data-admin="0"] .so-admin { display: none !important; }
 .canteiro-item.holofote .placa { box-shadow: 0 0 0 2px var(--acc), 0 0 22px 4px rgba(198, 242, 78, 0.35); }
 @keyframes holofote-pulsa { from { opacity: 0.75; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .canteiro-item.holofote::before { animation: none; } .cena.holofote-ativo .canteiro-item { transition: none; } }
+
+/* ===== Painel do holofote (daily): fundo escuro, planta acesa e os tres campos ===== */
+body.holofote-escuro::before { content: ""; position: fixed; inset: 0; background: rgba(4, 10, 8, 0.62); z-index: 900; pointer-events: none; }
+body.holofote-escuro .cena.holofote-ativo { position: relative; z-index: 901; }
+.hf-pop {
+  position: fixed; z-index: 1000; left: 50%; bottom: calc(76px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+  width: min(94vw, 760px); max-height: 66vh; overflow-y: auto; padding: 14px 16px 16px;
+  background: var(--s2); border: 1px solid var(--s4); border-radius: 20px; box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+  display: grid; gap: 10px; animation: hf-sobe 0.35s cubic-bezier(0.2, 1.1, 0.3, 1);
+}
+@media (min-width: 900px) { .hf-pop { bottom: 24px; } }
+@keyframes hf-sobe { from { opacity: 0; transform: translate(-50%, 18px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@media (prefers-reduced-motion: reduce) { .hf-pop { animation: none; } }
+.hf-topo { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+.hf-vez { margin: 0; color: var(--ink2); font-weight: 700; font-size: 0.85rem; }
+.hf-nome { margin: 0; font-size: 1.7rem; letter-spacing: -0.01em; }
+.hf-modo { margin: 0; color: var(--acc); font-weight: 700; }
+.hf-campo { display: grid; gap: 4px; }
+.hf-campo label { font-weight: 700; }
+.hf-campo label small { color: var(--ink2); font-weight: 600; }
+.hf-campo textarea { width: 100%; }
+.hf-campo textarea[readonly] { opacity: 0.9; }
+.hf-rodape { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 700px) { .hf-pop { max-height: 58vh; } .hf-nome { font-size: 1.4rem; } }
+.rodada-modo { margin: 0; color: var(--ink2); }

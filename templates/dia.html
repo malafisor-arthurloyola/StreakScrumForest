@@ -52,6 +52,35 @@
 </div>
 {% endif %}
 
+{% if admin and data_str == hoje and e_letivo %}
+<section class="card ata-rodada nao-imprime" id="rodada" aria-labelledby="rodada-titulo" data-data="{{ data_str }}">
+  <div class="rodada-topo">
+    <div>
+      <h2 id="rodada-titulo">Rodada de fala da Daily</h2>
+      <p class="ata-dica">Sorteie a ordem. A planta de cada pessoa acende, a tela escurece e aparecem os campos da daily com os cards sugeridos. Por padrão, quem está na vez preenche no próprio celular; você pode preencher por ela.</p>
+    </div>
+    <button type="button" class="btn btn-primary" id="rodada-iniciar">Sortear a ordem e começar</button>
+  </div>
+  <div class="rodada-painel" id="rodada-painel" hidden>
+    <p class="rodada-prog" id="rodada-prog"></p>
+    <h3 class="rodada-nome" id="rodada-nome"></h3>
+    <div class="rodada-status" id="rodada-status" role="group" aria-label="Situação da pessoa da vez">
+      <button type="button" class="ata-st st-presente" data-rst="presente" aria-pressed="false">Presente</button>
+      <button type="button" class="ata-st st-aviso" data-rst="justificada" aria-pressed="false">Avisou</button>
+      <button type="button" class="ata-st st-faltou" data-rst="faltou" aria-pressed="false">Faltou</button>
+    </div>
+    <p class="rodada-modo" id="rodada-modo"></p>
+    <div class="rodada-botoes">
+      <button type="button" class="btn btn-ghost" id="rodada-ant">Anterior</button>
+      <button type="button" class="btn btn-primary" id="rodada-prox">Próxima pessoa</button>
+      <button type="button" class="btn btn-ghost" id="rodada-trocar">Preencher por ela(e)</button>
+      <button type="button" class="btn btn-ghost" id="rodada-sortear">Sortear de novo</button>
+      <button type="button" class="btn btn-ghost" id="rodada-fim">Encerrar rodada</button>
+    </div>
+  </div>
+</section>
+{% endif %}
+
 {% if not linhas %}
   <p class="vazio">Nenhum membro ativo ainda. Cadastre o grupo em <a href="{{ url_for('membros_page') }}">Membros</a>.</p>
 {% else %}
@@ -136,6 +165,7 @@
 {% endblock %}
 
 {% block scripts %}
+{% if admin and data_str == hoje and e_letivo %}<script src="{{ url_for('static', filename='rodada.js') }}"></script>{% endif %}
 <script>
   document.getElementById('date-picker').addEventListener('change', function () {
     if (this.value) window.location.href = '/dia/' + this.value;

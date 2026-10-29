@@ -1689,31 +1689,48 @@ HOLOFOTE_VALE_SEGUNDOS = 3 * 3600      # esquecido ligado? apaga sozinho depois 
 
 @app.route("/api/holofote", methods=["POST"])
 def api_holofote():
-    """Quem conduz a rodada de fala da daily acende (ou apaga) o holofote na planta de quem esta falando."""
+    """Quem conduz a rodada de fala acende (ou apaga) o holofote na planta de quem esta falando.
+    modo: 'celular' (padrao: a propria pessoa preenche no celular dela) ou 'scrum' (o Scrum preenche por ela)."""
     p = request.get_json(force=True, silent=True) or {}
     mid = _int_ou_none(p.get("member_id"))
+    modo = p.get("modo") if p.get("modo") in ("celular", "scrum") else "celular"
     db = get_db()
     if mid is not None and not db.execute("SELECT 1 FROM members WHERE id = ? AND active = 1", (mid,)).fetchone():
         return _erro("Pessoa inválida.")
-    db.execute("INSERT INTO config (chave, valor) VALUES ('holofote_membro', ?) "
-               "ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor", ("" if mid is None else str(mid),))
+    for chave, valor in (("holofote_membro", "" if mid is None else str(mid)), ("holofote_modo", modo)):
+        db.execute("INSERT INTO config (chave, valor) VALUES (?, ?) ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor",
+                   (chave, valor))
     db.execute("INSERT INTO config (chave, valor) VALUES ('holofote_em', datetime('now')) "
                "ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor")
     db.commit()
-    return jsonify({"ok": True, "member_id": mid})
+    return jsonify({"ok": True, "member_id": mid, "modo": modo})
 
 
 @app.route("/api/holofote", methods=["GET"])
 def api_holofote_ver():
+    """Estado do holofote para todas as telas: quem esta falando, quem preenche e o que ja foi escrito."""
     db = get_db()
     row = db.execute(
         "SELECT (SELECT valor FROM config WHERE chave = 'holofote_membro') AS m, "
+        "(SELECT valor FROM config WHERE chave = 'holofote_modo') AS modo, "
         "CAST(strftime('%s', 'now') AS INTEGER) - CAST(strftime('%s', (SELECT valor FROM config WHERE chave = 'holofote_em')) AS INTEGER) AS idade"
     ).fetchone()
     mid = _int_ou_none(row["m"]) if row and row["m"] else None
     if mid is not None and (row["idade"] is None or row["idade"] > HOLOFOTE_VALE_SEGUNDOS):
         mid = None
-    return jsonify({"ok": True, "member_id": mid})
+    hoje = date.today().isoformat()
+    resp = {"ok": True, "member_id": mid, "modo": (row["modo"] if row and row["modo"] in ("celular", "scrum") else "celular"),
+            "data": hoje, "tipo": "daily", "eu": _eu_id(), "pode_scrum": False, "nome": "",
+            "falas": {"feito": "", "planejado": "", "review": ""}}
+    if mid is not None:
+        resp["pode_scrum"] = bool(_pode_editar_ata(db, hoje, "daily"))
+        m = db.execute("SELECT name FROM members WHERE id = ?", (mid,)).fetchone()
+        resp["nome"] = m["name"] if m else ""
+        f = db.execute("SELECT feito, planejado, review FROM ata_falas WHERE data = ? AND tipo = 'daily' AND member_id = ?",
+                       (hoje, mid)).fetchone()
+        if f:
+            resp["falas"] = {"feito": f["feito"] or "", "planejado": f["planejado"] or "", "review": f["review"] or ""}
+    return jsonify(resp)
 
 
 @app.route("/api/metas-premio", methods=["POST"])
