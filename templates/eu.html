@@ -154,30 +154,53 @@
     });
   });
 
-  // Minha fala do dia: salva sozinho ao sair do campo (so a propria pessoa).
+  // Minha fala do dia: salva sozinho enquanto digita (1 s depois de parar), ao sair do campo e ao
+  // trocar de app ou apagar a tela. No celular o "sair do campo" muitas vezes nao acontece: so ele
+  // nao basta (era assim que a Day Closing escrita no celular se perdia).
   var secFala = document.querySelector('.eu-fala');
   if (secFala) {
     var hoje = secFala.dataset.hoje;
-    function salvarFala(tipo, campo, valor, aoOk) {
-      fetch('/api/ata/minha-fala', {
+    function salvarFala(tipo, campo, valor, aoOk, opcoes) {
+      opcoes = opcoes || {};
+      return fetch('/api/ata/minha-fala', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ data: hoje, tipo: tipo, campo: campo, valor: valor }),
+        keepalive: !!opcoes.keepalive,
       })
-        .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+        .then(function (r) {
+          return r.json().then(function (j) { return { ok: r.ok, j: j }; },
+            function () { return { ok: false, j: { erro: 'Não salvou. Recarregue a página e tente de novo.' } }; });
+        })
         .then(function (res) {
           var bom = res.ok && res.j.ok;
-          mostrarToast(bom ? 'Salvo' : (res.j.erro || 'Não salvou.'), bom ? 'sucesso' : 'info');
+          if (!bom || !opcoes.quieto) mostrarToast(bom ? 'Salvo' : (res.j.erro || 'Não salvou.'), bom ? 'sucesso' : 'info');
           if (bom && aoOk) aoOk();
+          return bom;
         })
-        .catch(function () { mostrarToast('Sem conexão.', 'info'); });
+        .catch(function () { if (!opcoes.keepalive) mostrarToast('Sem conexão. O texto continua aqui; tente de novo.', 'info'); return false; });
     }
-    secFala.querySelectorAll('.eu-fala-texto').forEach(function (ta) {
-      ta.addEventListener('blur', function () {
-        var tipo = ta.closest('.eu-fala-bloco').dataset.tipo;
-        salvarFala(tipo, ta.dataset.campo, ta.value);
+    var ESPERA_FALA = 1000;
+    var textos = secFala.querySelectorAll('.eu-fala-texto');
+    function salvarSeMudou(ta, opcoes) {
+      clearTimeout(ta._espera);
+      if (ta.value === ta.dataset.salvo) return;
+      var valor = ta.value;
+      salvarFala(ta.closest('.eu-fala-bloco').dataset.tipo, ta.dataset.campo, valor, function () {
+        ta.dataset.salvo = valor;
+      }, opcoes);
+    }
+    textos.forEach(function (ta) {
+      ta.dataset.salvo = ta.value;
+      ta.addEventListener('input', function () {
+        clearTimeout(ta._espera);
+        ta._espera = setTimeout(function () { salvarSeMudou(ta, { quieto: true }); }, ESPERA_FALA);
       });
+      ta.addEventListener('blur', function () { salvarSeMudou(ta); });
     });
+    function salvarTudoAoSair() { textos.forEach(function (ta) { salvarSeMudou(ta, { quieto: true, keepalive: true }); }); }
+    document.addEventListener('visibilitychange', function () { if (document.hidden) salvarTudoAoSair(); });
+    window.addEventListener('pagehide', salvarTudoAoSair);
 
     // GitLab: chips de cards + busca no Backlog, na Daily e no Day Closing. Acrescentam "#123 titulo" ao
     // campo (nunca sobrescrevem, nao duplicam). Nunca bloqueiam nada.
@@ -192,7 +215,7 @@
       if (textoTemCard(ta.value, iid)) { ta.focus(); return; }
       ta.value = (ta.value.trim() ? ta.value.replace(/\s+$/, '') + '\n' : '') + citacao;
       ta.focus();
-      salvarFala(tipoFala, campo, ta.value);
+      salvarSeMudou(ta);
     }
     function montarChips(cont, cards, campo) {
       cont.innerHTML = '';

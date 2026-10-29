@@ -361,6 +361,8 @@ foi feito. Quando houve uma prática nova a partir do erro, ela está destacada.
 | P23 | Quem escrevia a própria fala na sua vez continuava sem presença marcada | Teste de fluxo de ponta a ponta (24 casos) | O preenchimento pelo Scrum marcava presença e o da própria pessoa não | Presença marcada só na vez dela e na reunião certa, para não permitir marcar de casa |
 | P24 | A prévia de estágio na loja cobria os preços | Teste do autor | Botão grande e fixo | Botão compacto |
 | P25 | Não havia como marcar "Faltou" na ata | Pedido do autor | A ata tinha só Presente e Avisou | Terceiro botão e suporte no servidor |
+| P26 | A fala da Day Closing escrita no celular não salvava | Uso real (29/10): várias pessoas | O QR vale de 10 a 20 minutos; quem escrevia com calma enviava com o código vencido, o servidor respondia com a página de "expirado" e a tela dizia "Sem conexão". Em Meu jardim a fala só salvava ao sair do campo, o que no celular muitas vezes não acontece | A fala é salva com o QR vencido (só a presença exige o código válido) e Meu jardim salva enquanto digita e ao trocar de app. **Aprendizado:** a validade do QR protege a presença, não o texto |
+| P27 | A rodada de fala só existia na tela de hoje | Pedido do autor | O holofote não guardava o dia | O holofote guarda o dia da ata; a rodada abre em qualquer dia letivo que já passou |
 
 ### 7.1 Antes e depois dos problemas visuais
 

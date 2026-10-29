@@ -52,11 +52,11 @@
 </div>
 {% endif %}
 
-{% if admin and data_str == hoje and e_letivo %}
-<section class="card ata-rodada nao-imprime" id="rodada" aria-labelledby="rodada-titulo" data-data="{{ data_str }}">
+{% if admin and e_letivo and data_str <= hoje %}
+<section class="card ata-rodada nao-imprime" id="rodada" aria-labelledby="rodada-titulo" data-data="{{ data_str }}" data-hoje="{{ '1' if data_str == hoje else '0' }}">
   <div class="rodada-topo">
     <div>
-      <h2 id="rodada-titulo">Rodada de fala</h2>
+      <h2 id="rodada-titulo">Rodada de fala{% if data_str != hoje %} <span class="rodada-dia">da ata de {{ data_str[8:10] }}/{{ data_str[5:7] }}</span>{% endif %}</h2>
       <p class="ata-dica">Sorteie a ordem. A planta de cada pessoa acende, a tela escurece e aparecem os campos com os cards sugeridos. Por padrão, quem está na vez preenche no próprio celular; você pode preencher por ela.</p>
       <div class="rodada-tipo" id="rodada-tipo" role="group" aria-label="Qual reunião">
         <button type="button" class="chip-modo" data-tipo="daily" aria-pressed="true">Daily</button>
@@ -169,7 +169,7 @@
 {% endblock %}
 
 {% block scripts %}
-{% if admin and data_str == hoje and e_letivo %}<script src="{{ url_for('static', filename='rodada.js') }}"></script>{% endif %}
+{% if admin and e_letivo and data_str <= hoje %}<script src="{{ url_for('static', filename='rodada.js') }}"></script>{% endif %}
 <script>
   document.getElementById('date-picker').addEventListener('change', function () {
     if (this.value) window.location.href = '/dia/' + this.value;

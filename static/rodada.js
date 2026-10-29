@@ -6,7 +6,9 @@
   var box = document.getElementById('rodada');
   if (!box) return;
   var DATA = box.dataset.data;
-  var TIPO = (new Date().getHours() * 60 + new Date().getMinutes() >= 15 * 60 + 45) ? 'fechamento' : 'daily';   // depois das 15h45 abre na Day Closing
+  var EH_HOJE = box.dataset.hoje === '1';
+  // hoje, depois das 15h45 abre na Day Closing; num dia que ja passou, abre na Daily
+  var TIPO = (EH_HOJE && new Date().getHours() * 60 + new Date().getMinutes() >= 15 * 60 + 45) ? 'fechamento' : 'daily';
   var chipsTipo = document.querySelectorAll('#rodada-tipo [data-tipo]');
   function chave() { return 'rodada-hoje:' + DATA + ':' + TIPO; }
   var painel = document.getElementById('rodada-painel');
@@ -41,7 +43,7 @@
 
   function acender() {
     postar('/api/holofote', {
-      member_id: parseInt(estado.ordem[estado.i], 10), modo: estado.modo, tipo: TIPO,
+      member_id: parseInt(estado.ordem[estado.i], 10), modo: estado.modo, tipo: TIPO, data: DATA,
       ordem: estado.ordem.map(function (x) { return parseInt(x, 10); }),
     })
       .then(function () { document.dispatchEvent(new Event('holofote:refresh')); });

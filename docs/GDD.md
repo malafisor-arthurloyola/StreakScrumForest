@@ -289,9 +289,10 @@ participa sem avaliar o conteúdo.
 ### 10.2 QR e celular pessoal
 
 - O Scrum abre o **QR de presença** (um código que muda a cada 10 minutos). Quem lê marca a própria presença
-  naquele evento e, se quiser, já escreve a fala.
+  naquele evento e, se quiser, já escreve a fala. A fala é salva mesmo que o QR mude enquanto a pessoa escreve;
+  só a presença exige o código ainda válido.
 - Cada pessoa entra em **Meu jardim** com um **PIN** (guardado com hash scrypt, com limite de tentativas).
-  Ali vê a própria planta, a loja e escreve a fala.
+  Ali vê a própria planta, a loja e escreve a fala, que é salva enquanto ela digita e ao trocar de app.
 
 ### 10.3 Integração com o GitLab
 
@@ -314,9 +315,11 @@ Fluxo desenhado para a conversa vir antes da escrita:
 4. No painel o Scrum marca **Presente, Avisou ou Faltou**. Avisou e Faltou passam para a próxima pessoa.
 5. O painel mostra para **todos** a posição e quem vem a seguir ("2 de 7 · A seguir: Ana, Bia e mais 3"). A ordem
    sorteada fica no servidor: outro aparelho do Scrum que abrir a tela Hoje continua a mesma rodada.
-6. **Anterior, Próxima, Sortear de novo, Encerrar rodada** e **Fechar** (esconder o painel só para quem
+6. A rodada também abre na tela de um **dia que já passou**, para fazer a ata daquele dia com o time. O painel
+   mostra "Ata de 28/10", lê e grava a ata daquele dia, e escrever a fala não marca presença.
+7. **Anterior, Próxima, Sortear de novo, Encerrar rodada** e **Fechar** (esconder o painel só para quem
    fechou). O holofote se apaga ao encerrar ou sozinho depois de 3 horas.
-7. O QR e a ata continuam funcionando em paralelo.
+8. O QR e a ata continuam funcionando em paralelo.
 
 ![Rodada de fala: planta de Arthur acesa, tela escurecida e painel com os três campos da daily, os botões Presente, Avisou e Faltou e os cards sugeridos](img/rodada.png)
 
@@ -588,8 +591,8 @@ erDiagram
 
 Tabelas auxiliares não desenhadas: `gitlab_usuarios` (lista de usuários do GitLab para o mapeamento automático) e
 `prenda_payments` (dados antigos da época das prendas, mantidos no banco e sem uso na interface).
-`config` também guarda o estado do holofote (`holofote_membro`, `holofote_modo`, `holofote_tipo`, `holofote_em`) e a
-ordem sorteada da rodada (`holofote_ordem`, ids separados por vírgula; apagada ao encerrar).
+`config` também guarda o estado do holofote (`holofote_membro`, `holofote_modo`, `holofote_tipo`, `holofote_em`) , a
+ordem sorteada da rodada (`holofote_ordem`, ids separados por vírgula) e o dia da ata (`holofote_data`), apagados ao encerrar.
 
 ### 13.5 Rodada de fala: quem fala com quem
 
