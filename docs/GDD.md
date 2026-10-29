@@ -133,8 +133,9 @@ O clique de novo no mesmo botão volta para pendente. Presente e falta no mesmo 
 
 ### 6.2 Crescimento e estágios
 
-G vai de 0 até a meta de floração. Estágio 1 já com o primeiro dia; do estágio 2 em diante, `G >= ceil(k * meta / 10)`.
-Com 45 dias letivos, uma subida a cada 3 a 4 dias letivos.
+G vai de 0 até a meta de floração. Estágio 1 já com o primeiro dia; do estágio 2 em diante, `G >= 1 + ceil((k - 1) * (meta - 1) / 9)`
+(`game.limiar_estagio`). Com a meta de 36, os limiares são 1, 5, 9, 13, 17, 21, 25, 29, 33 e 36: uma subida a cada
+4 dias letivos, inclusive na primeira semana.
 
 | Estágio | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
@@ -173,8 +174,9 @@ Há um balão de sede quando o dia ainda não foi regado e uma "rega" visual qua
 
 ### 6.4 Dia cheio do time
 
-Quando todos os ativos da equipe (convidados não contam) estão presentes, é **dia cheio**: +1 semente para
-cada presente, e a sequência de dias cheios cresce.
+Quando todos os ativos da equipe (convidados não contam) estão presentes e ninguém tem falta, é **dia cheio**: +1
+semente para cada presente, e a sequência de dias cheios cresce. Quem marcou **Avisou** também impede o dia cheio
+(decisão do autor: o dia cheio celebra o time inteiro na sala).
 
 ### 6.5 Semana fechada
 
@@ -310,9 +312,11 @@ Fluxo desenhado para a conversa vir antes da escrita:
    - Por padrão a **pessoa preenche no próprio celular** (logada em Meu jardim). Todos veem o texto aparecer.
    - O Scrum pode alternar a qualquer momento para **"Eu preencho por ela(e)"** e escrever pela pessoa.
 4. No painel o Scrum marca **Presente, Avisou ou Faltou**. Avisou e Faltou passam para a próxima pessoa.
-5. **Anterior, Próxima, Sortear de novo, Encerrar rodada** e **Fechar** (esconder o painel só para quem
+5. O painel mostra para **todos** a posição e quem vem a seguir ("2 de 7 · A seguir: Ana, Bia e mais 3"). A ordem
+   sorteada fica no servidor: outro aparelho do Scrum que abrir a tela Hoje continua a mesma rodada.
+6. **Anterior, Próxima, Sortear de novo, Encerrar rodada** e **Fechar** (esconder o painel só para quem
    fechou). O holofote se apaga ao encerrar ou sozinho depois de 3 horas.
-6. O QR e a ata continuam funcionando em paralelo.
+7. O QR e a ata continuam funcionando em paralelo.
 
 ![Rodada de fala: planta de Arthur acesa, tela escurecida e painel com os três campos da daily, os botões Presente, Avisou e Faltou e os cards sugeridos](img/rodada.png)
 
@@ -334,7 +338,7 @@ gratuito.
 | Papel | Quem | Pode |
 |---|---|---|
 | **Administrador** | Quem entrou com o `ADMIN_CODE`, ou quem usa o computador onde o site roda (localhost) | Tudo: presença de todos, ata, membros, calendário, metas, QR, loja de qualquer perfil, banco |
-| **Scrum do dia** | Membro logado com PIN que é o relator de uma ata de hoje | Marca presença e conduz a ata e a rodada de fala; ganha o bônus de relator |
+| **Scrum do dia** | Membro logado com PIN que é o relator de uma ata de hoje | O mesmo que o administrador (inclusive trocar o Scrum, membros e calendário), por decisão do autor; conduz a ata e a rodada de fala e ganha o bônus de relator |
 | **Membro logado** | Qualquer pessoa com PIN | Escreve a própria fala, mexe na própria loja e vê tudo |
 | **Visitante** | Quem só tem o código de acesso do site | Só vê |
 
@@ -584,7 +588,8 @@ erDiagram
 
 Tabelas auxiliares não desenhadas: `gitlab_usuarios` (lista de usuários do GitLab para o mapeamento automático) e
 `prenda_payments` (dados antigos da época das prendas, mantidos no banco e sem uso na interface).
-`config` também guarda o estado do holofote (`holofote_membro`, `holofote_modo`, `holofote_tipo`, `holofote_em`).
+`config` também guarda o estado do holofote (`holofote_membro`, `holofote_modo`, `holofote_tipo`, `holofote_em`) e a
+ordem sorteada da rodada (`holofote_ordem`, ids separados por vírgula; apagada ao encerrar).
 
 ### 13.5 Rodada de fala: quem fala com quem
 
@@ -656,6 +661,8 @@ flowchart LR
 - **Estado leve de tempo real:** o holofote é uma linha de configuração lida por polling, sem websocket
   (o plano gratuito não sustenta conexões longas).
 - **Regras puras:** o que decide pontuação fica em funções sem Flask nem banco, fáceis de testar.
+- **Um fuso só:** datas e horas do servidor seguem Brasília (`TZ`, padrão `America/Sao_Paulo`); o SQLite continua em UTC
+  só para carimbos internos (`datetime('now')`).
 
 ---
 
@@ -671,7 +678,6 @@ flowchart LR
 | **Agradecimentos entre colegas** | Com limite semanal para evitar combinação |
 | **Animações reativas** | Regador na presença, estágio novo com brilho e balão, boas-vindas à volta de uma falta, bichinhos no bosque, estações por sprint |
 | **Clima real** | Céu e chuva acompanhando a previsão do tempo (precisa de aprovação por usar rede externa) |
-| **Prévia de ordem na tela** | Mostrar a ordem sorteada da rodada para todos, não só para quem conduz |
 
 ---
 
@@ -684,7 +690,8 @@ flowchart LR
 | PIN e login | Se a pessoa não está logada, ninguém escreve no celular dela; o Scrum usa "Eu preencho por ela(e)" |
 | Bônus de relator | Só conta se o Scrum entrou com o PIN e é o relator da ata |
 | Escrita simultânea | Se o Scrum e a pessoa mexem no mesmo campo ao mesmo tempo, vale a última escrita |
-| Ordem do sorteio | Fica só no navegador de quem conduz |
+| Ordem do sorteio | Fica no servidor (`holofote_ordem`); quem sorteia de novo troca a ordem para todos |
+| Fuso horário | O servidor publicado roda em UTC; o `app.py` usa `America/Sao_Paulo` quando a variável `TZ` não está definida, para o "hoje" não virar o dia seguinte às 21h |
 | Metas com recompensa | O teto é o bom senso do grupo; recomendação de 3 a 10 sementes por meta |
 | Calendário | Padrões assumidos (início 12/10, fim 18/12, feriados) devem ser confirmados com o time |
 

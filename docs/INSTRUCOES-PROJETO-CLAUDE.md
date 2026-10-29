@@ -46,8 +46,8 @@ ESTADO ATUAL
 Feito: jogo de crescimento (estágios 0 a 10, vigor, chama, frutos), sementes e extrato, loja com 14 espécies, vasos,
 companheiros e acessórios (desfazer compra 2 vezes por pessoa), jogo coletivo (marcos, bosque, metas da sprint,
 metas com recompensa), convidados, PIN e QR de presença, ata da daily e da Day Closing, integração com o GitLab
-(cards da milestone atual), rodada de fala com holofote e painel de preenchimento (celular da pessoa ou pelo
-Scrum), vasos pendurados, GDD, relato do processo e diagramas.
+(cards da milestone atual), rodada de fala com holofote, ordem sorteada visível para todos e painel de preenchimento (celular da pessoa ou pelo
+Scrum), fuso de Brasília no servidor, vasos pendurados, GDD, relato do processo e diagramas.
 
 PENDENTE OU EM IDEIA (nada disto está no jogo)
 - Cartas do time estilo roguelike (a cada N dias, 3 cartas; cada pessoa escolhe um upgrade, por exemplo mais
@@ -57,7 +57,6 @@ PENDENTE OU EM IDEIA (nada disto está no jogo)
 - Reações na daily, Pacote da Sprint, Retro do jardim, agradecimentos entre colegas.
 - Animações reativas: regador na presença, estágio novo com brilho, boas-vindas à volta de uma falta, bichinhos no bosque.
 - Clima real no céu do jardim (usaria rede externa, precisa de aprovação).
-- Mostrar a ordem sorteada da rodada para todos, não só para quem conduz.
 - Proposta de IC (página publicada como Artifact) e relatório final.
 
 DOCUMENTOS ANEXADOS

@@ -151,12 +151,15 @@ O bônus de relator não entra nos totais acima porque depende do rodízio. Com 
 
 ### 4.5 Curva de saldo acumulado (sem gastar), por fim de semana
 
-Os valores abaixo já incluem as boas-vindas (+20), creditadas na primeira semana com presença.
+Os valores abaixo já incluem as boas-vindas (+20), creditadas na primeira semana com presença, e a ata (dedicado: 2
+por dia letivo; típico: cerca de 1,4 por dia letivo, aproximado). Dias letivos por semana: 2, 5, 5, 4, 5, 4, 5, 5, 5, 5.
 
 | Semana | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Dedicado | 36 | 62 | 90 | 109 | 142 | 161 | 184 | 227 | 270 | 285 |
-| Típico | 33 | 51 | 71 | 83 | 102 | 120 | 135 | 153 | 180 | 211 |
+| Dedicado | 40 | 76 | 114 | 141 | 184 | 211 | 244 | 297 | 350 | 375 |
+| Típico | 36 | 61 | 88 | 106 | 132 | 156 | 178 | 203 | 237 | 275 |
+
+Sem a ata (antes da Fase 4), o dedicado terminava em 285 e o típico em 211.
 
 ## 5. Loja: preços
 
@@ -168,11 +171,11 @@ dedicado: 25% antes, 19% agora), um pouco mais exigente para dar sensação de e
 | Tipo | Itens e preços |
 |---|---|
 | Plantinha extra | 2ª: **60**, 3ª: **110** |
-| Espécies | Girassol 40, Samambaia 40, Cacto 50, Lavanda 50, Cerejeira 70, Bambu 70, Cogumelo 80, Bonsai 90, Jabuticabeira 90, Carnívora 110, Ipê 120, Baobá 120 (só depois de florescer) |
+| Espécies | Girassol 40, Samambaia 40, Cacto 50, Lavanda 50, Cerejeira 70, Bambu 70, Cogumelo 80, Bonsai 90, Jabuticabeira 90, Carnívora 110, Planta-jarro 110, Ipê 120, Baobá 120 (só depois de florescer) |
 | Vasos | 12, 16, 20, 24, 30 |
 | Companheiros | 20, 24, 30, 40, 50 |
 | Acessórios | 16, 20, 24 |
-| **Total do catálogo** | **1.426** |
+| **Total do catálogo** | **1.536** (1.426 antes da planta-jarro) |
 
 ### 5.1 Ritmo de compra (dia letivo em que o saldo alcança cada valor)
 
@@ -200,7 +203,8 @@ Exemplo de orçamento típico (211): 2ª plantinha (60) + espécie rara (70) + v
 ## 7. Cuidados e armadilhas
 
 - **Marcar tudo por marcar**: o botão "marcar todos presentes por evento" já existia e agora rende
-  semente. Na prática o time se confia na honestidade; não há login. Se virar problema, dá para
+  semente. Hoje só o administrador ou o Scrum do dia marca a presença de todos; cada pessoa marca a própria pelo QR
+  ou pela sua vez na rodada (com PIN). Se virar problema, dá para
   limitar o bônus de dev e encerramento ao horário do dia ou exigir confirmação.
 - **Inflação**: mexer nos pesos dos eventos obriga a revisar os preços na mesma proporção (regra de
   ouro: dobrar o ganho = dobrar os preços).

@@ -5,7 +5,7 @@ as notas de versão (patch notes), os problemas que apareceram e como foram corr
 Foi escrito para servir de base a um relatório de iniciação científica. As regras do jogo em si estão no
 [GDD](GDD.md), e as contas de balanceamento em [BALANCEAMENTO.md](BALANCEAMENTO.md).
 
-Fontes usadas aqui: o histórico do Git (48 commits entre 17 e 29 de outubro de 2026), os documentos de passagem
+Fontes usadas aqui: o histórico do Git (50 commits entre 17 e 29 de outubro de 2026), os documentos de passagem
 entre agentes (`HANDOFF-KIRO.md` e `HANDOFF-KIRO-2.md`) e as conversas de desenvolvimento. Datas e números vêm
 do repositório; o que é interpretação está identificado como tal.
 
@@ -16,7 +16,7 @@ do repositório; o que é interpretação está identificado como tal.
 | Item | Valor |
 |---|---|
 | Produto | Site de controle de presença gamificado para um time Scrum de estudantes |
-| Período coberto | 17 a 29 de outubro de 2026 (13 dias, 52 commits no Git) para o jardim. O sistema de strikes que veio antes foi pedido em 15/09/2026 e fica fora do histórico do Git |
+| Período coberto | 17 a 29 de outubro de 2026 (13 dias, 50 commits no Git) para o jardim. O sistema de strikes que veio antes foi pedido em 15/09/2026 e fica fora do histórico do Git |
 | Tamanho atual | cerca de 6,8 mil linhas de Python, 1 mil de JavaScript, 1,9 mil de CSS e 4 mil de templates (inclui as espécies geradas) |
 | Testes automatizados | de 48 (primeira versão das regras) para mais de 600 |
 | Dependências | uma: Flask |
@@ -300,6 +300,12 @@ parênteses para quem quiser ver o detalhe no repositório.
 - **Corrigido:** painel do holofote sem Avisou e Faltou, saída que não liberava a tela, chama que não acendia e
   clique que atravessava o painel (`1dbea6a`).
 - **Alterado:** holofote mais ágil, presença ao escrever na própria vez, 24 testes do fluxo e o GDD (`4a5c8ee`).
+- **Corrigido:** o servidor publicado roda em UTC; o site passa a usar o fuso de Brasília, e a fala escrita depois
+  das 21h deixa de ir para a ata do dia seguinte.
+- **Novo:** a ordem sorteada da rodada fica no servidor; todas as telas mostram quem vem a seguir e outro aparelho do
+  Scrum continua a rodada.
+- **Alterado:** GDD, BALANCEAMENTO e README conferidos com o código (fórmula do estágio, catálogo com a planta-jarro,
+  curva de sementes com a ata, papel do Scrum).
 
 ---
 
@@ -391,7 +397,7 @@ no canteiro. **Depois**, os cartões têm a mesma largura e as plantas dividem o
 
 | Evidência | Onde está |
 |---|---|
-| Histórico das mudanças | `git log` (48 commits; cada fase em commits próprios) |
+| Histórico das mudanças | `git log` (50 commits; cada fase em commits próprios) |
 | Regras e números do jogo | [GDD.md](GDD.md) e [BALANCEAMENTO.md](BALANCEAMENTO.md) |
 | Testes | `tests/` (mais de 600); fluxo da rodada de fala em `tests/test_holofote_fluxo.py` |
 | Decisões e passagens entre agentes | `HANDOFF-KIRO.md` e `HANDOFF-KIRO-2.md` |

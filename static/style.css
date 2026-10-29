@@ -1887,6 +1887,7 @@ body.holofote-escuro .cena.holofote-ativo { position: relative; z-index: 901; }
 .hf-topo { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
 .hf-vez { margin: 0; color: var(--ink2); font-weight: 700; font-size: 0.85rem; }
 .hf-nome { margin: 0; font-size: 1.7rem; letter-spacing: -0.01em; }
+.hf-seguir { margin: 0.15rem 0 0; color: var(--ink2); font-size: 0.85rem; }
 .hf-modo { margin: 0; color: var(--acc); font-weight: 700; }
 .hf-campo { display: grid; gap: 4px; }
 .hf-campo label { font-weight: 700; }

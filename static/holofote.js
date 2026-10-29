@@ -129,7 +129,7 @@
     var rotulo = tipoEdicao === 'proprio' ? 'Sua vez! Preencha aqui e todos veem o que você escrever.'
       : tipoEdicao === 'scrum' ? 'O Scrum está preenchendo por ' + j.nome + '.'
       : j.nome + ' está preenchendo no celular.';
-    var html = '<div class="hf-topo"><div><p class="hf-vez">Vez de</p><h2 class="hf-nome"></h2></div>' +
+    var html = '<div class="hf-topo"><div><p class="hf-vez">Vez de</p><h2 class="hf-nome"></h2><p class="hf-seguir" hidden></p></div>' +
       '<div class="hf-acoes"><button type="button" class="btn btn-ghost hf-fechar">Fechar</button></div></div>' +
       (j.pode_scrum ? '<div class="hf-alterna" role="group" aria-label="Quem preenche">' +
         '<button type="button" class="chip-modo hf-quem" data-modo="celular"></button>' +
@@ -202,6 +202,18 @@
     document.body.appendChild(pop);
   }
 
+  // "2 de 7 · A seguir: Ana, Beto e mais 3": a ordem sorteada, para todos saberem quando e a sua vez
+  var SEGUIR_MAX = 3;
+  function textoSeguir(j) {
+    if (!j.ordem || !j.ordem.length || j.pos === null || j.pos === undefined) return '';
+    var resto = j.ordem.slice(j.pos + 1);
+    var txt = (j.pos + 1) + ' de ' + j.ordem.length;
+    if (!resto.length) return txt + ' · Última pessoa da rodada';
+    var nomes = resto.slice(0, SEGUIR_MAX).map(function (p) { return p.nome; }).join(', ');
+    var mais = resto.length - SEGUIR_MAX;
+    return txt + ' · A seguir: ' + nomes + (mais > 0 ? ' e mais ' + mais : '');
+  }
+
   function aplicar(j) {
     if (!j || !j.ok || !j.member_id) { escondido = null; destacarPlantas(null); fechar(); return; }
     var tipoEdicao = quemEdita(j);
@@ -216,6 +228,10 @@
         .then(function (x) { if (x && x.jogo_resposta) aplicarJogoNaTela(x.jogo_resposta, x.nome); }).catch(function () {});
     }
     if (nova !== chave || !pop) { montar(j, tipoEdicao); chave = nova; }
+    var seguir = pop.querySelector('.hf-seguir');
+    var txtSeguir = textoSeguir(j);
+    if (seguir.textContent !== txtSeguir) seguir.textContent = txtSeguir;
+    seguir.hidden = !txtSeguir;
     // atualiza o texto sem atropelar quem esta digitando
     pop.querySelectorAll('textarea').forEach(function (ta) {
       var novoValor = (j.falas && j.falas[ta.dataset.campo]) || '';

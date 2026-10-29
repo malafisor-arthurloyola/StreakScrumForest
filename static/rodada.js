@@ -1,6 +1,7 @@
 /* Controle da rodada de fala na tela Hoje (so o Scrum/administrador).
    Sorteia a ordem e, a cada pessoa, acende o holofote (o painel e as plantas ficam em holofote.js).
-   A ordem fica so neste navegador; o servidor guarda apenas quem esta com o holofote. */
+   A ordem sorteada vai para o servidor junto com o holofote: todas as telas mostram quem vem a seguir,
+   e outro aparelho do Scrum que abrir a tela Hoje continua a mesma rodada. */
 (function () {
   var box = document.getElementById('rodada');
   if (!box) return;
@@ -39,7 +40,10 @@
   }
 
   function acender() {
-    postar('/api/holofote', { member_id: parseInt(estado.ordem[estado.i], 10), modo: estado.modo, tipo: TIPO })
+    postar('/api/holofote', {
+      member_id: parseInt(estado.ordem[estado.i], 10), modo: estado.modo, tipo: TIPO,
+      ordem: estado.ordem.map(function (x) { return parseInt(x, 10); }),
+    })
       .then(function () { document.dispatchEvent(new Event('holofote:refresh')); });
   }
 
@@ -151,5 +155,14 @@
 
   estado = ler();
   if (estado && (!estado.ordem || !estado.ordem.length || estado.i >= estado.ordem.length)) estado = null;
-  mostrar();
+  if (estado) { mostrar(); return; }
+  desenharTipo();
+  // sem rodada neste navegador: se outra tela do Scrum ja comecou uma hoje, continua dela
+  fetch('/api/holofote').then(function (r) { return r.json(); }).then(function (j) {
+    if (estado || !j || !j.member_id || j.data !== DATA || !j.ordem || !j.ordem.length || j.pos === null) return;
+    TIPO = j.tipo;
+    estado = { ordem: j.ordem.map(function (p) { return String(p.id); }), i: j.pos, modo: j.modo };
+    j.ordem.forEach(function (p) { if (!nomes[p.id]) nomes[p.id] = p.nome; });
+    mostrar();
+  }).catch(function () {});
 })();
