@@ -197,6 +197,20 @@ busca de cards. Nesta captura o GitLab ainda não estava sincronizado.
 
 ![Tela Hoje na versão atual](img/historico/11-atual-hoje.png)
 
+### 4.3 Protótipos que antecederam o código final
+
+Antes de levar movimento e desenho novo para o site, foram feitos dois protótipos em HTML solto, na pasta
+[`demo-juice/`](../demo-juice/). Eles serviram para o autor aprovar a direção sem mexer no sistema. Para ver,
+baixe o arquivo e abra no navegador (o GitHub mostra só o código).
+
+| Protótipo | O que testou | O que virou no site |
+|---|---|---|
+| [`planta.html`](../demo-juice/planta.html) | "Game feel": regador, gotas, esticada da planta, brilho e balão ao subir de estágio, chuva no dia cheio, sementes douradas na meta cumprida. Escrito com os princípios da skill Game Feel & Juice, em três intensidades (pequeno, médio, grande) | A linguagem de movimento: o holofote, o painel que sobe, o feedback imediato. As animações mais elaboradas (regador, chuva) ainda são ideias |
+| [`especies.html`](../demo-juice/especies.html) | Girassol e cerejeira redesenhados a partir de fotos de referência, com controle de estágio de 0 a 10 | As oito espécies redesenhadas e o gerador `scripts/gerar_especies.py` |
+
+Nota sobre o método: o autor reagiu aos protótipos (por exemplo, pedindo para corrigir a inclinação do regador
+e dizendo que preferia as plaquinhas do site), e só depois a mudança foi levada para o código de verdade.
+
 ---
 
 ## 5. Patch notes
