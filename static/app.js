@@ -517,3 +517,21 @@ document.querySelectorAll('.status-toggle').forEach(function (wrapper) {
   modal.addEventListener('click', function (e) { if (e.target === modal) fecharModal(); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !modal.hidden) fecharModal(); });
 })();
+
+/* Holofote da rodada de fala: quem conduz a daily (na ata) acende a planta de quem esta falando
+   e a tela principal, que fica aberta para todos, destaca essa planta. Sem login e so leitura. */
+(function () {
+  if (!document.querySelector('.canteiro-item')) return;
+  function aplicar(mid) {
+    document.querySelectorAll('.cena').forEach(function (c) { c.classList.toggle('holofote-ativo', !!mid); });
+    document.querySelectorAll('.canteiro-item').forEach(function (it) {
+      it.classList.toggle('holofote', !!mid && it.dataset.memberId === String(mid));
+    });
+  }
+  function buscar() {
+    fetch('/api/holofote').then(function (r) { return r.json(); })
+      .then(function (j) { aplicar(j && j.member_id); }).catch(function () {});
+  }
+  buscar();
+  setInterval(buscar, 4000);
+})();

@@ -248,7 +248,7 @@ def guarda_de_acesso():
 # Os demais so VEEM. Cada pessoa continua dona da propria loja, da propria fala e da propria
 # presenca (via /eu e QR).
 ENDPOINTS_ADMIN = {
-    "api_metas", "api_metas_premio", "api_calendario", "api_feriados", "api_attendance", "api_marcar_todos",
+    "api_metas", "api_metas_premio", "api_holofote", "api_calendario", "api_feriados", "api_attendance", "api_marcar_todos",
     "api_add_membro", "api_editar_membro", "api_excluir_membro",
     "qr_page", "baixar_banco",
 }
@@ -1684,6 +1684,38 @@ def _premios_de_metas_do_membro(db, member_id, metas=None, equipe=None):
         _ids_equipe(db) if equipe is None else equipe)
 
 
+HOLOFOTE_VALE_SEGUNDOS = 3 * 3600      # esquecido ligado? apaga sozinho depois de 3 horas
+
+
+@app.route("/api/holofote", methods=["POST"])
+def api_holofote():
+    """Quem conduz a rodada de fala da daily acende (ou apaga) o holofote na planta de quem esta falando."""
+    p = request.get_json(force=True, silent=True) or {}
+    mid = _int_ou_none(p.get("member_id"))
+    db = get_db()
+    if mid is not None and not db.execute("SELECT 1 FROM members WHERE id = ? AND active = 1", (mid,)).fetchone():
+        return _erro("Pessoa inválida.")
+    db.execute("INSERT INTO config (chave, valor) VALUES ('holofote_membro', ?) "
+               "ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor", ("" if mid is None else str(mid),))
+    db.execute("INSERT INTO config (chave, valor) VALUES ('holofote_em', datetime('now')) "
+               "ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor")
+    db.commit()
+    return jsonify({"ok": True, "member_id": mid})
+
+
+@app.route("/api/holofote", methods=["GET"])
+def api_holofote_ver():
+    db = get_db()
+    row = db.execute(
+        "SELECT (SELECT valor FROM config WHERE chave = 'holofote_membro') AS m, "
+        "CAST(strftime('%s', 'now') AS INTEGER) - CAST(strftime('%s', (SELECT valor FROM config WHERE chave = 'holofote_em')) AS INTEGER) AS idade"
+    ).fetchone()
+    mid = _int_ou_none(row["m"]) if row and row["m"] else None
+    if mid is not None and (row["idade"] is None or row["idade"] > HOLOFOTE_VALE_SEGUNDOS):
+        mid = None
+    return jsonify({"ok": True, "member_id": mid})
+
+
 @app.route("/api/metas-premio", methods=["POST"])
 def api_metas_premio():
     p = request.get_json(force=True, silent=True) or {}
@@ -3032,7 +3064,7 @@ def api_ata_salvar():
     elif campo == "status":
         mid = _int_ou_none(p.get("member_id"))
         valor = p.get("valor") or ""
-        if mid is None or valor not in ("", "presente", "justificada"):
+        if mid is None or valor not in ("", "presente", "justificada", "faltou"):
             return _erro("Pedido inválido.")
         _definir_status(db, mid, data_str, ATA_EVENTO[tipo], valor)
         resposta["status"] = valor

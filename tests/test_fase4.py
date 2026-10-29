@@ -366,7 +366,7 @@ class TestAtaSituacao(Fase4Base):
 
     def test_situacao_invalida_recusada(self):
         a = self.ids()[0]
-        r = self.salvar(data=DATA, tipo="daily", campo="status", member_id=a, valor="faltou")
+        r = self.salvar(data=DATA, tipo="daily", campo="status", member_id=a, valor="sumiu")
         self.assertEqual(r.status_code, 400)
 
     def test_daily_usa_o_evento_daily_e_o_fechamento_usa_encerramento(self):
