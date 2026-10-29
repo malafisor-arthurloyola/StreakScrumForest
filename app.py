@@ -21,6 +21,16 @@ import ata_fmt
 import gitlab_sync
 
 BASE_DIR = Path(__file__).resolve().parent
+
+# Fuso do time. O PythonAnywhere roda em UTC: sem isto, das 21h a meia-noite de Brasilia o
+# "hoje" do servidor (date.today, datetime.now) ja seria o dia seguinte, e a fala escrita a
+# noite iria para a ata errada. Um TZ definido no servidor tem prioridade. O SQLite continua
+# em UTC (datetime('now')), e o time.time() nao muda. No Windows nao ha tzset: vale o fuso do PC.
+FUSO_PADRAO = "America/Sao_Paulo"
+os.environ.setdefault("TZ", FUSO_PADRAO)
+if hasattr(time, "tzset"):
+    time.tzset()
+
 DB_PATH = Path(os.environ.get("STRIKES_DB", BASE_DIR / "data" / "strikes.db"))
 BACKUP_DIR = DB_PATH.parent / "backups"
 
@@ -1698,13 +1708,49 @@ def api_holofote():
     db = get_db()
     if mid is not None and not db.execute("SELECT 1 FROM members WHERE id = ? AND active = 1", (mid,)).fetchone():
         return _erro("Pessoa inválida.")
-    for chave, valor in (("holofote_membro", "" if mid is None else str(mid)), ("holofote_modo", modo), ("holofote_tipo", tipo)):
+    valores = [("holofote_membro", "" if mid is None else str(mid)), ("holofote_modo", modo), ("holofote_tipo", tipo)]
+    # a ordem sorteada fica no servidor, para todas as telas mostrarem quem vem a seguir e outro
+    # aparelho do Scrum poder continuar a rodada. Sem "ordem" no pedido, a ordem gravada continua;
+    # apagar o holofote (encerrar a rodada) apaga a ordem junto.
+    if mid is None:
+        valores.append(("holofote_ordem", ""))
+    elif "ordem" in p:
+        ordem = _ordem_valida(db, p.get("ordem"))
+        if ordem is None or mid not in ordem:
+            return _erro("Ordem da rodada inválida.")
+        valores.append(("holofote_ordem", ",".join(str(x) for x in ordem)))
+    for chave, valor in valores:
         db.execute("INSERT INTO config (chave, valor) VALUES (?, ?) ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor",
                    (chave, valor))
     db.execute("INSERT INTO config (chave, valor) VALUES ('holofote_em', datetime('now')) "
                "ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor")
     db.commit()
     return jsonify({"ok": True, "member_id": mid, "modo": modo, "tipo": tipo})
+
+
+HOLOFOTE_ORDEM_MAX = 60
+
+
+def _ordem_valida(db, ordem):
+    """Lista de ids de pessoas ativas, sem repetir, na ordem do sorteio; None se o pedido for invalido."""
+    if not isinstance(ordem, list) or not 0 < len(ordem) <= HOLOFOTE_ORDEM_MAX:
+        return None
+    ids = [_int_ou_none(x) for x in ordem]
+    if None in ids or len(set(ids)) != len(ids):
+        return None
+    ativos = {r["id"] for r in db.execute("SELECT id FROM members WHERE active = 1").fetchall()}
+    return ids if set(ids) <= ativos else None
+
+
+def _holofote_ordem(db, mid):
+    """[{id, nome}] da rodada em andamento e a posicao de `mid` nela; ([], None) sem ordem gravada."""
+    row = db.execute("SELECT valor FROM config WHERE chave = 'holofote_ordem'").fetchone()
+    ids = [_int_ou_none(x) for x in (row["valor"] if row else "").split(",") if x.strip()]
+    nomes = {r["id"]: r["name"] for r in db.execute("SELECT id, name FROM members").fetchall()}
+    ids = [x for x in ids if x in nomes]          # alguem excluido no meio da rodada sai da lista
+    if mid is None or mid not in ids:
+        return [], None
+    return [{"id": x, "nome": nomes[x]} for x in ids], ids.index(mid)
 
 
 def _holofote_atual(db):
@@ -1732,8 +1778,9 @@ def api_holofote_ver():
     hoje = date.today().isoformat()
     resp = {"ok": True, "member_id": mid, "modo": modo, "data": hoje, "tipo": tipo,
             "eu": _eu_id(), "pode_scrum": False, "nome": "", "status": "",
-            "falas": {"feito": "", "planejado": "", "review": ""}}
+            "falas": {"feito": "", "planejado": "", "review": ""}, "ordem": [], "pos": None}
     if mid is not None:
+        resp["ordem"], resp["pos"] = _holofote_ordem(db, mid)
         resp["pode_scrum"] = bool(_pode_editar_ata(db, hoje, tipo))
         m = db.execute("SELECT name FROM members WHERE id = ?", (mid,)).fetchone()
         resp["nome"] = m["name"] if m else ""
