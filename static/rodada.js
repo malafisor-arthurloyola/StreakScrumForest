@@ -45,8 +45,7 @@
   function desenharTipo() {
     chipsTipo.forEach(function (b) {
       var ativo = b.dataset.tipo === TIPO;
-      b.classList.toggle('ativo', ativo);
-      b.setAttribute('aria-checked', ativo ? 'true' : 'false');
+      b.setAttribute('aria-pressed', ativo ? 'true' : 'false');
       b.disabled = !!estado;            // so troca de reuniao entre rodadas
     });
   }
