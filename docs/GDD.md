@@ -26,6 +26,10 @@ ainda é só ideia está marcado como **planejado** na seção 14.
 (Daily, Dev e Day Closing); o time cresce junto, ganha sementes para personalizar o jardim e usa o mesmo
 site para registrar a ata da daily.
 
+![Painel do jardim da equipe: progresso coletivo, sequência de dias cheios e o canteiro com as plantas de cada pessoa](img/painel.png)
+
+*Painel do jardim. As capturas deste documento usam um banco de demonstração, com dados fictícios.*
+
 **Pitch para o time:** "Vir à daily faz a sua plantinha crescer. Quando todos vêm, o jardim inteiro
 floresce. Nada se perde se você faltar um dia: a planta só espera você voltar."
 
@@ -135,6 +139,10 @@ Com 45 dias letivos, uma subida a cada 3 a 4 dias letivos.
 - **Floresceu é permanente.** Depois disso, cada 5 presenças além da meta rendem 1 **fruto** (até 5).
 - **Duas camadas:** tronco permanente (estágio) e copa viva (vigor).
 
+![Tela Hoje no celular: jardim, cartão da rodada de fala e a tabela de presença](img/celular.jpg)
+
+*Tela Hoje no celular.*
+
 ### 6.3 Vigor e chama (a "copa viva")
 
 A sequência atual muda só o **visual**, sem semente nem multiplicador. O vigor e a chama usam faixas diferentes:
@@ -195,6 +203,10 @@ bloqueia compra nova, mas nunca remove o que já foi comprado.
 **375** sementes no projeto; o "típico" a cerca de 275. O bônus de relator e as metas com recompensa ficam
 fora desses totais. A conta completa está em [BALANCEAMENTO.md](BALANCEAMENTO.md).
 
+![Aba Sementes: de onde vêm as sementes, com as fontes e os valores](img/sementes.png)
+
+*Aba Sementes: cada fatia da barra é uma fonte de sementes.*
+
 ### 7.2 Aba Sementes
 
 Mostra o extrato linha a linha de cada pessoa (data, motivo, valor e acumulado), as fontes e uma comparação
@@ -218,6 +230,10 @@ Tudo na loja é **cosmético**: nada aqui muda o quanto a planta cresce.
 
 Raridades: comum, rara, épica e lendária. A planta extra cresce junto da principal, sempre um pouco menor
 (estágio visual a 80% do principal), e **nunca altera o crescimento real**.
+
+![Loja do jardim: plantas à venda com raridade, preço e botões para usar na planta 1 ou 2](img/loja.png)
+
+*Loja. Samambaia e planta-jarro aparecem pendurados; o botão "Estágio" no canto inferior mostra a prévia em qualquer estágio.*
 
 ### 8.2 Regras
 
@@ -259,6 +275,10 @@ participa sem avaliar o conteúdo.
   GitLab. Dá para copiar para o Google Docs.
 - O relator edita qualquer ata de qualquer aparelho. Quem não é relator edita só a própria fala.
 
+![Ata da Daily, com relator, presença e campos de fala de cada pessoa](img/ata.png)
+
+*Ata da Daily.*
+
 ### 10.2 QR e celular pessoal
 
 - O Scrum abre o **QR de presença** (um código que muda a cada 10 minutos). Quem lê marca a própria presença
@@ -288,6 +308,10 @@ Fluxo desenhado para a conversa vir antes da escrita:
 5. **Anterior, Próxima, Sortear de novo, Encerrar rodada** e **Fechar** (esconder o painel só para quem
    fechou). O holofote se apaga ao encerrar ou sozinho depois de 3 horas.
 6. O QR e a ata continuam funcionando em paralelo.
+
+![Rodada de fala: planta de Arthur acesa, tela escurecida e painel com os três campos da daily, os botões Presente, Avisou e Faltou e os cards sugeridos](img/rodada.png)
+
+*Rodada de fala. A planta da vez fica acesa e o Scrum, ao assumir o preenchimento, toca nos cards sugeridos para acrescentá-los.*
 
 **Sementes na rodada:** a pessoa ganha a semente da fala como se tivesse preenchido a ata; o Scrum ganha o
 bônus de relator quando preenche por ela. Se a pessoa escreve a própria fala **na sua vez**, isso também
@@ -325,6 +349,10 @@ nunca vão para o repositório.
   espiral de sementes do girassol).
 - **Espécies:** 14 (muda, girassol, cacto, cogumelo, carnívora, planta-jarro, samambaia, lavanda, cerejeira,
   bambu, bonsai, jabuticabeira, ipê e baobá). Samambaia e planta-jarro são **vasos pendurados** por fios.
+![As 14 espécies em cinco estágios de crescimento](img/especies.png)
+
+*Espécies em cinco estágios (2, 4, 6, 8 e 10). Samambaia e planta-jarro são vasos pendurados.*
+
 - **Cena:** o céu muda com o horário das aulas; convidados aparecem em três modos (ocultos, em faixa ou no fundo
   do jardim, com cartão ao passar o mouse); placa de cada pessoa mostra nome, chama, estágio, barra e semana.
 - **Movimento:** brisa suave, rega, confete ao subir de estágio e holofote na rodada de fala. Tudo respeita
@@ -336,24 +364,258 @@ nunca vão para o repositório.
 
 ---
 
-## 13. Arquitetura técnica (resumo)
+## 13. Stack e arquitetura
 
-| Camada | Escolha |
-|---|---|
-| Backend | Flask, Python da biblioteca padrão |
-| Banco | SQLite com migrações aditivas e idempotentes; backups diários automáticos |
-| Regras | `game.py` (puro e testável), `catalog.py` (loja), `ata_fmt.py` (exportação), `gitlab_sync.py` |
-| Frontend | Jinja, CSS e JS puros; SVG gerado por macros e por `scripts/gerar_especies.py` |
-| Publicação | PythonAnywhere (plano gratuito), atualização por `git pull` e Reload |
-| Testes | `unittest`, mais de 600 testes, incluindo verificação de sintaxe dos scripts embutidos |
+### 13.1 Stack utilizada
 
-Princípios:
+| Camada | Tecnologia | Por quê |
+|---|---|---|
+| Linguagem do servidor | **Python 3.9+**, biblioteca padrão | Simples de manter e roda no plano gratuito |
+| Framework web | **Flask 3** (única dependência, `requirements.txt`) | Leve; rotas, sessões e templates sem excesso |
+| Banco de dados | **SQLite 3** (arquivo `data/strikes.db`) | Sem servidor de banco; persistente no PythonAnywhere; backup é copiar um arquivo |
+| Templates | **Jinja2** (vem com o Flask) | HTML renderizado no servidor, com macros para planta, cena e espécies |
+| Interface | **HTML, CSS e JavaScript puros** (sem framework e sem bibliotecas externas) | Sem etapa de build e sem dependências para quebrar |
+| Arte | **SVG** inline gerado por macros Jinja e por `scripts/gerar_especies.py` | Plantas leves, sem arquivos de imagem, reativas ao estágio por atributos `data-*` |
+| Tipografia | Fonte local (Bricolage Grotesque, `static/fonts`) | Sem pedir nada a servidores externos |
+| Tempo real | **Polling** com `fetch` (1 s, 5 s ou 30 s conforme o holofote) | O plano gratuito não sustenta conexões longas (websocket) |
+| QR de presença | `qr_puro.py` (gerador de QR em Python puro) + HMAC com janela de 10 min | Sem biblioteca externa |
+| Senhas dos PINs | `scrypt` da biblioteca padrão | Hash com sal; limite de tentativas |
+| Testes | **unittest** (mais de 600) + `node --check` para validar o JavaScript embutido | Rodam sempre contra um banco temporário |
+| Controle de versão | **Git** e **GitHub** (repositório público) | Histórico de cada fase |
+| Hospedagem | **PythonAnywhere** (plano gratuito, `wsgi.py`) | Disco persistente para o SQLite e HTTPS; atualização por `git pull` e Reload |
+| Integração | **API do GitLab** da faculdade, lida por `scripts/sync_gitlab.py` no computador do dono | O servidor público não alcança o GitLab; recebe só um retrato por `POST` com token |
+| Ferramentas de apoio | Agentes de IA (Claude Code e Kiro), Chrome sem janela para capturas de tela | Ver [PROCESSO.md](PROCESSO.md) |
+
+### 13.2 Visão geral da arquitetura
+
+```mermaid
+flowchart LR
+    subgraph Pessoas["Quem usa"]
+        CEL["Celular de cada pessoa<br/>(Meu jardim, PIN)"]
+        PCS["Computador do Scrum<br/>(tela Hoje)"]
+        PROJ["Tela projetada<br/>(painel e jardim)"]
+    end
+
+    subgraph Navegador["Navegador"]
+        HTML["Páginas HTML (Jinja) e SVG"]
+        JS["app.js, holofote.js,<br/>rodada.js, gl-busca-sprint.js"]
+    end
+
+    subgraph PA["PythonAnywhere (plano gratuito)"]
+        WSGI["wsgi.py"]
+        APP["app.py (Flask)<br/>rotas, papéis, migrações"]
+        GAME["game.py<br/>regras puras do jogo"]
+        CAT["catalog.py<br/>loja"]
+        ATAF["ata_fmt.py<br/>exportação da ata"]
+        GLS["gitlab_sync.py<br/>retrato do GitLab"]
+        QRP["qr_puro.py<br/>QR de presença"]
+        BKP["backup.py<br/>backups diários"]
+        DB[("SQLite<br/>strikes.db")]
+    end
+
+    subgraph Dono["Computador do dono do projeto"]
+        SYNC["scripts/sync_gitlab.py<br/>(.env com o token)"]
+    end
+
+    GITLAB[("GitLab da faculdade<br/>cards e milestones")]
+    GITHUB[("GitHub<br/>código e documentação")]
+
+    CEL --> HTML
+    PCS --> HTML
+    PROJ --> HTML
+    HTML <--> JS
+    JS -- "fetch (JSON)" --> WSGI
+    WSGI --> APP
+    APP --> GAME
+    APP --> CAT
+    APP --> ATAF
+    APP --> GLS
+    APP --> QRP
+    APP --> DB
+    BKP --> DB
+    SYNC -- "API (leitura)" --> GITLAB
+    SYNC -- "POST /api/gitlab/snapshot<br/>(Bearer SYNC_TOKEN)" --> WSGI
+    GITHUB -- "git pull + Reload" --> PA
+```
+
+### 13.3 Como o estado do jogo é derivado
+
+O banco guarda **fatos** (quem veio, o que foi escrito, o que foi comprado). Tudo que parece "pontuação" é
+**calculado** pelas funções puras de `game.py`. Corrigir um fato errado recalcula o resto sem migração.
+
+```mermaid
+flowchart TD
+    CAL["Calendário<br/>(config, feriados)"] --> DIAS["Dias letivos e meta de floração"]
+    ATT["attendance<br/>presente, avisou, faltou"] --> MEMB["calcular_membro()<br/>G, estágio, sequência, vigor, frutos"]
+    DIAS --> MEMB
+    MEMB --> VIS["Planta, chama e placa na tela"]
+    ATT --> SEM["calcular_sementes()"]
+    DIAS --> SEM
+    FAL["atas e ata_falas<br/>(fala, origem, relator)"] --> SEM
+    MP["metas_premio<br/>(cumprida no prazo)"] --> SEM
+    MEMB --> SEM
+    SEM --> EXT["extrato_sementes()<br/>linha a linha"]
+    COM["compras<br/>(menos as desfeitas)"] --> SALDO["Saldo = ganho - gasto<br/>(mínimo 0)"]
+    SEM --> SALDO
+    EXT -. "soma igual ao ganho (teste)" .-> SEM
+    SALDO --> LOJA["Loja e coleção"]
+    EQ["equipados"] --> LOJA
+    LOJA --> VIS
+```
+
+### 13.4 Modelo de dados
+
+```mermaid
+erDiagram
+    members ||--o{ attendance : "registra"
+    members ||--o{ compras : "compra"
+    members ||--o{ equipados : "equipa"
+    members ||--o{ ata_falas : "fala"
+    members ||--o{ metas_premio_membros : "recebe"
+    metas_premio ||--o{ metas_premio_membros : "para"
+    atas ||--o{ ata_falas : "contem"
+    members |o--o{ atas : "relata"
+
+    members {
+        int id PK
+        text name
+        int active
+        text tipo "equipe ou convidado"
+        text pin_hash
+        text pin_salt
+        text gitlab_user
+    }
+    attendance {
+        int id PK
+        int member_id FK
+        text event_date
+        text event_type "daily, dev, encerramento"
+        text status "presente, faltou, justificada"
+    }
+    atas {
+        text data PK
+        text tipo PK "daily ou fechamento"
+        int relator_id FK
+        text bloqueios
+        int quadro_atualizado
+    }
+    ata_falas {
+        text data PK
+        text tipo PK
+        int member_id PK
+        text feito
+        text planejado
+        text review
+        text bloqueios
+        text origem "proprio ou relator"
+    }
+    compras {
+        int id PK
+        int member_id FK
+        text item_id
+        int custo
+        text desfeita_em
+    }
+    equipados {
+        int member_id PK
+        text slot PK
+        text item_id
+    }
+    metas_sprint {
+        int id PK
+        int sprint
+        text tipo
+        int alvo
+    }
+    metas_premio {
+        int id PK
+        text titulo
+        text prazo
+        int sementes
+        int para_time
+        text cumprida_em
+    }
+    metas_premio_membros {
+        int meta_id PK
+        int member_id PK
+    }
+    gitlab_cards {
+        int iid PK
+        text coluna
+        text usuario
+        text titulo
+        text milestone
+    }
+    config {
+        text chave PK
+        text valor
+    }
+    feriados {
+        text data PK
+        text nome
+    }
+```
+
+Tabelas auxiliares não desenhadas: `gitlab_usuarios` (lista de usuários do GitLab para o mapeamento automático) e
+`prenda_payments` (dados antigos da época das prendas, mantidos no banco e sem uso na interface).
+`config` também guarda o estado do holofote (`holofote_membro`, `holofote_modo`, `holofote_tipo`, `holofote_em`).
+
+### 13.5 Rodada de fala: quem fala com quem
+
+```mermaid
+sequenceDiagram
+    actor S as Scrum (tela Hoje)
+    participant API as Servidor Flask
+    participant DB as SQLite
+    actor P as Pessoa da vez (celular)
+    participant T as Tela projetada e demais celulares
+
+    S->>API: POST /api/holofote (pessoa, modo, reunião)
+    API->>DB: grava holofote_membro, modo, tipo e hora
+    loop a cada 1 s, enquanto há holofote aceso
+        P->>API: GET /api/holofote
+        T->>API: GET /api/holofote
+        API-->>P: pessoa, modo, falas já escritas, quem sou eu
+        API-->>T: o mesmo estado
+    end
+    Note over P,T: A planta acende, a tela escurece e abre o painel dos campos
+
+    alt modo celular (padrão)
+        P->>API: POST /api/ata/minha-fala (campo, texto)
+        API->>DB: salva a fala com origem "proprio"
+        API->>DB: marca presença, só se é a vez dela e a reunião certa
+    else modo Scrum (Eu preencho por ela)
+        S->>API: POST /api/ata/salvar (pessoa, campo, texto)
+        API->>DB: salva com origem "relator" e marca presença
+        Note over S,DB: o Scrum ganha o bônus de relator (até 3 por ata)
+    end
+
+    S->>API: POST /api/ata/salvar (status Presente, Avisou ou Faltou)
+    API-->>S: estado do jogo para acender a chama
+    S->>API: POST /api/holofote (próxima pessoa) ou null para encerrar
+```
+
+### 13.6 Publicação
+
+```mermaid
+flowchart LR
+    DEV["Desenvolvimento local<br/>(banco de teste, nunca o real)"] --> TESTES["Testes (unittest + node --check)"]
+    TESTES --> COMMIT["git commit"]
+    COMMIT --> PUSH["git push para o GitHub"]
+    PUSH --> PULL["PythonAnywhere: git pull"]
+    PULL --> RELOAD["Reload na aba Web<br/>(init_db migra o banco sozinho)"]
+    RELOAD --> USO["Uso pelo time<br/>(Ctrl+F5 nos navegadores)"]
+```
+
+### 13.7 Princípios
 
 - **Derivar do histórico:** estágio, sequência, sementes e metas são recalculados; o banco guarda presenças,
   compras, atas e configuração.
+- **Migrações aditivas e idempotentes:** o banco publicado é atualizado sozinho no Reload, sem apagar nada.
 - **Banco real intocável em testes:** testes e demonstrações rodam em cópias (`STRIKES_DB`).
 - **Estado leve de tempo real:** o holofote é uma linha de configuração lida por polling, sem websocket
   (o plano gratuito não sustenta conexões longas).
+- **Regras puras:** o que decide pontuação fica em funções sem Flask nem banco, fáceis de testar.
 
 ---
 

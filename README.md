@@ -8,6 +8,7 @@ Dados ficam salvos em um banco SQLite real (`data/strikes.db`), nao em localStor
 
 - [docs/GDD.md](docs/GDD.md): **Game Design Document**. O que o jogo é, as regras, a economia de sementes, a loja,
   a ata e a rodada de fala, os papéis, a direção de arte e o que ainda é ideia.
+- [docs/PROCESSO.md](docs/PROCESSO.md): relato do processo de criação, patch notes, problemas encontrados e correções.
 - [docs/BALANCEAMENTO.md](docs/BALANCEAMENTO.md): as contas por trás das sementes e dos preços.
 - [docs/HANDOFF-KIRO.md](docs/HANDOFF-KIRO.md) e [docs/HANDOFF-KIRO-2.md](docs/HANDOFF-KIRO-2.md): notas de passagem entre agentes.
 
@@ -756,7 +757,9 @@ backup.py               # backups diarios do banco
 wsgi.py                 # entrada para o PythonAnywhere
 data/                   # banco SQLite e backups (nunca vao para o git)
 docs/
-  GDD.md                # Game Design Document
+  GDD.md                # Game Design Document (com stack e diagramas)
+  PROCESSO.md           # relato do processo, patch notes e problemas
+  img/                  # capturas de tela do GDD
   BALANCEAMENTO.md      # contas das sementes e dos precos
   HANDOFF-KIRO*.md      # notas de passagem entre agentes
 scripts/
