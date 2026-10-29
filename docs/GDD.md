@@ -37,8 +37,13 @@ floresce. Nada se perde se você faltar um dia: a planta só espera você voltar
 
 ## 2. Contexto e problema
 
-O time usava uma contagem de faltas com "prendas" para presença nas reuniões. Isso gerava clima de
-cobrança e não incentivava participar. Havia também dois problemas ligados:
+A ideia nasceu de uma necessidade: **engajar os times de Scrum para participarem de forma mais ativa** da daily,
+do dev e do day closing. O autor já tinha enfrentado devs com pouquíssimas pessoas e dailys em que ninguém dizia o
+que tinha feito nem citava os cards.
+
+A primeira tentativa foi um **sistema de strikes**: quem faltava três vezes pagava um doce. Melhorou um pouco o
+engajamento, mas **não há como forçar ninguém a comprar a bala**, e o sistema só sabia cobrar. Havia também dois
+problemas ligados:
 
 1. **Presença:** registrar quem veio era um ritual chato e sem retorno visível.
 2. **Daily:** as pessoas escreviam a fala no celular, mas conversavam pouco. O foco ia para preencher, não

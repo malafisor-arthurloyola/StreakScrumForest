@@ -16,7 +16,7 @@ do repositório; o que é interpretação está identificado como tal.
 | Item | Valor |
 |---|---|
 | Produto | Site de controle de presença gamificado para um time Scrum de estudantes |
-| Período coberto | 17 a 29 de outubro de 2026 (13 dias; 48 commits) |
+| Período coberto | 17 a 29 de outubro de 2026 (13 dias, 52 commits no Git) para o jardim. O sistema de strikes que veio antes foi pedido em 15/09/2026 e fica fora do histórico do Git |
 | Tamanho atual | cerca de 6,8 mil linhas de Python, 1 mil de JavaScript, 1,9 mil de CSS e 4 mil de templates (inclui as espécies geradas) |
 | Testes automatizados | de 48 (primeira versão das regras) para mais de 600 |
 | Dependências | uma: Flask |
@@ -30,16 +30,27 @@ mesmo site para organizar a daily (ata, QR de presença e rodada de fala).
 
 ## 2. Problema de origem
 
-O time registrava presença nas reuniões de Scrum (Daily, Dev e Day Closing) com **faltas e prendas**. Três
-problemas foram observados em uso:
+A ideia surgiu de uma necessidade que o autor viu como estudante: **engajar os times de Scrum para que
+participem de forma mais ativa** da daily, do dev e do day closing. Ele já tinha enfrentado devs com
+pouquíssimas pessoas, o que o incomodava, e dailys em que as pessoas não diziam o que tinham feito nem citavam
+os cards.
+
+**A primeira tentativa foi um sistema de strikes:** quem faltava três vezes pagava um doce. Melhorou um pouco o
+engajamento, mas não funcionou bem: **não há como forçar ninguém a comprar a bala**, e o sistema só sabia
+cobrar. Em palavras do autor, a solução seguinte precisava ser **positiva, sem punir ninguém**, e incentivar
+participar e engajar.
+
+Três problemas ficaram claros em uso:
 
 1. **Clima de cobrança:** a contagem de faltas punia e não incentivava vir.
 2. **Registro sem retorno:** marcar presença era trabalho sem nenhuma recompensa visível para ninguém.
-3. **Daily escrita, não conversada:** as pessoas se concentravam em preencher a fala no celular e conversavam
-   pouco. Em palavras do autor, o time estava "muito focado em escrever as dailys e se esquecendo de comunicar".
+3. **Daily escrita, não conversada:** depois que a daily passou a ser registrada no celular, as pessoas se
+   concentravam em preencher a fala e conversavam pouco. Em palavras do autor, o time estava "muito focado em
+   escrever as dailys e se esquecendo de comunicar".
 
 Hipótese de partida (a ser testada, não demonstrada): *crescimento visível e recompensas leves por constância
-aumentam a presença e a participação, sem o efeito negativo da punição*.
+mantêm ou aumentam a presença e a participação sem precisar cobrar ninguém*. O sistema de strikes, que melhorou um
+pouco o engajamento mas dependia de forçar o pagamento, é a **linha de base** natural da comparação.
 
 ---
 
