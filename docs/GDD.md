@@ -388,6 +388,11 @@ nunca vão para o repositório.
 
 ### 13.2 Visão geral da arquitetura
 
+![Arquitetura geral: clientes, navegador, servidor, banco, computador do dono e GitLab](img/diagramas/arquitetura-geral.svg)
+
+<details>
+<summary>Código Mermaid deste diagrama</summary>
+
 ```mermaid
 flowchart LR
     subgraph Pessoas["Quem usa"]
@@ -438,10 +443,17 @@ flowchart LR
     GITHUB -- "git pull + Reload" --> PA
 ```
 
+</details>
+
 ### 13.3 Como o estado do jogo é derivado
 
 O banco guarda **fatos** (quem veio, o que foi escrito, o que foi comprado). Tudo que parece "pontuação" é
 **calculado** pelas funções puras de `game.py`. Corrigir um fato errado recalcula o resto sem migração.
+
+![Como o estado do jogo é derivado do histórico](img/diagramas/estado-derivado.svg)
+
+<details>
+<summary>Código Mermaid deste diagrama</summary>
 
 ```mermaid
 flowchart TD
@@ -463,7 +475,14 @@ flowchart TD
     LOJA --> VIS
 ```
 
+</details>
+
 ### 13.4 Modelo de dados
+
+![Modelo de dados (tabelas principais)](img/diagramas/modelo-de-dados.svg)
+
+<details>
+<summary>Código Mermaid deste diagrama</summary>
 
 ```mermaid
 erDiagram
@@ -556,11 +575,18 @@ erDiagram
     }
 ```
 
+</details>
+
 Tabelas auxiliares não desenhadas: `gitlab_usuarios` (lista de usuários do GitLab para o mapeamento automático) e
 `prenda_payments` (dados antigos da época das prendas, mantidos no banco e sem uso na interface).
 `config` também guarda o estado do holofote (`holofote_membro`, `holofote_modo`, `holofote_tipo`, `holofote_em`).
 
 ### 13.5 Rodada de fala: quem fala com quem
+
+![Rodada de fala: sequência entre Scrum, servidor e celulares](img/diagramas/rodada-de-fala.svg)
+
+<details>
+<summary>Código Mermaid deste diagrama</summary>
 
 ```mermaid
 sequenceDiagram
@@ -595,7 +621,14 @@ sequenceDiagram
     S->>API: POST /api/holofote (próxima pessoa) ou null para encerrar
 ```
 
+</details>
+
 ### 13.6 Publicação
+
+![Fluxo de publicação](img/diagramas/publicacao.svg)
+
+<details>
+<summary>Código Mermaid deste diagrama</summary>
 
 ```mermaid
 flowchart LR
@@ -606,6 +639,8 @@ flowchart LR
     PULL --> RELOAD["Reload na aba Web<br/>(init_db migra o banco sozinho)"]
     RELOAD --> USO["Uso pelo time<br/>(Ctrl+F5 nos navegadores)"]
 ```
+
+</details>
 
 ### 13.7 Princípios
 

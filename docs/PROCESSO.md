@@ -59,6 +59,11 @@ ser declarado em qualquer relatório que use este material.
 
 ### 3.2 Ciclo de cada mudança
 
+![Ciclo de cada mudança no desenvolvimento](img/diagramas/ciclo-de-cada-mudanca.svg)
+
+<details>
+<summary>Código Mermaid deste diagrama</summary>
+
 ```mermaid
 flowchart LR
     PED["Pedido do autor<br/>(muitas vezes em linguagem informal)"] --> PROP["Proposta curta<br/>(opções e recomendação)"]
@@ -70,6 +75,8 @@ flowchart LR
     REV -->|"aprovado"| COM["Commit e push<br/>só quando o autor pede"]
     COM --> DEP["git pull e Reload<br/>no servidor"]
 ```
+
+</details>
 
 Pontos que se repetiram e foram combinados desde cedo:
 
@@ -103,6 +110,11 @@ deixavam conexões do SQLite abertas e davam erro no Windows (ver problema P2).
 
 ## 4. Linha do tempo
 
+![Linha do tempo das fases do projeto](img/diagramas/linha-do-tempo.svg)
+
+<details>
+<summary>Código Mermaid deste diagrama</summary>
+
 ```mermaid
 timeline
     title Fases do projeto (outubro de 2026)
@@ -116,6 +128,8 @@ timeline
     28/10 : Bônus do Scrum : Extrato de sementes
     29/10 : Metas com recompensa : Plantas redesenhadas : Rodada de fala com holofote : GDD e documentação
 ```
+
+</details>
 
 ### 4.1 Fases e o que cada uma buscava
 
