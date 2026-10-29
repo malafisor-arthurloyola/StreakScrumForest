@@ -207,7 +207,7 @@ function aplicarEstagioPrincipal(jogo) {
 /* Plantinhas extras (compradas na loja) acompanham a principal, um pouco menores. */
 function aplicarEstagio(jogo) {
   var anterior = aplicarEstagioPrincipal(jogo);
-  var estExtra = Math.floor(jogo.estagio * 7 / 10);
+  var estExtra = Math.floor(jogo.estagio * 8 / 10);
   document.querySelectorAll('.planta[data-extra-de="' + jogo.id + '"]').forEach(function (svg) {
     svg.dataset.stage = estExtra;
     svg.dataset.vigor = jogo.vigor;

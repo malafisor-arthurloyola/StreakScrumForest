@@ -110,6 +110,7 @@
 <section class="loja-grupo" id="minhas-compras">
   <h2 class="secao-titulo">Minhas compras</h2>
   {% if compras %}
+  <p class="fonte-nota">Arrependeu-se? Dá para desfazer e recuperar as sementes <b>{{ desfazer_restantes }} {{ 'vez' if desfazer_restantes == 1 else 'vezes' }}</b> (são 2 no total para cada pessoa).</p>
   <ul class="compras">
     {% for c in compras %}
     <li class="{{ 'desfeita' if c.desfeita_em }}">
@@ -118,7 +119,7 @@
       <span class="preco">{{ c.custo }}</span>
       {% if c.desfeita_em %}
         <span class="selo-desfeita">desfeita</span>
-      {% else %}
+      {% elif desfazer_restantes %}
         <button type="button" class="btn btn-ghost" data-acao="desfazer" data-compra="{{ c.id }}">Desfazer e recuperar sementes</button>
       {% endif %}
     </li>

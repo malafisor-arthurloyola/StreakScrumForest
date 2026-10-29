@@ -125,7 +125,7 @@
     {% endif %}
     {% for m in membros %}
     {% set n_extras = m.visual.extras | length if m.visual else 0 %}
-    {% set fator = 1 + 0.62 * n_extras %}
+    {% set fator = 1 + 0.72 * n_extras %}
     <div class="canteiro-item" role="listitem" data-member-id="{{ m.id }}"
          style="flex-grow: {{ fator }}; min-width: {{ (108 * fator) | round | int }}px; max-width: {{ ((grande and 230 or 200) * fator) | round | int }}px">
       {{ conjunto(m, tamanho=170 if grande else 132) }}

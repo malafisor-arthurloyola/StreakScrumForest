@@ -194,6 +194,17 @@ class TestDesfazer(LojaBase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(self.stats(1)["sementes"], antes)
 
+    def test_so_pode_desfazer_duas_vezes(self):
+        self.presencas(1, 20)
+        for item in ("girassol", "samambaia"):
+            self.comprar(1, item)
+            r = self.post("/api/loja/desfazer", member_id=1, compra_id=self._compra_id(1, item))
+            self.assertEqual(r.status_code, 200)
+        self.comprar(1, "girassol")
+        r = self.post("/api/loja/desfazer", member_id=1, compra_id=self._compra_id(1, "girassol"))
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("desfazimentos", r.get_json()["erro"])
+
     def test_desfazer_desequipa(self):
         self.presencas(1, 20)
         self.comprar(1, "girassol")

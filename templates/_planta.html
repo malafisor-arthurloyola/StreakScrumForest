@@ -194,10 +194,10 @@
 <div class="vasos">
   <div class="vaso-principal">{{ planta(m, tamanho) }}</div>
   {% for e in extras %}
-  {% set em = {'id': m.id, 'name': m.name, 'estagio': (m.estagio * 7) // 10, 'estagio_nome': '', 'vigor': m.vigor,
+  {% set em = {'id': m.id, 'name': m.name, 'estagio': (m.estagio * 8) // 10, 'estagio_nome': '', 'vigor': m.vigor,
                'floresceu': False, 'frutos': 0, 'progresso': 0, 'dia_status': 'folga',
                'visual': {'especie': e.especie, 'folha': e.folha, 'vaso': m.visual.vaso, 'companheiro': None, 'acessorio': None, 'extras': []}} %}
-  <div class="vaso-extra">{{ planta(em, tamanho * 0.62, extra_de=m.id) }}</div>
+  <div class="vaso-extra">{{ planta(em, tamanho * 0.8, extra_de=m.id) }}</div>
   {% endfor %}
 </div>
 {% endmacro %}

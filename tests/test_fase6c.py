@@ -169,7 +169,7 @@ class TestUIptBR(Base):
         con.execute("INSERT OR IGNORE INTO attendance(member_id,event_date,event_type,status) VALUES(?,?,?,'presente')", (ids[0], HOJE, "daily"))
         con.commit(); con.close()
         html = self.client.get("/ata/%s/daily" % HOJE).get_data(as_text=True)
-        self.assertIn("O que fiz", html)
+        self.assertIn("O que eu fiz de ontem para hoje", html)
         self.assertIn("O que vou fazer hoje", html)
         self.assertIn("Vou revisar", html)
         self.assertIn("gl-ajuda", html)                 # bolinha de ajuda

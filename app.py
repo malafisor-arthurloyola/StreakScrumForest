@@ -2313,6 +2313,7 @@ def _contexto_loja(db, member_id):
         "grupos": GRUPOS_LOJA,
         "plantas_liberadas": [1] + [n for n in (2, 3) if f"slot_{n}" in possui],
         "compras": compras,
+        "desfazer_restantes": max(DESFAZER_MAX - _desfeitas_do_membro(db, member_id), 0) if stats else 0,
         "fontes": {
             "por_evento": game.SEED_POR_EVENTO,
             "semana_fechada": game.SEED_SEMANA_FECHADA,
@@ -3553,6 +3554,15 @@ def api_loja_equipar():
     return jsonify({"ok": True})
 
 
+DESFAZER_MAX = 2        # cada pessoa pode desfazer ate 2 compras (recupera as sementes), no projeto todo
+
+
+def _desfeitas_do_membro(db, member_id):
+    return db.execute(
+        "SELECT COUNT(*) FROM compras WHERE member_id = ? AND desfeita_em IS NOT NULL", (member_id,)
+    ).fetchone()[0]
+
+
 @app.route("/api/loja/desfazer", methods=["POST"])
 def api_loja_desfazer():
     payload, member_id = _ler_pedido()
@@ -3570,6 +3580,9 @@ def api_loja_desfazer():
     ).fetchone()
     if compra is None:
         abort(404)
+
+    if _desfeitas_do_membro(db, member_id) >= DESFAZER_MAX:
+        return _erro(f"Você já usou os seus {DESFAZER_MAX} desfazimentos. Pense bem antes da próxima compra!")
 
     item_id = compra["item_id"]
     if item_id == "slot_2" and "slot_3" in _posses_membro(db, member_id):

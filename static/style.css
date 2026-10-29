@@ -822,7 +822,8 @@ input.input-nome:hover, input.input-nome:focus { background: var(--s2); }
 
 .vasos { display: flex; align-items: flex-end; justify-content: center; width: 100%; }
 .vaso-principal { flex: 1 1 0; min-width: 0; }
-.vaso-extra { flex: 0.62 1 0; min-width: 0; }
+.vaso-extra { flex: 0.8 1 0; min-width: 0; margin-left: -9%; position: relative; z-index: 1; }
+.vaso-principal { position: relative; z-index: 2; }
 .vasos .planta { width: 100%; }
 
 .mov-joaninha { animation: anda 6s ease-in-out infinite alternate; }
