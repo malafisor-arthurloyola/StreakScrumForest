@@ -821,10 +821,13 @@ input.input-nome:hover, input.input-nome:focus { background: var(--s2); }
 .planta[data-vaso="pixel"] { --vaso: #8a5cf5; --vaso-2: #6f46d6; --borda: #a883ff; }
 .planta[data-vaso="dourado"] { --vaso: #e8b94a; --vaso-2: #c99a2e; --borda: #f5d27a; }
 
-.vasos { display: flex; align-items: flex-end; justify-content: center; width: 100%; }
-.vaso-principal { flex: 1 1 0; min-width: 0; }
-.vaso-extra { flex: 0.72 1 0; min-width: 0; margin-left: -14%; position: relative; z-index: 1; }
-.vaso-principal { position: relative; z-index: 2; }
+/* A principal ocupa sempre a largura toda: comprar uma extra nunca a encolhe. As extras sao
+   vasinhos menores sobrepostos na frente do vaso, a 1a no canto direito e a 2a no esquerdo. */
+.vasos { position: relative; width: 100%; }
+.vaso-principal { position: relative; z-index: 1; }
+.vaso-extra { position: absolute; bottom: 0; width: 46%; z-index: 2; pointer-events: none; }
+.vaso-extra:nth-child(2) { right: 4%; }
+.vaso-extra:nth-child(3) { left: 4%; }
 .vasos .planta { width: 100%; }
 
 .mov-joaninha { animation: anda 6s ease-in-out infinite alternate; }
