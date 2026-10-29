@@ -132,6 +132,57 @@ timeline
 | Uso real | 27 a 29/10 | Ajustar o que o uso real mostrou | Ver patch notes e problemas |
 | Visual e daily | 29/10 | Plantas melhores e conversar mais na daily | Redesenho das espécies, rodada de fala com holofote |
 
+### 4.2 Evolução visual, versão a versão
+
+As imagens abaixo **não são maquetes**: cada versão antiga foi extraída do histórico do Git (`git archive` do
+commit indicado), executada com um banco de demonstração e fotografada. Os nomes que aparecem são os do banco de
+demonstração daquela época, não dados reais do time. O hash de cada versão está na legenda.
+
+**1. Ponto de partida (`4b7bf52`, 17/10).** Painel com plantas simples em cartões roxos, tema escuro frio e
+nenhuma economia ainda. É a primeira versão guardada no Git, já sem prendas na interface.
+
+![Painel da primeira versão guardada no Git: cartões roxos, planta única e gráficos simples](img/historico/01-inicial-painel.png)
+
+![Tela Hoje da primeira versão](img/historico/01-inicial-hoje.png)
+
+**2. Redesign visual (`4a48667`, 17/10).** Jardim noturno, colinas, logo e navegação para celular.
+
+![Painel depois do redesign visual](img/historico/02-redesign-painel.png)
+
+**3. Jardim vivo (`e42138b`, 19/10).** Céu por horário, crescimento diário e foguinho de sequência.
+
+![Painel com céu por horário e foguinho de sequência](img/historico/03-jardim-vivo-painel.png)
+
+**4. Sementes e loja (`65f4b9a`, 19/10).** Primeira loja. Repare que todas as espécies ainda são **a mesma
+planta com cores diferentes**: o desenho próprio de cada espécie veio depois.
+
+![Primeira loja do jardim, com espécies que ainda eram variações de cor](img/historico/04-loja.png)
+
+**5. Resumo da sprint (`b2ad86b`, 19/10).** Página para a Review e a Retro, só com dados do time e destaques positivos.
+
+![Resumo da Sprint 2 com presença por evento e evolução das plantas](img/historico/05-resumo-sprint.png)
+
+**6. Convidados (`c1dc3f9`, 24/10).** Jardim redesenhado com convidados em faixa ou no fundo.
+
+![Painel com o jardim redesenhado e convidados no fundo](img/historico/06-convidados-painel.png)
+
+**7. Ata e papéis (`e1245f9`, 25/10).** Ata da daily, relator e botões Presente e Avisou.
+
+![Primeira ata da daily, com relator e dois campos](img/historico/07-ata-e-papeis.png)
+
+**8. Três campos com GitLab (`f7b3f86`, 26/10).** A ata ganha "o que fiz", "o que vou fazer" e "vou revisar", com
+busca de cards. Nesta captura o GitLab ainda não estava sincronizado.
+
+![Ata com os três campos e a busca de cards do GitLab](img/historico/08-ata-tres-campos-gitlab.png)
+
+**9. Extrato de sementes (`07495b1`, 28/10).** A aba Sementes passa a explicar cada ganho.
+
+![Aba Sementes na versão do extrato detalhado](img/historico/09-sementes-extrato.png)
+
+**10. Hoje (versão atual).** Tela Hoje com o jardim e a rodada de fala.
+
+![Tela Hoje na versão atual](img/historico/11-atual-hoje.png)
+
 ---
 
 ## 5. Patch notes
@@ -266,7 +317,24 @@ foi feito. Quando houve uma prática nova a partir do erro, ela está destacada.
 | P24 | A prévia de estágio na loja cobria os preços | Teste do autor | Botão grande e fixo | Botão compacto |
 | P25 | Não havia como marcar "Faltou" na ata | Pedido do autor | A ata tinha só Presente e Avisou | Terceiro botão e suporte no servidor |
 
-### 7.1 Padrões que se repetem
+### 7.1 Antes e depois dos problemas visuais
+
+**P13: as plantas.** Primeiro, as espécies em cinco estágios **antes** do redesenho (`af88de1`): cada espécie era um conjunto de
+folhas e bolinhas sem a anatomia da planta real. Em seguida, as mesmas espécies **depois** (versão atual),
+desenhadas a partir de fotos de referência.
+
+![Antes: oito espécies em cinco estágios, com folhas espalhadas](img/historico/10-antes-especies.png)
+
+![Depois: as espécies redesenhadas em cinco estágios](img/especies.png)
+
+**P14: a planta extra.** **Antes** (`af88de1`) quem comprava uma planta extra ganhava um cartão mais largo e um vão
+no canteiro. **Depois**, os cartões têm a mesma largura e as plantas dividem o mesmo espaço.
+
+![Antes: cartão do Arthur mais largo por causa da planta extra](img/historico/10-antes-planta-extra-painel.png)
+
+![Depois: todos os cartões com a mesma largura](img/historico/11-depois-planta-extra-painel.png)
+
+### 7.2 Padrões que se repetem
 
 1. **Erros que só o uso real mostra** (P1, P4, P5, P6, P9, P10, P12): o desenvolvimento em ciclos curtos com o
    autor testando no dia a dia foi o que os encontrou. Testes automatizados não os pegariam sozinhos.
@@ -288,7 +356,7 @@ foi feito. Quando houve uma prática nova a partir do erro, ela está destacada.
 | Regras e números do jogo | [GDD.md](GDD.md) e [BALANCEAMENTO.md](BALANCEAMENTO.md) |
 | Testes | `tests/` (mais de 600); fluxo da rodada de fala em `tests/test_holofote_fluxo.py` |
 | Decisões e passagens entre agentes | `HANDOFF-KIRO.md` e `HANDOFF-KIRO-2.md` |
-| Capturas de tela | `docs/img/` |
+| Capturas de tela | `docs/img/` (versão atual) e `docs/img/historico/` (versões antigas, geradas a partir do Git) |
 | Dados antigos de punição | Mantidos no banco (`prenda_payments`), sem uso na interface; podem servir de **linha de base** |
 
 ---
