@@ -1705,10 +1705,25 @@ def api_holofote():
     mid = _int_ou_none(p.get("member_id"))
     modo = p.get("modo") if p.get("modo") in ("celular", "scrum") else "celular"
     tipo = p.get("tipo") if p.get("tipo") in ATA_TIPOS else "daily"
+    # a rodada pode ser de outro dia (ex.: fazer a ata de ontem com o time); sem data, e hoje
     db = get_db()
+    hoje = date.today().isoformat()
+    if p.get("data"):
+        dia = p.get("data")
+    elif mid is not None and _holofote_atual(db)[0] is not None:
+        dia = _holofote_data(db)          # ex.: o painel troca quem preenche: continua no mesmo dia
+    else:
+        dia = hoje
+    try:
+        date.fromisoformat(dia)
+    except (TypeError, ValueError):
+        return _erro("Data inválida.")
+    if dia > hoje:
+        return _erro("A rodada não pode ser de um dia que ainda não chegou.")
     if mid is not None and not db.execute("SELECT 1 FROM members WHERE id = ? AND active = 1", (mid,)).fetchone():
         return _erro("Pessoa inválida.")
-    valores = [("holofote_membro", "" if mid is None else str(mid)), ("holofote_modo", modo), ("holofote_tipo", tipo)]
+    valores = [("holofote_membro", "" if mid is None else str(mid)), ("holofote_modo", modo), ("holofote_tipo", tipo),
+               ("holofote_data", "" if mid is None else dia)]
     # a ordem sorteada fica no servidor, para todas as telas mostrarem quem vem a seguir e outro
     # aparelho do Scrum poder continuar a rodada. Sem "ordem" no pedido, a ordem gravada continua;
     # apagar o holofote (encerrar a rodada) apaga a ordem junto.
@@ -1725,7 +1740,7 @@ def api_holofote():
     db.execute("INSERT INTO config (chave, valor) VALUES ('holofote_em', datetime('now')) "
                "ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor")
     db.commit()
-    return jsonify({"ok": True, "member_id": mid, "modo": modo, "tipo": tipo})
+    return jsonify({"ok": True, "member_id": mid, "modo": modo, "tipo": tipo, "data": dia})
 
 
 HOLOFOTE_ORDEM_MAX = 60
@@ -1753,6 +1768,12 @@ def _holofote_ordem(db, mid):
     return [{"id": x, "nome": nomes[x]} for x in ids], ids.index(mid)
 
 
+def _holofote_data(db):
+    """Dia da ata da rodada em andamento (AAAA-MM-DD). Sem data gravada (rodadas antigas), e hoje."""
+    row = db.execute("SELECT valor FROM config WHERE chave = 'holofote_data'").fetchone()
+    return (row["valor"] if row else "") or date.today().isoformat()
+
+
 def _holofote_atual(db):
     """(member_id, modo, tipo) do holofote aceso agora; member_id None se apagado ou esquecido."""
     row = db.execute(
@@ -1776,21 +1797,22 @@ def api_holofote_ver():
     db = get_db()
     mid, modo, tipo = _holofote_atual(db)
     hoje = date.today().isoformat()
-    resp = {"ok": True, "member_id": mid, "modo": modo, "data": hoje, "tipo": tipo,
+    dia = _holofote_data(db) if mid is not None else hoje
+    resp = {"ok": True, "member_id": mid, "modo": modo, "data": dia, "e_hoje": dia == hoje, "tipo": tipo,
             "eu": _eu_id(), "pode_scrum": False, "nome": "", "status": "",
             "falas": {"feito": "", "planejado": "", "review": ""}, "ordem": [], "pos": None}
     if mid is not None:
         resp["ordem"], resp["pos"] = _holofote_ordem(db, mid)
-        resp["pode_scrum"] = bool(_pode_editar_ata(db, hoje, tipo))
+        resp["pode_scrum"] = bool(_pode_editar_ata(db, dia, tipo))
         m = db.execute("SELECT name FROM members WHERE id = ?", (mid,)).fetchone()
         resp["nome"] = m["name"] if m else ""
-        resp["status"] = _status_do_evento(db, hoje, ATA_EVENTO[tipo]).get(mid) or ""
+        resp["status"] = _status_do_evento(db, dia, ATA_EVENTO[tipo]).get(mid) or ""
         f = db.execute("SELECT feito, planejado, review FROM ata_falas WHERE data = ? AND tipo = ? AND member_id = ?",
-                       (hoje, tipo, mid)).fetchone()
+                       (dia, tipo, mid)).fetchone()
         if f:
             resp["falas"] = {"feito": f["feito"] or "", "planejado": f["planejado"] or "", "review": f["review"] or ""}
         if request.args.get("comjogo") == "1":
-            resp["jogo_resposta"] = _resposta_jogo(db, mid, hoje)
+            resp["jogo_resposta"] = _resposta_jogo(db, mid, dia)
     return jsonify(resp)
 
 
@@ -2842,7 +2864,7 @@ def presenca_page(evento, codigo):
         destino = request.full_path.rstrip("?")
         return render_template("presenca.html", estado="sem_login", destino=destino, **base)
 
-    if not valido:
+    if not valido and request.method != "POST":
         return render_template("presenca.html", estado="expirado",
                                eu=_stats_membro(db, membro["id"]), **base)
 
@@ -2861,6 +2883,11 @@ def presenca_page(evento, codigo):
         # impedimento pessoal (opcional): vazio = nenhum. NUNCA rende semente.
         tem_bloqueio = bool(fala and ("bloqueios" in fala))
         bloqueios = (fala.get("bloqueios") or "").strip() if fala else ""
+        # O QR muda a cada 10 min. Quem leu o QR e demorou escrevendo a fala (comum na Day Closing)
+        # nao pode perder o texto: a fala e da propria pessoa e salva igual ao Meu jardim. So a
+        # presenca exige o codigo ainda valido.
+        if not valido and not (tipo_ata and (feito or planejado or tem_bloqueio)):
+            return _erro("O QR mudou. Leia o QR de novo para marcar a presença.", 403)
         # tinha a fala preenchida antes? (para dizer se o bonus de ata e novo)
         ja_tinha_fala = False
         if tipo_ata:
@@ -2869,8 +2896,8 @@ def presenca_page(evento, codigo):
                 (hoje, tipo_ata, membro["id"]),
             ).fetchone()
             ja_tinha_fala = bool(f0 and ((f0["feito"] or "").strip() or (f0["planejado"] or "").strip()))
-        # marca presente (idempotente, so o proprio membro, so hoje, nunca "faltou")
-        if not ja:
+        # marca presente (idempotente, so o proprio membro, so hoje, nunca "faltou", so com o QR valido)
+        if not ja and valido:
             _definir_status(db, membro["id"], hoje, evento, "presente")
         ganhou_ata = False
         if tipo_ata and (feito or planejado):
@@ -2882,7 +2909,9 @@ def presenca_page(evento, codigo):
         db.commit()
         return jsonify({
             "ok": True,
-            "ganhou_presenca": not ja,          # presenca e nova neste POST?
+            "ganhou_presenca": not ja and valido,   # presenca e nova neste POST?
+            "qr_expirado": not valido,          # a fala foi salva, mas a presenca nao (QR velho)
+            "presente": ja or valido,
             "ganhou_ata": ganhou_ata and not ja_tinha_fala,  # bonus de ata e novo?
             "tem_fala": ganhou_ata or ja_tinha_fala,
             "rende_presenca": game.SEED_POR_EVENTO.get(evento, 0),
@@ -3251,7 +3280,7 @@ def api_ata_minha_fala():
     # escrever a fala conta como presenca (no QR e igual). Fora da vez dela, nada muda.
     if campo in ("feito", "planejado") and (p.get("valor") or "").strip() and data_str == date.today().isoformat():
         em_vez, _, tipo_vez = _holofote_atual(db)
-        if em_vez == membro["id"] and tipo_vez == tipo:
+        if em_vez == membro["id"] and tipo_vez == tipo and _holofote_data(db) == data_str:
             evento = ATA_EVENTO[tipo]
             if _status_do_evento(db, data_str, evento).get(membro["id"]) not in ("presente", "justificada"):
                 _definir_status(db, membro["id"], data_str, evento, "presente")

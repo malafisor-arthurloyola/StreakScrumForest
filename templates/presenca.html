@@ -99,7 +99,10 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(corpo),
     })
-      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (r) {
+        return r.json().then(function (j) { return { ok: r.ok, j: j }; },
+          function () { return { ok: false, j: { erro: 'Não salvou. Recarregue a página e tente de novo.' } }; });
+      })
       .then(function (res) {
         botoes.forEach(function (b) { if (b) b.disabled = false; });
         if (!res.ok || !res.j.ok) {
@@ -158,8 +161,9 @@
       var enviarBtn = document.getElementById('pf-enviar');
       enviar({ fala: { feito: feito, planejado: plan, bloqueios: bloq } }, [enviarBtn]).then(function (j) {
         if (!j) return;
-        marcarPresenteNaTela();        // salvar a fala tambem garante a presenca
+        if (j.presente) marcarPresenteNaTela();        // salvar a fala tambem garante a presenca (com o QR valido)
         feedback(j, true);
+        if (j.qr_expirado && !j.presente) mostrarToast('Fala salva. O QR mudou: leia de novo para marcar a presença.', 'info');
         enviarBtn.textContent = 'Salvar alterações';   // continua editavel, volta depois
       });
     });

@@ -150,6 +150,9 @@
     }
     pop.innerHTML = html;
     pop.querySelector('.hf-nome').textContent = j.nome;
+    if (j.e_hoje === false && j.data) {          // rodada para a ata de outro dia
+      pop.querySelector('.hf-vez').textContent = 'Ata de ' + j.data.slice(8, 10) + '/' + j.data.slice(5, 7) + ' · Vez de';
+    }
     pop.querySelector('.hf-modo').textContent = rotulo;
     pop.querySelector('.hf-fechar').addEventListener('click', function () { escondido = chave; fechar(); chave = escondido; destacarPlantas(null); });
     pop.querySelectorAll('.hf-quem').forEach(function (b) {
@@ -217,7 +220,7 @@
   function aplicar(j) {
     if (!j || !j.ok || !j.member_id) { escondido = null; destacarPlantas(null); fechar(); return; }
     var tipoEdicao = quemEdita(j);
-    var nova = [j.member_id, j.tipo, j.modo, tipoEdicao].join('|');
+    var nova = [j.member_id, j.tipo, j.modo, tipoEdicao, j.data].join('|');
     if (escondido === nova) { destacarPlantas(null); return; }   // fechou o painel: some tambem o escurecido e o destaque (so para quem fechou)
     destacarPlantas(j.member_id);
     // a situacao mudou por fora (a pessoa preencheu no celular e ficou presente): atualiza a chama dela aqui
