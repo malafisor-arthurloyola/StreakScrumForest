@@ -30,6 +30,8 @@ ITENS = [
      "desc": "Chapéu vermelho de bolinhas que cresce a cada presença."},
     {"id": "carnivora", "tipo": "especie", "nome": "Planta carnívora", "preco": 110, "raridade": "epica",
      "desc": "Várias armadilhas de dentes que abrem e fecham devagar."},
+    {"id": "jarro", "tipo": "especie", "nome": "Planta-jarro", "preco": 110, "raridade": "epica",
+     "desc": "Jarros vermelhos pendurados nas pontas das folhas, como na floresta tropical."},
     {"id": "samambaia", "tipo": "especie", "nome": "Samambaia", "preco": 40, "raridade": "comum",
      "desc": "Folhas finas e fundas, de quem gosta de sombra.", "folha": "p-folha-fina"},
     {"id": "lavanda", "tipo": "especie", "nome": "Lavanda", "preco": 50, "raridade": "comum",

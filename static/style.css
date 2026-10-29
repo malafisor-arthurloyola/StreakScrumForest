@@ -805,6 +805,7 @@ input.input-nome:hover, input.input-nome:focus { background: var(--s2); }
 /* ===== Especies, vasos e companheiros (loja) ===== */
 .planta .caule { stroke-width: var(--caule-w, 3.4); }
 .planta[data-especie="girassol"] { --petal: #ffd23f; --centro: #6b3f1d; --broto: #ffe28a; --ouro: #ffb81c; --ouro-2: #6b3f1d; }
+.planta[data-especie="jarro"] { --f1: #2f8a4a; --f2: #1f6a38; --f3: #4bb36a; --caule: #2f6f3a; --petal: #d25a45; --centro: #a9bb4f; --broto: #d8f0a8; --fruto: #2a2030; }
 .planta[data-especie="samambaia"] { --f1: #2f9f6a; --f2: #1f7f58; --f3: #62d29c; --caule: #1f7f58; --petal: #c8f0d8; --centro: #7fc7a0; --broto: #a9e6c3; --fruto: #c8a46a; }
 .planta[data-especie="lavanda"] { --f1: #7fb59b; --f2: #5e9a82; --f3: #a3d1bb; --caule: #5e9a82; --petal: #a98cff; --centro: #6f4bd6; --broto: #c4b0ff; --ouro: #b79cff; --ouro-2: #6f4bd6; }
 .planta[data-especie="cerejeira"] { --f1: #7bc79a; --f2: #5aae80; --f3: #a1ddb8; --caule: #8a5a4a; --petal: #ffb7cf; --centro: #ff7aa5; --broto: #ffd3e1; --ouro: #ffc2d8; --ouro-2: #ff7aa5; }
@@ -822,7 +823,7 @@ input.input-nome:hover, input.input-nome:focus { background: var(--s2); }
 
 .vasos { display: flex; align-items: flex-end; justify-content: center; width: 100%; }
 .vaso-principal { flex: 1 1 0; min-width: 0; }
-.vaso-extra { flex: 0.8 1 0; min-width: 0; margin-left: -9%; position: relative; z-index: 1; }
+.vaso-extra { flex: 0.72 1 0; min-width: 0; margin-left: -14%; position: relative; z-index: 1; }
 .vaso-principal { position: relative; z-index: 2; }
 .vasos .planta { width: 100%; }
 
@@ -956,6 +957,7 @@ body.entrar { display: grid; grid-template-columns: minmax(0, 1fr); place-items:
 .planta[data-especie="cacto"] { --ea: #4fae6a; --eb: #3a935a; --ec: #ff7fae; --ed: #fff4c9; --ee: #ffc2d8; --ef: #ff5d8a; --petal: #ff7fae; --centro: #ffd35c; --fruto: #ff5d8a; }
 .planta[data-especie="cogumelo"] { --ea: #e5483b; --eb: #c63429; --ec: #ffffff; --ed: #f3ecd9; --ee: #d9cdb0; --ef: #ffd35c; --fruto: #f3ecd9; }
 .planta[data-especie="carnivora"] { --ea: #3fb06a; --eb: #ff5d73; --ec: #fff6d8; --ed: #5fbf78; --ee: #ffffff; --ef: #2a2030; --petal: #ffffff; --centro: #ffe27a; --fruto: #2a2030; }
+.planta[data-especie="jarro"] { --ea: #2f8a4a; --eb: #1f6a38; --ec: #a9bb4f; --ed: #b8342b; --ee: #d8f0a8; --ef: #2a2030; --fruto: #2a2030; }
 .planta[data-especie="samambaia"] { --ea: #2f9f6a; --eb: #1f7f58; --ec: #a9744a; --ed: #1f7f58; --ee: #62d29c; --ef: #ffd35c; --fruto: #a9744a; }
 .planta[data-especie="lavanda"] { --ea: #7fb59b; --eb: #5e9a82; --ec: #a98cff; --ed: #6f4bd6; --ee: #c4b0ff; --ef: #4a3a8a; --fruto: #4a3a8a; --ouro: #d9c8ff; --ouro-2: #b79cff; }
 .planta[data-especie="bambu"] { --ea: #8fd16a; --eb: #5ea845; --ec: #9be37f; --ed: #6fc95a; --ee: #fff3b0; --ef: #d9b86a; --fruto: #d9b86a; }
@@ -1824,7 +1826,34 @@ body[data-admin="0"] .so-admin { display: none !important; }
   100% { transform: translate(-16px, 90px) rotate(300deg); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) { .planta .petala-cai { animation: none; } }
-.previa-estagio { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 10px 0 14px; padding: 10px 14px; background: var(--s1); border-radius: 14px; }
-.previa-estagio label { font-weight: 700; }
-.previa-estagio input[type="range"] { flex: 1; min-width: 180px; accent-color: var(--acc); }
-.previa-estagio output { font-weight: 800; color: var(--acc); min-width: 120px; }
+.previa-flutuante { position: fixed; z-index: 40; left: 50%; transform: translateX(-50%); bottom: calc(86px + env(safe-area-inset-bottom)); width: min(92vw, 360px); }
+@media (min-width: 900px) { .previa-flutuante { bottom: 22px; } }
+.previa-flutuante summary { list-style: none; cursor: pointer; width: max-content; margin: 0 auto; padding: 7px 14px; border-radius: 999px; font-size: 0.9rem; opacity: 0.94;
+  background: var(--acc); color: #10200f; font-weight: 700; white-space: nowrap; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35); }
+.previa-flutuante summary b { color: #10200f; }
+.previa-flutuante summary::-webkit-details-marker { display: none; }
+.previa-flutuante[open] summary { margin-bottom: 8px; }
+.previa-flutuante[open] summary { opacity: 1; }
+.previa-corpo { background: var(--s2); border: 1px solid var(--s4); border-radius: 16px; padding: 12px 14px; display: grid; gap: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35); }
+.previa-corpo label { font-weight: 700; font-size: 0.9rem; }
+.previa-corpo input[type="range"] { width: 100%; accent-color: var(--acc); }
+
+/* plantas penduradas (samambaia e planta-jarro): fios saem do topo do desenho */
+.planta[data-pendurada] { overflow: visible; }
+
+/* ===== Rodada de fala na ata ===== */
+.ata-rodada { margin-bottom: 12px; }
+.rodada-topo { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: flex-start; }
+.rodada-painel { margin-top: 10px; display: grid; gap: 10px; }
+.rodada-prog { margin: 0; color: var(--ink2); font-weight: 700; }
+.rodada-nome { margin: 0; font-size: 1.6rem; letter-spacing: -0.01em; }
+.rodada-cards { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+.rodada-grupo { background: var(--s1); border-radius: 12px; padding: 10px 12px; }
+.rodada-grupo h4 { margin: 0 0 6px; font-size: 0.95rem; color: var(--acc); }
+.rodada-grupo ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.rodada-vazio { margin: 0; color: var(--ink2); font-size: 0.9rem; }
+.rodada-botoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.rodada-ativa .ata-linha { opacity: 0.45; transition: opacity 0.2s, box-shadow 0.2s; }
+.rodada-ativa .ata-linha.ata-holofote { opacity: 1; box-shadow: 0 0 0 2px var(--acc), 0 0 28px 4px rgba(198, 242, 78, 0.35); }
+@media (prefers-reduced-motion: reduce) { .rodada-ativa .ata-linha { transition: none; } }
+.ata-rodada [hidden] { display: none !important; }

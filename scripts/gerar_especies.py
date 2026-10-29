@@ -6,7 +6,7 @@ Uso: python scripts/gerar_especies.py
 Por que existe: cada estágio (1 a 10) é uma camada <g class="cam" data-min/data-max> que o JS
 (aplicarEstagio em static/app.js) só liga e desliga. Gerar por código deixa as proporções
 consistentes (altura do caule, tamanho da copa, espiral de sementes) e fácil de ajustar num lugar só.
-Cacto, lavanda, bambu e bonsai continuam escritos à mão no template e não são tocados.
+Cacto, carnívora (a antiga, de dentes), lavanda, bambu e bonsai continuam escritos à mão no template e não são tocados.
 """
 import math
 import re
@@ -255,81 +255,125 @@ def cogumelo(est):
 
 
 # ------------------------------------------------------------------ carnívora (jarro, Nepenthes)
-FOLHAS_CARN = [(.12, 1, -16, 1, .8), (.14, -1, -164, 2, .8), (.36, 1, -30, 3, 1.0), (.38, -1, -150, 3, 1.0),
-               (.62, 1, -12, 5, 1.1), (.64, -1, -168, 6, 1.1), (.86, 1, -42, 7, .95), (.88, -1, -138, 8, .95)]
-JARROS = [(2, 5), (3, 7), (4, 9)]      # (indice da folha, estagio minimo)
+# folhas em arco (dir, comprimento, queda, largura, estagio de nascimento): saem do vaso, sobem e descem
+FOLHAS_JARRO = [(0, 30, 0, 5, 1), (-.6, 36, 12, 6, 2), (.6, 38, 14, 6.5, 3), (-.95, 48, 30, 7, 4), (.95, 50, 32, 7.5, 5),
+                (-.35, 44, 18, 6, 6), (.35, 46, 20, 6.5, 7), (-1, 58, 40, 7.5, 8), (1, 60, 42, 8, 9)]
+JARROS = [(3, 5), (4, 6), (7, 8), (8, 9), (1, 10)]      # (indice da folha de onde pende, estagio minimo)
+
+
+def curva_folha(dirx, L, queda):
+    x0, y0 = 60 + dirx * 4, 112
+    c1 = (60 + dirx * L * .5, 112 - L * .75)
+    c2 = (60 + dirx * L * .95, 112 - L * .5 + queda * .3)
+    p3 = (60 + dirx * L, 112 - L * .1 + queda)
+    return (x0, y0), c1, c2, p3
+
+
+def ponto_bezier(pts, u):
+    (x0, y0), (x1, y1), (x2, y2), (x3, y3) = pts
+    v = 1 - u
+    return (v ** 3 * x0 + 3 * v * v * u * x1 + 3 * v * u * u * x2 + u ** 3 * x3,
+            v ** 3 * y0 + 3 * v * v * u * y1 + 3 * v * u * u * y2 + u ** 3 * y3)
+
+
+def folha_arco(pts, wmax):
+    """Folha larga e pontuda que acompanha a curva: contorno calculado pelas normais da Bezier."""
+    esq, dir_ = [], []
+    n = 14
+    for k in range(n + 1):
+        u = k / n
+        px, py = ponto_bezier(pts, u)
+        qx, qy = ponto_bezier(pts, min(1, u + .02)) if u < 1 else ponto_bezier(pts, u)
+        rx, ry = ponto_bezier(pts, max(0, u - .02)) if u > 0 else ponto_bezier(pts, u)
+        tx, ty = qx - rx, qy - ry
+        norma = math.hypot(tx, ty) or 1
+        nx, ny = -ty / norma, tx / norma
+        w = wmax * (math.sin(math.pi * u) ** .75) * (1 - .25 * u)
+        esq.append((px + nx * w, py + ny * w))
+        dir_.append((px - nx * w, py - ny * w))
+    pts_poly = esq + dir_[::-1]
+    d = "M" + "L".join("%s %s" % (f(x), f(y)) for x, y in pts_poly) + "Z"
+    nervura = "M" + "L".join("%s %s" % (f(ponto_bezier(pts, k / n)[0]), f(ponto_bezier(pts, k / n)[1])) for k in range(1, n))
+    return ('<path d="%s" fill="#3f9a4a"/><path d="%s" fill="none" stroke="#b7e08a" stroke-width=".8" opacity=".8" stroke-linecap="round"/>' % (d, nervura))
 
 
 def jarro(x, y, s):
-    w, hgt = 10 * s, 24 * s
-    corpo = ('M%s %sC%s %s %s %s %s %sC%s %s %s %s %s %sZ'
-             % (f(x - w * .62), f(y), f(x - w * 1.15), f(y + hgt * .35), f(x - w * .95), f(y + hgt * .95), f(x), f(y + hgt),
-                f(x + w * .95), f(y + hgt * .95), f(x + w * 1.15), f(y + hgt * .35), f(x + w * .62), f(y)))
+    """Jarro comprido, amarelo-esverdeado com estrias vermelhas, borda canelada e tampinha."""
+    w, hgt = 7.5 * s, 32 * s
+    corpo = ('M%s %sC%s %s %s %s %s %sQ%s %s %s %sQ%s %s %s %sC%s %s %s %s %s %sZ'
+             % (f(x - w * .8), f(y), f(x - w * .8), f(y + hgt * .35), f(x - w * .55), f(y + hgt * .55), f(x - w * .95), f(y + hgt * .8),
+                f(x - w * .9), f(y + hgt), f(x), f(y + hgt),
+                f(x + w * .9), f(y + hgt), f(x + w * .95), f(y + hgt * .8),
+                f(x + w * .55), f(y + hgt * .55), f(x + w * .8), f(y + hgt * .35), f(x + w * .8), f(y)))
     r = rng(int(x * 13 + y))
-    o = '<path d="%s" fill="#a9b84e"/><path d="%s" fill="#c23a35" opacity=".6"/>' % (corpo, corpo)
-    o += '<path d="M%s %sL%s %s" stroke="#e3e58a" stroke-width="%s" opacity=".6" stroke-linecap="round"/>' % (
-        f(x - w * .5), f(y + hgt * .25), f(x - w * .4), f(y + hgt * .75), f(max(.8, w * .22)))
-    for _ in range(6):
-        o += '<circle cx="%s" cy="%s" r=".7" fill="#7a1f1f"/>' % (f(x + (r() - .3) * w * 1.1), f(y + hgt * (.25 + r() * .6)))
-    o += '<ellipse cx="%s" cy="%s" rx="%s" ry="%s" fill="#7a1f1f" stroke="#d9473a" stroke-width="1.1"/>' % (f(x), f(y), f(w * .72), f(2.3 * s))
-    o += '<ellipse cx="%s" cy="%s" rx="%s" ry="%s" fill="#d9473a" transform="rotate(-24 %s %s)"/>' % (f(x + w * .55), f(y - 2.6 * s), f(w * .6), f(1.8 * s), f(x + w * .55), f(y - 2.6 * s))
+    o = '<path d="%s" fill="#cdd76c"/>' % corpo
+    o += '<path d="M%s %sQ%s %s %s %s" stroke="#eef3a8" stroke-width="%s" opacity=".6" stroke-linecap="round" fill="none"/>' % (
+        f(x - w * .5), f(y + hgt * .12), f(x - w * .7), f(y + hgt * .5), f(x - w * .45), f(y + hgt * .88), f(max(.9, w * .22)))
+    for _ in range(16):
+        px = x + (r() - .5) * w * 1.5
+        py = y + hgt * (.08 + r() * .85)
+        o += '<path d="M%s %sl%s %s" stroke="#b8352b" stroke-width=".8" stroke-linecap="round" opacity=".85"/>' % (f(px), f(py), f((r() - .5) * .8), f(1.6 + r() * 2))
+    o += '<ellipse cx="%s" cy="%s" rx="%s" ry="%s" fill="#d6c47d" stroke="#8a6a3a" stroke-width=".4" transform="rotate(-24 %s %s)"/>' % (
+        f(x + w * .7), f(y - 4 * s), f(w * .95), f(3 * s), f(x + w * .7), f(y - 4 * s))
+    o += '<ellipse cx="%s" cy="%s" rx="%s" ry="%s" fill="#f1e2b8" stroke="#b8342b" stroke-width="%s" stroke-dasharray="1.1 .7"/>' % (
+        f(x), f(y), f(w * .85), f(3 * s), f(max(1.4, 2 * s)))
     return o
 
 
-def carnivora(est):
+def jarros(est):
     t = est / 10
-    alt = lerp(10, 54, t ** .9)
-    o = '<path d="M60 117Q%s %s 60 %s" stroke="#2f6f3a" stroke-width="%s" stroke-linecap="round" fill="none"/>' % (
-        f(57 + 2 * t), f(117 - alt / 2), f(117 - alt), f(lerp(2, 3.2, t)))
+    o = ""
     pontas = {}
-    for i, (yf, lado, ang, emin, esc) in enumerate(FOLHAS_CARN):
+    for i, (dirx, L, queda, wmax, emin) in enumerate(FOLHAS_JARRO):
         if est < emin:
             continue
-        c = clamp((est - emin + 1) / 3, .35, 1)
-        L = 28 * esc * c
-        x0, y0 = 60 + lado * 1.2, 117 - alt * yf
-        wl = L * .17
-        o += ('<g transform="translate(%s %s) rotate(%d)">'
-              '<path d="M0 0C%s %s %s %s %s 0C%s %s %s %s 0 0Z" fill="#2f8a4a"/>'
-              '<path d="M0 0C%s %s %s %s %s 0C%s -1 %s -1 0 0Z" fill="#4bb36a" opacity=".7"/>'
-              '<path d="M1 0L%s 0" stroke="#d8f0a8" stroke-width=".8" opacity=".85"/></g>'
-              % (f(x0), f(y0), ang, f(L * .3), f(-wl), f(L * .75), f(-wl * 1.1), f(L), f(L * .75), f(wl * 1.1), f(L * .3), f(wl),
-                 f(L * .3), f(-wl), f(L * .75), f(-wl * 1.1), f(L), f(L * .5), f(L * .2), f(L - 1)))
-        pontas[i] = (x0 + L * math.cos(math.radians(ang)), y0 + L * math.sin(math.radians(ang)), c)
+        c = clamp((est - emin + 1) / 3, .4, 1)
+        pts = curva_folha(dirx, L * c, queda * c)
+        o += folha_arco(pts, wmax * c * 1.25)
+        pontas[i] = pts[3]
     for idx, emin in JARROS:
         if est >= emin and idx in pontas:
-            tx, ty, _ = pontas[idx]
+            tx, ty = pontas[idx]
             sp = clamp((est - emin + 1) / 3, .45, 1)
-            o += '<path d="M%s %sQ%s %s %s %s" stroke="#4a8a3a" stroke-width=".9" fill="none"/>' % (f(tx), f(ty), f(tx + 2), f(ty + 6), f(tx + 1), f(ty + 11 * sp))
-            o += jarro(tx + 1, ty + 11 * sp, sp)
+            lado = 1 if tx >= 60 else -1
+            fim = ty + 12 * sp
+            o += '<path d="M%s %sQ%s %s %s %s" stroke="#7fa03a" stroke-width="1.1" fill="none"/>' % (f(tx), f(ty), f(tx + lado * 3), f(ty + 7), f(tx + lado * 1.5), f(fim))
+            o += jarro(tx + lado * 1.5, fim, sp)
     if est == 10:
-        o += brilho(26, 40, 3) + brilho(94, 36, 3.4)
+        o += brilho(24, 40, 3) + brilho(96, 34, 3.4)
     return o
 
 
 # ------------------------------------------------------------------ samambaia (Boston, folhas arqueadas)
-FRONDES = [(0, 22, 0), (-.7, 30, 6), (.7, 32, 8), (-.95, 42, 14), (.95, 44, 16), (-.4, 46, 12), (.4, 48, 12), (-1, 54, 24), (1, 56, 26), (0, 50, 10)]
+FRONDES = [(0, 26, 0), (-.6, 32, 10), (.6, 34, 12), (-.9, 44, 24), (.9, 46, 26), (-.35, 40, 16), (.35, 42, 18), (-1, 56, 38), (1, 58, 40), (-.7, 52, 32)]
 
 
-def fronde(dirx, L, queda, estagio_nasc, est):
-    # curva quadratica do centro do vaso para fora; cai (queda) na ponta
-    x0, y0 = 60, 114
-    cx, cy = 60 + dirx * L * .45, 114 - L * .85
-    ex, ey = 60 + dirx * L * .95, 114 - L * .45 + queda
-    o = '<path class="fronde-haste" d="M%s %sQ%s %s %s %s"/>' % (f(x0), f(y0), f(cx), f(cy), f(ex), f(ey))
-    n = max(5, int(L / 3.2))
+def fronde(dirx, L, queda, est):
+    """Folha que sai do vaso, arqueia por cima da borda e cai pendurada (curva de Bezier cubica)."""
+    x0, y0 = 60 + dirx * 4, 112
+    c1 = (60 + dirx * L * .55, 112 - L * .6)
+    c2 = (60 + dirx * L * 1.0, 112 - L * .42 + queda * .3)
+    p3 = (60 + dirx * L * 1.0, 112 - L * .12 + queda)
+    o = '<path class="fronde-haste" d="M%s %sC%s %s %s %s %s %s"/>' % (f(x0), f(y0), f(c1[0]), f(c1[1]), f(c2[0]), f(c2[1]), f(p3[0]), f(p3[1]))
+    n = max(6, int((L + queda * .6) / 3.2))
     for k in range(1, n + 1):
         u = k / n * .97
-        px = (1 - u) ** 2 * x0 + 2 * (1 - u) * u * cx + u * u * ex
-        py = (1 - u) ** 2 * y0 + 2 * (1 - u) * u * cy + u * u * ey
-        tx = 2 * (1 - u) * (cx - x0) + 2 * u * (ex - cx)
-        ty = 2 * (1 - u) * (cy - y0) + 2 * u * (ey - cy)
+        v = 1 - u
+        px = v ** 3 * x0 + 3 * v * v * u * c1[0] + 3 * v * u * u * c2[0] + u ** 3 * p3[0]
+        py = v ** 3 * y0 + 3 * v * v * u * c1[1] + 3 * v * u * u * c2[1] + u ** 3 * p3[1]
+        tx = 3 * v * v * (c1[0] - x0) + 6 * v * u * (c2[0] - c1[0]) + 3 * u * u * (p3[0] - c2[0])
+        ty = 3 * v * v * (c1[1] - y0) + 6 * v * u * (c2[1] - c1[1]) + 3 * u * u * (p3[1] - c2[1])
         ang = math.degrees(math.atan2(ty, tx))
         esc = .36 * (1 - u * .65)
         for lado, cls in ((1, "ea"), (-1, "eb")):
             o += '<use href="#p-folha" class="%s" transform="translate(%s %s) rotate(%s) scale(%s)"/>' % (
-                cls, f(px), f(py), f(ang + lado * (58 - u * 18)), f(esc))
+                cls, f(px), f(py), f(ang + lado * (60 - u * 15)), f(esc))
     return o
+
+
+FIOS = ('<path d="M34 115L60 9M86 115L60 9M60 112L60 9" stroke="#6b5a48" stroke-width=".9" fill="none"/>'
+        '<circle cx="60" cy="8" r="3" fill="none" stroke="#9aa0a6" stroke-width="1.4"/>'
+        '<path d="M60 5V1" stroke="#9aa0a6" stroke-width="1.4" stroke-linecap="round"/>')
 
 
 # ------------------------------------------------------------------ jabuticabeira
@@ -439,12 +483,12 @@ def montar():
                           frutos([(53, 20), (67, 20), (60, 12), (50, 32), (70, 32)]))
     m["cogumelo"] = macro("cogumelo", [snap(k, cogumelo(k)) for k in range(1, 11)],
                           frutos([(44, 114), (76, 114), (52, 115), (68, 115), (60, 116)]))
-    m["carnivora"] = macro("carnivora", [snap(k, carnivora(k)) for k in range(1, 11)],
+    m["jarro"] = macro("jarro", [snap(k, jarros(k)) for k in range(1, 11)],
                            frutos([(46, 115), (52, 116), (68, 116), (74, 115), (60, 117)], 1.4))
     cam = []
     for k, (dx, L, q) in enumerate(FRONDES, 1):
-        cam.append(acum(k, fronde(dx, L, q, k, k)))
-    m["samambaia"] = macro("samambaia", cam, frutos([(40, 100), (80, 100), (52, 92), (68, 92), (60, 84)], 1.6))
+        cam.append(acum(k, fronde(dx, L, q, k)))
+    m["samambaia"] = macro("samambaia", cam, frutos([(42, 122), (78, 122), (50, 132), (70, 132), (60, 140)], 1.6))
     m["cerejeira"] = macro("cerejeira", [snap(k, arvore(k, CEREJEIRA)) for k in range(1, 11)],
                            frutos([(40, 40), (80, 40), (52, 30), (68, 30), (60, 22)], 2.2))
     m["jabuticabeira"] = macro("jabuticabeira", [snap(k, jabuticabeira(k)) for k in range(1, 11)],

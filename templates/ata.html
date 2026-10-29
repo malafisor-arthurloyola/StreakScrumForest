@@ -52,6 +52,29 @@
   </div>
 </section>
 
+{% if pode_editar %}
+<section class="card ata-rodada nao-imprime" id="rodada" aria-labelledby="rodada-titulo">
+  <div class="rodada-topo">
+    <div>
+      <h2 id="rodada-titulo">Rodada de fala</h2>
+      <p class="ata-dica">Primeiro todo mundo fala, com os cards do GitLab à vista para ajudar a lembrar. Depois cada um escreve a sua parte.</p>
+    </div>
+    <button type="button" class="btn btn-primary" id="rodada-iniciar">Sortear a ordem e começar</button>
+  </div>
+  <div class="rodada-painel" id="rodada-painel" hidden>
+    <p class="rodada-prog" id="rodada-prog"></p>
+    <h3 class="rodada-nome" id="rodada-nome"></h3>
+    <div class="rodada-cards" id="rodada-cards"></div>
+    <div class="rodada-botoes">
+      <button type="button" class="btn btn-ghost" id="rodada-ant">Anterior</button>
+      <button type="button" class="btn btn-primary" id="rodada-prox">Próxima pessoa</button>
+      <button type="button" class="btn btn-ghost" id="rodada-sortear">Sortear de novo</button>
+      <button type="button" class="btn btn-ghost" id="rodada-fim">Encerrar rodada</button>
+    </div>
+  </div>
+</section>
+{% endif %}
+
 <section class="ata-resumo" aria-live="polite">
   <span><b id="ata-n-presentes">{{ n_presentes }}</b> de {{ linhas | length }} presentes</span>
   <span id="ata-resumo-aviso" {{ 'hidden' if not n_avisos }}><b id="ata-n-avisos">{{ n_avisos }}</b> avisaram</span>
@@ -333,6 +356,7 @@
   // Os chips ACRESCENTAM "#123 titulo" ao campo (nunca sobrescrevem, nao duplicam). Sempre
   // da para digitar livre. Se o GitLab nunca sincronizou ou a pessoa nao esta mapeada,
   // simplesmente nao aparece chip. Nada aqui bloqueia a ata.
+  var ROTULO_FEITO = {{ rot_feito | tojson }};
   var ROT_CHIP = { feito: 'Seus cards concluídos / em revisão:', planejado: 'Seus cards em Doing:', review: 'Cards aguardando revisão (toque nos seus):' };
   var ROT_CHIP_FECH = { feito: 'Seus cards (Doing, em revisão ou fechados):', planejado: 'Seus cards em Doing:' };
   function textoTemCard(valor, iid) {
@@ -447,6 +471,104 @@
         .catch(function () {});
     });
   }
+
+  // ---- Rodada de fala: fala primeiro (com os cards sugeridos a vista), escreve depois ----
+  // So no navegador de quem conduz: nada vai para o servidor e nao muda nenhuma regra de semente.
+  (function () {
+    var box = document.getElementById('rodada');
+    if (!box) return;
+    var CHAVE = 'rodada:' + raiz.dataset.ataData + ':' + raiz.dataset.ataTipo;
+    var painel = document.getElementById('rodada-painel');
+    var botIni = document.getElementById('rodada-iniciar');
+    var estado = null;
+    var cache = {};
+    function ler() { try { return JSON.parse(localStorage.getItem(CHAVE)); } catch (e) { return null; } }
+    function gravar() { try { if (estado) localStorage.setItem(CHAVE, JSON.stringify(estado)); else localStorage.removeItem(CHAVE); } catch (e) {} }
+    function linhas() { return Array.prototype.slice.call(raiz.querySelectorAll('.ata-linha')); }
+    function linhaDe(mid) { return raiz.querySelector('.ata-linha[data-member-id="' + mid + '"]'); }
+    function nomeDe(l) { var h = l && l.querySelector('.ata-nome'); return h ? h.childNodes[0].textContent.trim() : ''; }
+    function sortear() {
+      var todas = linhas().filter(function (l) { return l.dataset.status !== 'justificada'; });
+      var pres = todas.filter(function (l) { return l.dataset.status === 'presente'; });
+      var ids = (pres.length ? pres : todas).map(function (l) { return l.dataset.memberId; });
+      for (var i = ids.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1)); var t = ids[i]; ids[i] = ids[j]; ids[j] = t;
+      }
+      return ids;
+    }
+    function lista(titulo, cards) {
+      var d = document.createElement('div');
+      d.className = 'rodada-grupo';
+      var h = document.createElement('h4'); h.textContent = titulo; d.appendChild(h);
+      if (!cards.length) { var p = document.createElement('p'); p.className = 'rodada-vazio'; p.textContent = 'Nenhum card sugerido.'; d.appendChild(p); return d; }
+      var ul = document.createElement('ul');
+      cards.forEach(function (c) { var li = document.createElement('li'); li.textContent = c.citacao; ul.appendChild(li); });
+      d.appendChild(ul);
+      return d;
+    }
+    function desenharCards(mid) {
+      var alvo = document.getElementById('rodada-cards');
+      var res = cache[mid];
+      alvo.innerHTML = '';
+      if (!res) { alvo.textContent = 'Carregando os cards…'; return; }
+      if (!res.ok) { alvo.textContent = 'Sem cards do GitLab para esta pessoa (sem usuário ligado ou ainda não sincronizado).'; return; }
+      if (TIPO === 'daily') {
+        alvo.appendChild(lista(ROTULO_FEITO, res.fiz || []));
+        alvo.appendChild(lista('O que vou fazer hoje', res.fazer || []));
+        alvo.appendChild(lista('Cards aguardando revisão', res.revisar || []));
+      } else {
+        alvo.appendChild(lista('O que concluí hoje', (res.fazer || []).concat(res.fiz || [])));
+        alvo.appendChild(lista('O que fica para amanhã', res.fazer || []));
+      }
+    }
+    function buscarCards(mid) {
+      if (cache[mid]) { desenharCards(mid); return; }
+      fetch('/api/gitlab/cards?member_id=' + encodeURIComponent(mid))
+        .then(function (r) { return r.json(); })
+        .then(function (res) { cache[mid] = res || { ok: false }; if (estado && estado.ordem[estado.i] === mid) desenharCards(mid); })
+        .catch(function () { cache[mid] = { ok: false }; if (estado && estado.ordem[estado.i] === mid) desenharCards(mid); });
+    }
+    function limparHolofote() {
+      raiz.classList.remove('rodada-ativa');
+      linhas().forEach(function (l) { l.classList.remove('ata-holofote'); });
+    }
+    function mostrar() {
+      if (!estado) { painel.hidden = true; botIni.hidden = false; limparHolofote(); return; }
+      var mid = estado.ordem[estado.i];
+      var l = linhaDe(mid);
+      botIni.hidden = true; painel.hidden = false;
+      raiz.classList.add('rodada-ativa');
+      linhas().forEach(function (x) { x.classList.toggle('ata-holofote', x === l); });
+      document.getElementById('rodada-prog').textContent = 'Pessoa ' + (estado.i + 1) + ' de ' + estado.ordem.length;
+      document.getElementById('rodada-nome').textContent = 'Vez de ' + nomeDe(l);
+      document.getElementById('rodada-ant').disabled = estado.i === 0;
+      document.getElementById('rodada-prox').textContent = estado.i === estado.ordem.length - 1 ? 'Terminar a rodada' : 'Próxima pessoa';
+      desenharCards(mid);
+      buscarCards(mid);
+      gravar();
+    }
+    function encerrar(aviso) {
+      estado = null; gravar(); mostrar();
+      if (aviso) mostrarToast('Rodada concluída. Agora cada um escreve a sua parte.', 'info');
+    }
+    botIni.addEventListener('click', function () {
+      var ordem = sortear();
+      if (!ordem.length) { mostrarToast('Marque quem está presente antes de começar.', 'info'); return; }
+      estado = { ordem: ordem, i: 0 }; mostrar();
+    });
+    document.getElementById('rodada-sortear').addEventListener('click', function () {
+      var ordem = sortear(); if (!ordem.length) return; estado = { ordem: ordem, i: 0 }; mostrar();
+    });
+    document.getElementById('rodada-ant').addEventListener('click', function () { if (estado && estado.i > 0) { estado.i--; mostrar(); } });
+    document.getElementById('rodada-prox').addEventListener('click', function () {
+      if (!estado) return;
+      if (estado.i >= estado.ordem.length - 1) encerrar(true); else { estado.i++; mostrar(); }
+    });
+    document.getElementById('rodada-fim').addEventListener('click', function () { encerrar(false); });
+    estado = ler();
+    if (estado && (!estado.ordem || !estado.ordem.length || estado.i >= estado.ordem.length)) estado = null;
+    mostrar();
+  })();
 
   setInterval(atualizar, 4000);
   contar();

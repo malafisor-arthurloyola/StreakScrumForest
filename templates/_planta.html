@@ -10,14 +10,21 @@
 {% set v = membro.visual or {} %}
 {% set esp = v.especie or 'muda' %}
 {% set F = '#' ~ (v.folha or 'p-folha') %}
+{% set pend = esp in ['samambaia', 'jarro'] %}
 <svg class="planta" viewBox="0 0 120 150" width="{{ tamanho }}" height="{{ (tamanho * 1.25) | round | int }}"
      role="img" aria-label="Planta de {{ membro.name }}: {{ membro.estagio_nome }}"
      {% if extra_de %}data-extra-de="{{ extra_de }}"{% else %}data-member-id="{{ membro.id }}"{% endif %}
      data-especie="{{ v.especie or 'muda' }}" data-vaso="{{ v.vaso or 'terracota' }}" data-stage="{{ s }}" data-vigor="{{ membro.vigor }}"
      data-floresceu="{{ 'true' if membro.floresceu else 'false' }}" data-frutos="{{ fr }}"
-     data-dia="{{ membro.dia_status or 'folga' }}"
+     data-dia="{{ membro.dia_status or 'folga' }}"{% if pend %} data-pendurada="true"{% endif %}
      style="--d: -{{ ((membro.id * 7) % 30) / 10 }}s; --p: {{ membro.progresso or 0 }}">
 
+  {# vaso pendurado: a planta sobe 26 unidades e os fios vao ate o alto, sem tocar o chao #}
+  <g class="suspensa"{% if pend %} transform="translate(0 -26)"{% endif %}>
+  {% if pend %}
+  <g class="fios"><path d="M35 117L60 34M85 117L60 34M60 114L60 34" stroke="#d9772e" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+    <circle cx="60" cy="32" r="3.2" fill="none" stroke="#9aa0a6" stroke-width="1.5"/><path d="M60 29V-40" stroke="#9aa0a6" stroke-width="1.2" opacity=".55"/></g>
+  {% endif %}
   <g class="vaso">
     <path class="vaso-corpo" d="M36 124H84L80.5 145.5Q80 148 77.4 148H42.6Q40 148 39.5 145.5Z"/>
     <path class="vaso-sombra" d="M36 124H84L83 130H37Z"/>
@@ -185,6 +192,7 @@
   {% elif v.acessorio == 'chapeu' %}
   <g class="acc" transform="translate(76 113) rotate(14)"><ellipse rx="13.5" ry="3.4" fill="#e9c46a"/><path d="M-6.6 0C-6.6-9.5 6.6-9.5 6.6 0Z" fill="#f2d68a"/><rect x="-6.7" y="-2.2" width="13.4" height="2.5" fill="#c1553b"/></g>
   {% endif %}
+  </g>
 </svg>
 {% endmacro %}
 
