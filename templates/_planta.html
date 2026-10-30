@@ -25,6 +25,9 @@
   <g class="fios"><path d="M35 117L60 34M85 117L60 34M60 114L60 34" stroke="#d9772e" stroke-width="1.2" fill="none" stroke-linecap="round"/>
     <circle cx="60" cy="32" r="3.2" fill="none" stroke="#9aa0a6" stroke-width="1.5"/><path d="M60 29V-40" stroke="#9aa0a6" stroke-width="1.2" opacity=".55"/></g>
   {% endif %}
+  {% if sem_vaso %}{# plantada direto na terra: so uma covinha de terra fofa em volta do caule #}
+  <g class="cova"><ellipse cx="60" cy="117" rx="17" ry="4.6" fill="#3e281b"/><ellipse cx="60" cy="116" rx="11" ry="2.6" fill="#6b4630"/></g>
+  {% endif %}
   <g class="vaso">
     <path class="vaso-corpo" d="M36 124H84L80.5 145.5Q80 148 77.4 148H42.6Q40 148 39.5 145.5Z"/>
     <path class="vaso-sombra" d="M36 124H84L83 130H37Z"/>
@@ -202,9 +205,9 @@
   {% endif %}
 
   {% if v.acessorio == 'laco' %}
-  <g class="acc" transform="translate(38 119)"><path d="M0 0L-8-5V5Z" fill="#ff7aa8"/><path d="M0 0L8-5V5Z" fill="#ff7aa8"/><circle r="3" fill="#ff4d86"/></g>
+  <g class="acc no-vaso" transform="translate(38 119)"><path d="M0 0L-8-5V5Z" fill="#ff7aa8"/><path d="M0 0L8-5V5Z" fill="#ff7aa8"/><circle r="3" fill="#ff4d86"/></g>
   {% elif v.acessorio == 'oculos' %}
-  <g class="acc"><circle cx="50" cy="136" r="6.6" fill="none" stroke="#1a1a1a" stroke-width="1.7"/><circle cx="70" cy="136" r="6.6" fill="none" stroke="#1a1a1a" stroke-width="1.7"/>
+  <g class="acc no-vaso"><circle cx="50" cy="136" r="6.6" fill="none" stroke="#1a1a1a" stroke-width="1.7"/><circle cx="70" cy="136" r="6.6" fill="none" stroke="#1a1a1a" stroke-width="1.7"/>
     <path d="M56.6 136H63.4" stroke="#1a1a1a" stroke-width="1.7"/><circle cx="50" cy="136" r="1.9" fill="#1a1a1a"/><circle cx="70" cy="136" r="1.9" fill="#1a1a1a"/></g>
   {% elif v.acessorio == 'chapeu' %}
   <g class="acc" transform="translate(76 113) rotate(14)"><ellipse rx="13.5" ry="3.4" fill="#e9c46a"/><path d="M-6.6 0C-6.6-9.5 6.6-9.5 6.6 0Z" fill="#f2d68a"/><rect x="-6.7" y="-2.2" width="13.4" height="2.5" fill="#c1553b"/></g>

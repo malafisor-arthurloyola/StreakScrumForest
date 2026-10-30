@@ -1,9 +1,10 @@
-{% from "_planta.html" import conjunto, planta, extra %}
+{% from "_planta.html" import planta, extra %}
 {% from "_chama.html" import chama %}
 {#
   Mapa do jardim (aba Painel): o jardim visto de cima, inclinado. O chao, os caminhos, os canteiros,
   a fonte, o cenario e os bichinhos sao um SVG (viewBox 1600 x 1000); as plantas sao as mesmas do
-  canteiro (macro conjunto), posicionadas por cima em porcentagem, entao especies, vasos, extras e o
+  canteiro (macro planta, aqui sem vaso, plantadas na terra), posicionadas por cima em porcentagem, entao
+  especies, extras e o
   crescimento ao vivo continuam valendo. A tela do dia continua com o canteiro em fileira.
 #}
 {% macro canteiro(x, y, w=150, h=82, t=20, mudas=0, semente=0) %}
@@ -25,7 +26,7 @@
   {% set g = [0.18, 0.82, 0.86, 0.14, 0.62, 0.38, 0.3][(n + semente) % 7] %}
   {% set sx = x - w * k * (1 - f) + (w * k) * g %}
   {% set sy = y - h * k * f + (h * k) * g %}
-  <g class="muda" transform="translate({{ sx }} {{ sy }}) scale(1.6)"><path d="M0 0V-9"/><ellipse cx="-4.5" cy="-10" rx="5" ry="2.6" transform="rotate(-25 -4.5 -10)"/><ellipse cx="4.5" cy="-11" rx="5" ry="2.6" transform="rotate(25 4.5 -11)"/></g>
+  <g class="muda" transform="translate({{ sx }} {{ sy }}) scale(1.05)"><path d="M0 0V-9"/><ellipse cx="-4.5" cy="-10" rx="5" ry="2.6" transform="rotate(-25 -4.5 -10)"/><ellipse cx="4.5" cy="-11" rx="5" ry="2.6" transform="rotate(25 4.5 -11)"/></g>
   {% endfor %}
   <g class="cerca">
     {% set cantos = [(x, y - h), (x + w, y), (x, y + h), (x - w, y)] %}
@@ -257,8 +258,8 @@
   {% for l in lotes %}
   {% set m = l.m %}
   <div class="lote" style="--x: {{ l.x / 16 }}%; --y: {{ l.y / 10 }}%; --k: {{ l.escala }}; z-index: {{ l.y }}" data-member-id="{{ m.id }}">
-    {# Lugares na terra do canteiro (unidades do viewBox, a partir do centro do lote). A principal fica
-       no meio; as extras compradas (2a e 3a plantinha) ao lado, no vaso; cada outra especie comprada
+    {# Lugares na terra do canteiro (unidades do viewBox, a partir do centro do lote). Tudo plantado direto
+       na terra, sem vaso: a principal no meio; as extras compradas (2a e 3a plantinha) ao lado; cada outra especie comprada
        nasce solta na terra, primeiro na frente do vaso e depois atras dele. #}
     {% set colecao = (m.visual.colecao or [])[:4] if m.visual else [] %}
     {% set soltas = [(-52, 46), (52, 46), (-34, -40), (34, -40)] %}
@@ -266,9 +267,9 @@
     <div class="lote-vaga solta" style="--dx: {{ p[0] }}; --dy: {{ p[1] }}; z-index: {{ 1 if p[1] < 0 else 4 }}">{{ extra(m, e, 60, sem_vaso=True) }}</div>
     {% endfor %}
     {% for e in (m.visual.extras if m.visual else []) %}
-    <div class="lote-vaga lado" style="--dx: {{ 92 if loop.first else -92 }}; --dy: 8; z-index: 2">{{ extra(m, e, 70) }}</div>
+    <div class="lote-vaga lado" style="--dx: {{ 70 if loop.first else -70 }}; --dy: 10; z-index: 2">{{ extra(m, e, 70, sem_vaso=True) }}</div>
     {% endfor %}
-    <div class="lote-vaga lote-planta" style="--dx: 0; --dy: 14; z-index: 3">{{ planta(m, 120) }}</div>
+    <div class="lote-vaga lote-planta" style="--dx: 0; --dy: 10; z-index: 3">{{ planta(m, 120, sem_vaso=True) }}</div>
   </div>
   {% endfor %}
 
@@ -289,7 +290,7 @@
     <div class="convidados-vasos">
       {% for m in convidados | sort(attribute='name') %}
       <a class="convidado-vaso" href="{{ url_for('membro_page', member_id=m.id) }}" title="{{ m.name }}: {{ m.streak }} {{ 'dia' if m.streak == 1 else 'dias' }}, {{ m.estagio_nome }}">
-        {{ conjunto(m, 60) }}<span>{{ m.name.split()[0] }}</span>
+        {{ planta(m, 60, sem_vaso=True) }}<span>{{ m.name.split()[0] }}</span>
       </a>
       {% endfor %}
     </div>
