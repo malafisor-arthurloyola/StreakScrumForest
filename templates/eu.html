@@ -38,6 +38,39 @@
   <a class="eu-link-sementes" href="{{ url_for('sementes_page', m=eu.id) }}">Ver de onde vêm as sementes →</a>
 </section>
 
+{# Ritual do dia: os 3 minigames em ordem. Cada passo leva ao lugar onde se joga. #}
+{% set tem_fechamento = minhas_falas | selectattr('tipo', 'equalto', 'fechamento') | list | length > 0 %}
+<section class="ritual" id="ritual" aria-label="Seu dia no jardim">
+  <h2 class="secao-titulo">Seu dia no jardim</h2>
+  {% if mj.letivo %}
+  <ol class="ritual-passos">
+    <li class="passo" data-passo="fala" data-estado="{{ 'feito' if mj.fala_pronta else ('perdido' if mj.vez_passou else 'aberto') }}">
+      <a href="#fala-daily">
+        <span class="passo-n" aria-hidden="true">1</span>
+        <span class="passo-txt"><b>Fala pronta</b><small>{% if mj.fala_pronta %}pronta antes da daily{% elif mj.vez_passou %}sua vez já passou hoje{% else %}antes da sua vez na daily{% endif %}</small></span>
+        <span class="passo-sem">+{{ seeds_mj.fala_pronta }}</span>
+      </a>
+    </li>
+    <li class="passo" data-passo="fechamento" data-estado="{{ 'feito' if mj.fechamento_pronto else ('aberto' if tem_fechamento else 'depois') }}">
+      <a href="{{ '#fala-fechamento' if tem_fechamento else '#ritual' }}">
+        <span class="passo-n" aria-hidden="true">2</span>
+        <span class="passo-txt"><b>Fechar o dia</b><small>{% if mj.fechamento_pronto %}Day Closing preenchido{% elif tem_fechamento %}preencha o Day Closing{% else %}abre no Day Closing{% endif %}</small></span>
+        <span class="passo-sem">+{{ seeds_mj.fechamento }}</span>
+      </a>
+    </li>
+    <li class="passo" data-passo="cuidar" data-estado="{{ 'feito' if mj.cuidar else ('aberto' if mj.fechamento_pronto else 'depois') }}">
+      <a href="#cuidar">
+        <span class="passo-n" aria-hidden="true">3</span>
+        <span class="passo-txt"><b>Cuidar da planta</b><small>{% if mj.cuidar %}cuidada hoje{% elif mj.fechamento_pronto %}regar, adubar e carinho{% else %}depois de fechar o dia{% endif %}</small></span>
+        <span class="passo-sem">+{{ seeds_mj.cuidar }}</span>
+      </a>
+    </li>
+  </ol>
+  {% else %}
+  <p class="sub sub-secao">Hoje não tem aula. O ritual volta no próximo dia letivo; enquanto isso, dá uma olhada no álbum.</p>
+  {% endif %}
+</section>
+
 {% if minhas_falas %}
 <section class="eu-fala" aria-label="Minha fala de hoje" data-hoje="{{ hoje }}" data-member-id="{{ eu_member_id }}">
   <h2 class="secao-titulo">Minha fala de hoje</h2>
@@ -47,9 +80,9 @@
     <span id="gl-sync-texto">GitLab: verificando…</span>
   </div>
   {% for f in minhas_falas %}
-  <article class="eu-fala-bloco" data-tipo="{{ f.tipo }}">
+  <article class="eu-fala-bloco" data-tipo="{{ f.tipo }}" id="fala-{{ f.tipo }}">
     <h3>{{ f.rotulo }}</h3>
-    <label>{{ f.rot_feito }}
+    <label><span class="vasinho{{ ' cheio' if f.feito.strip() }}" data-vaso="feito" aria-hidden="true"></span>{{ f.rot_feito }}
       <button type="button" class="gl-ajuda" aria-label="O que é este campo" data-ajuda="{{ 'O que você concluiu ou avançou desde a última daily. Sugerimos seus cards que foram para Waiting review, Review ou foram fechados nos últimos dias.' if f.tipo == 'daily' else 'O que você concluiu hoje. Sugerimos seus cards em Doing, em revisão ou fechados; use a busca para achar outro.' }}">i</button>
     </label>
     <textarea class="eu-fala-texto" data-campo="feito" rows="2" placeholder="pode citar cards como #101">{{ f.feito }}</textarea>
@@ -58,17 +91,18 @@
           <input type="search" class="gl-sprint-busca" data-para="feito" placeholder="buscar card concluído ou em revisão (número ou título)" aria-label="Buscar card">
           <div class="gl-sprint-res" hidden></div>
         </div>
-    <label>{{ f.rot_planejado }}
+    <label><span class="vasinho{{ ' cheio' if (f.planejado or f.sugestao).strip() }}" data-vaso="planejado" aria-hidden="true"></span>{{ f.rot_planejado }}
       <button type="button" class="gl-ajuda" aria-label="O que é este campo" data-ajuda="{{ 'No que você vai trabalhar hoje. Sugerimos seus cards em Doing; use a busca para puxar um card do Backlog.' if f.tipo == 'daily' else 'O que ficou pendente para o próximo dia. Sugerimos seus cards em Doing; use a busca para puxar um card do Backlog.' }}">i</button>
     </label>
-    <textarea class="eu-fala-texto" data-campo="planejado" rows="2">{{ f.planejado }}</textarea>
+    <textarea class="eu-fala-texto" data-campo="planejado" rows="2"{% if f.sugestao and not f.planejado %} data-sugerido="1"{% endif %}>{{ f.planejado or f.sugestao }}</textarea>
+    {% if f.sugestao and not f.planejado %}<p class="fala-sugestao">Veio do seu Day Closing de ontem. Edite se mudou algo; ele é salvo quando você confirmar.</p>{% endif %}
     <div class="gl-chips" data-chips-para="planejado" hidden></div>
     <div class="gl-backlog">
       <input type="search" class="gl-backlog-busca" placeholder="buscar no Backlog (número ou título)" aria-label="Buscar card no Backlog">
       <div class="gl-backlog-res" hidden></div>
     </div>
     {% if f.tipo == 'daily' %}
-    <label>Vou revisar <span class="eu-rot-fraco">não conta semente</span>
+    <label><span class="vasinho{{ ' cheio' if f.review.strip() }}" data-vaso="review" aria-hidden="true"></span>Vou revisar <span class="eu-rot-fraco">opcional</span>
       <button type="button" class="gl-ajuda" aria-label="O que é este campo" data-ajuda="Cards aguardando revisão no quadro. Toque nos que você vai revisar — não precisa ser a pessoa responsável pelo card.">i</button>
     </label>
     <textarea class="eu-fala-texto" data-campo="review" rows="2" placeholder="cards que você vai revisar">{{ f.review }}</textarea>
@@ -78,10 +112,69 @@
           <div class="gl-sprint-res" hidden></div>
         </div>
     {% endif %}
+    <div class="fala-acao">
+      {% if f.tipo == 'daily' %}
+        {% if mj.fala_pronta %}
+        <p class="selo-pronto">Fala pronta antes da daily <b>+{{ seeds_mj.fala_pronta }}</b></p>
+        {% elif mj.vez_passou %}
+        <p class="fala-acao-nota">Sua vez na daily já passou hoje: a fala continua valendo na ata. Amanhã, deixe pronta antes.</p>
+        {% elif mj.letivo %}
+        <button type="button" class="btn btn-primary btn-minijogo" data-minijogo="fala-pronta">Minha fala está pronta <span class="btn-sem">+{{ seeds_mj.fala_pronta }}</span></button>
+        <p class="fala-acao-nota">Preencha O que fiz e O que vou fazer antes da sua vez na rodada. Vale no dia em que você marcar presença.</p>
+        {% endif %}
+      {% else %}
+        {% if mj.fechamento_pronto %}
+        <p class="selo-pronto">Dia fechado <b>+{{ seeds_mj.fechamento }}</b></p>
+        {% elif mj.letivo %}
+        <button type="button" class="btn btn-primary btn-minijogo" data-minijogo="fechamento">Fechar o dia <span class="btn-sem">+{{ seeds_mj.fechamento }}</span></button>
+        <p class="fala-acao-nota">O que fica para amanhã já aparece na sua daily seguinte.</p>
+        {% endif %}
+      {% endif %}
+    </div>
   </article>
   {% endfor %}
 </section>
 {% endif %}
+
+{% if mj.letivo %}
+<section class="cuidar" id="cuidar" aria-label="Cuidar da planta" data-aberto="{{ '1' if mj.fechamento_pronto else '0' }}" data-feito="{{ '1' if mj.cuidar else '0' }}">
+  <h2 class="secao-titulo">Cuidar da planta</h2>
+  <p class="sub sub-secao cuidar-fechado">Abre depois de fechar o dia, no fim da tarde. Assim a daily fica só para a daily.</p>
+  <div class="cuidar-palco">
+    <div class="cuidar-planta" id="cuidar-planta">{{ conjunto(eu, 170) }}<div class="cuidar-efeitos" aria-hidden="true"></div></div>
+    <div class="cuidar-botoes" role="group" aria-label="Cuidados">
+      {% for acao, rotulo in [('regar', 'Regar'), ('adubar', 'Adubar'), ('carinho', 'Carinho')] %}
+      <button type="button" class="cuidar-btn" data-acao="{{ acao }}"{% if acao in mj.cuidados %} data-feito="1"{% endif %}{% if not mj.fechamento_pronto %} disabled{% endif %}>
+        <svg viewBox="0 0 24 24" aria-hidden="true">{% if acao == 'regar' %}<path d="M4 11h9l4-4 2 2-4 4v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM8 11V8a2 2 0 0 1 4 0"/><path d="M20 15c0 1.2-.8 2-1.5 2S17 16.2 17 15c0-.9 1.5-2.6 1.5-2.6S20 14.1 20 15z"/>{% elif acao == 'adubar' %}<path d="M6 20h12l-1.5-10h-9z"/><path d="M9 10V7a3 3 0 0 1 6 0v3"/><circle cx="12" cy="15" r="1.2"/>{% else %}<path d="M12 20s-7-4.4-7-9.5A3.5 3.5 0 0 1 12 8a3.5 3.5 0 0 1 7 2.5C19 15.6 12 20 12 20z"/>{% endif %}</svg>
+        <span>{{ rotulo }}</span>
+      </button>
+      {% endfor %}
+    </div>
+  </div>
+  <p class="cuidar-fim" {% if not mj.cuidar %}hidden{% endif %}>Planta cuidada hoje <b>+{{ seeds_mj.cuidar }}</b></p>
+</section>
+{% endif %}
+
+{% set semana_atual = album | selectattr('atual') | first %}
+<section class="album-estacao" id="album" aria-label="Álbum da estação">
+  <h2 class="secao-titulo">Álbum da estação</h2>
+  <p class="sub sub-secao">Uma figurinha por semana: deixe a fala pronta em {{ seeds_mj.min_falas }} dias da semana para revelar (+{{ seeds_mj.figurinha }}). Sprint completa vira dourada (+{{ seeds_mj.dourada }}). Perder uma semana não apaga nada.</p>
+  {% if semana_atual and not semana_atual.folga %}
+  <div class="album-progresso" aria-label="Esta semana">
+    <span>Esta semana</span>
+    <span class="album-pontos">{% for i in range(semana_atual.minimo) %}<i class="{{ 'on' if i < semana_atual.falas }}"></i>{% endfor %}</span>
+    <b>{{ [semana_atual.falas, semana_atual.minimo] | min }} de {{ semana_atual.minimo }}</b>
+  </div>
+  {% endif %}
+  <div class="album-grade">
+    {% for f in album %}
+    <figure class="figurinha{{ ' revelada' if f.revelada }}{{ ' dourada' if f.dourada }}{{ ' atual' if f.atual }}{{ ' folga' if f.folga }}">
+      <div class="figurinha-arte">{{ conjunto(f.preview, 64) }}</div>
+      <figcaption><b>Semana {{ f.n }}</b><span>{% if f.folga %}sem aula{% elif f.revelada %}{{ f.nome }}{% else %}{{ f.falas }}/{{ f.minimo }}{% endif %}</span></figcaption>
+    </figure>
+    {% endfor %}
+  </div>
+</section>
 
 <section class="eu-loja" aria-label="Loja">
   <h2 class="secao-titulo">Loja</h2>
@@ -184,14 +277,63 @@
     var textos = secFala.querySelectorAll('.eu-fala-texto');
     function salvarSeMudou(ta, opcoes) {
       clearTimeout(ta._espera);
-      if (ta.value === ta.dataset.salvo) return;
+      if (ta.value === ta.dataset.salvo) return Promise.resolve(true);
       var valor = ta.value;
-      salvarFala(ta.closest('.eu-fala-bloco').dataset.tipo, ta.dataset.campo, valor, function () {
+      return salvarFala(ta.closest('.eu-fala-bloco').dataset.tipo, ta.dataset.campo, valor, function () {
         ta.dataset.salvo = valor;
       }, opcoes);
     }
+    // vasinho de cada campo brota quando o campo tem texto
+    function atualizarVaso(ta) {
+      var bloco = ta.closest('.eu-fala-bloco');
+      var vaso = bloco && bloco.querySelector('.vasinho[data-vaso="' + ta.dataset.campo + '"]');
+      if (vaso) vaso.classList.toggle('cheio', !!ta.value.trim());
+    }
+    textos.forEach(function (ta) { ta.addEventListener('input', function () { atualizarVaso(ta); }); });
+
+    // Minigames: Fala pronta e Fechar o dia salvam os campos do bloco antes de pedir o premio.
+    function comemorar(alvo, valor) {
+      if (!valor) return;
+      var b = document.createElement('span');
+      b.className = 'mj-mais';
+      b.textContent = '+' + valor;
+      alvo.appendChild(b);
+      setTimeout(function () { b.remove(); }, 1600);
+      var kpi = document.querySelector('.eu-kpi-destaque .eu-kpi-valor');
+      if (kpi) kpi.classList.add('pulsa-sem');
+    }
+    function atualizarSaldo(n) {
+      var kpi = document.querySelector('.eu-kpi-destaque .eu-kpi-valor');
+      if (!kpi || n === null || n === undefined) return;
+      var ultimo = kpi.lastChild;
+      if (ultimo && ultimo.nodeType === 3) ultimo.nodeValue = n;
+    }
+    secFala.querySelectorAll('.btn-minijogo').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var bloco = btn.closest('.eu-fala-bloco');
+        btn.disabled = true;
+        var salvos = Array.prototype.map.call(bloco.querySelectorAll('.eu-fala-texto'), function (ta) { return salvarSeMudou(ta, { quieto: true }); });
+        Promise.all(salvos).then(function (oks) {
+          if (oks.indexOf(false) >= 0) { btn.disabled = false; return; }
+          return pedirMinijogo(btn.dataset.minijogo, {}).then(function (j) {
+            if (!j) { btn.disabled = false; return; }
+            comemorar(bloco, j.ganhou);
+            var p = document.createElement('p');
+            p.className = 'selo-pronto';
+            p.innerHTML = (btn.dataset.minijogo === 'fechamento' ? 'Dia fechado' : 'Fala pronta antes da daily') + ' <b>+' + (j.ganhou || 0) + '</b>';
+            var acao = btn.closest('.fala-acao');
+            acao.innerHTML = '';
+            acao.appendChild(p);
+            aplicarEstado(j.estado);
+            if (j.mensagem) mostrarToast(j.mensagem, 'sucesso');
+          });
+        });
+      });
+    });
+
     textos.forEach(function (ta) {
-      ta.dataset.salvo = ta.value;
+      // texto sugerido (do Day Closing de ontem) ainda nao foi salvo: salva quando a pessoa confirmar
+      ta.dataset.salvo = ta.dataset.sugerido ? '' : ta.value;
       ta.addEventListener('input', function () {
         clearTimeout(ta._espera);
         ta._espera = setTimeout(function () { salvarSeMudou(ta, { quieto: true }); }, ESPERA_FALA);
@@ -294,6 +436,89 @@
     }
     }
     secFala.querySelectorAll('.eu-fala-bloco').forEach(iniciarGitlab);
+  }
+
+  function pedirMinijogo(jogo, dados) {
+    return fetch('/api/minijogo/' + jogo, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dados || {}),
+    })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }, function () { return { ok: false, j: {} }; }); })
+      .then(function (res) {
+        if (!res.ok || !res.j.ok) { mostrarToast(res.j.erro || 'Não deu certo. Recarregue e tente de novo.', 'info'); return null; }
+        var kpi = document.querySelector('.eu-kpi-destaque .eu-kpi-valor');
+        if (kpi && res.j.sementes !== null && res.j.sementes !== undefined) {
+          var ultimo = kpi.lastChild;
+          if (ultimo && ultimo.nodeType === 3) ultimo.nodeValue = res.j.sementes;
+        }
+        return res.j;
+      })
+      .catch(function () { mostrarToast('Sem conexão com o servidor.', 'info'); return null; });
+  }
+
+  // Estado do ritual (passos 1-2-3) e do cuidado, sem recarregar a pagina.
+  function aplicarEstado(e) {
+    if (!e) return;
+    function passo(nome, estado, texto) {
+      var li = document.querySelector('.passo[data-passo="' + nome + '"]');
+      if (!li) return;
+      li.dataset.estado = estado;
+      var small = li.querySelector('small');
+      if (small && texto) small.textContent = texto;
+    }
+    if (e.fala_pronta) passo('fala', 'feito', 'pronta antes da daily');
+    if (e.fechamento_pronto) passo('fechamento', 'feito', 'Day Closing preenchido');
+    if (e.cuidar) passo('cuidar', 'feito', 'cuidada hoje');
+    else if (e.fechamento_pronto) passo('cuidar', 'aberto', 'regar, adubar e carinho');
+    var sec = document.getElementById('cuidar');
+    if (sec) {
+      sec.dataset.aberto = e.fechamento_pronto ? '1' : '0';
+      sec.dataset.feito = e.cuidar ? '1' : '0';
+      sec.querySelectorAll('.cuidar-btn').forEach(function (b) {
+        b.disabled = !e.fechamento_pronto;
+        if (e.cuidados.indexOf(b.dataset.acao) >= 0) b.dataset.feito = '1';
+      });
+      var fim = sec.querySelector('.cuidar-fim');
+      if (fim) fim.hidden = !e.cuidar;
+    }
+  }
+
+  // Cuidar da planta: cada botao faz uma animacao na propria planta.
+  var palco = document.getElementById('cuidar-planta');
+  if (palco) {
+    var efeitos = palco.querySelector('.cuidar-efeitos');
+    var FORMAS = { regar: 'gota', adubar: 'grao', carinho: 'coracao' };
+    function animar(acao) {
+      for (var i = 0; i < 9; i++) {
+        var s = document.createElement('i');
+        s.className = 'fx fx-' + FORMAS[acao];
+        s.style.setProperty('--x', (15 + Math.round(i * 70 / 8)) + '%');
+        s.style.setProperty('--atraso', (i % 3) * 0.12 + 's');
+        efeitos.appendChild(s);
+      }
+      palco.classList.remove('feliz'); void palco.offsetWidth; palco.classList.add('feliz');
+      setTimeout(function () { efeitos.innerHTML = ''; }, 1800);
+    }
+    document.querySelectorAll('.cuidar-btn').forEach(function (b) {
+      b.addEventListener('click', function () {
+        if (b.disabled) return;
+        animar(b.dataset.acao);
+        if (b.dataset.feito) return;              // pode repetir a animacao a vontade; o premio e um so
+        pedirMinijogo('cuidar', { acao: b.dataset.acao }).then(function (j) {
+          if (!j) return;
+          b.dataset.feito = '1';
+          if (j.ganhou) { comemorarCuidado(j.ganhou); }
+          aplicarEstado(j.estado);
+        });
+      });
+    });
+    function comemorarCuidado(valor) {
+      var m = document.createElement('span');
+      m.className = 'mj-mais';
+      m.textContent = '+' + valor;
+      palco.appendChild(m);
+      setTimeout(function () { m.remove(); }, 1600);
+      mostrarToast('Planta cuidada! +' + valor + ' sementes', 'sucesso');
+    }
   }
 })();
 </script>

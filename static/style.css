@@ -1931,3 +1931,123 @@ body.holofote-escuro .cena.holofote-ativo { position: relative; z-index: 901; }
 .hf-alterna { display: flex; gap: 8px; flex-wrap: wrap; }
 .gl-chip-leitura { cursor: default; }
 .hf-status { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ===== Minigames do Meu jardim: ritual, fala pronta, fechar o dia, cuidar, album ===== */
+.ritual .secao-titulo { margin-top: 28px; }
+.ritual-passos { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.passo a {
+  display: grid; grid-template-columns: 36px 1fr auto; align-items: center; gap: 12px;
+  min-height: 60px; padding: 10px 14px; border-radius: 14px; background: var(--s1);
+  color: var(--ink); text-decoration: none; box-shadow: inset 0 0 0 1px var(--s3);
+}
+.passo-n {
+  width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--s3); color: var(--ink2); font-weight: 800;
+}
+.passo-txt { display: grid; gap: 1px; line-height: 1.2; }
+.passo-txt small { color: var(--ink2); font-size: 0.82rem; }
+.passo-sem { font-weight: 800; color: var(--acc); white-space: nowrap; }
+.passo[data-estado="aberto"] a { box-shadow: inset 0 0 0 2px var(--acc); }
+.passo[data-estado="aberto"] .passo-n { background: var(--acc); color: var(--acc-ink); }
+.passo[data-estado="feito"] .passo-n { background: var(--ok); color: var(--ok-ink); font-size: 0; }
+.passo-n { position: relative; }
+.passo[data-estado="feito"] .passo-n::after { content: ""; position: absolute; left: 12px; top: 11px; width: 13px; height: 7px; border: solid currentColor; border-width: 0 0 3px 3px; transform: rotate(-45deg); }
+.passo[data-estado="feito"] .passo-sem { color: var(--ok); }
+.passo[data-estado="depois"] a, .passo[data-estado="perdido"] a { opacity: 0.6; }
+.passo[data-estado="perdido"] .passo-sem { text-decoration: line-through; color: var(--ink2); }
+
+.eu-fala-bloco { position: relative; scroll-margin-top: 12px; }
+.vasinho {
+  display: inline-block; width: 16px; height: 16px; margin-right: 6px; vertical-align: -3px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3 9h10l-1.4 6H4.4z' fill='%23a86d40'/%3E%3Crect x='2' y='8' width='12' height='2.2' rx='1' fill='%23c4844f'/%3E%3C/svg%3E") center / contain no-repeat; transition: transform 0.2s ease;
+}
+.vasinho.cheio { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 8.5V4' stroke='%234fdb9b' stroke-width='1.6' stroke-linecap='round'/%3E%3Cpath d='M8 5.5C6.6 3.2 4.3 3.4 3.8 3.9 4.6 5.6 6.4 6.2 8 5.5zM8 4.6c1.3-2.4 3.7-2.6 4.3-2.1-.7 1.8-2.6 2.6-4.3 2.1z' fill='%234fdb9b'/%3E%3Cpath d='M3 9h10l-1.4 6H4.4z' fill='%23a86d40'/%3E%3Crect x='2' y='8' width='12' height='2.2' rx='1' fill='%23c4844f'/%3E%3C/svg%3E"); }
+.eu-fala-texto[data-sugerido] { box-shadow: inset 0 0 0 1px var(--aviso); }
+.fala-sugestao { margin: 4px 0 0; color: var(--aviso); font-size: 0.82rem; }
+
+.fala-acao { margin-top: 14px; display: grid; gap: 6px; }
+.btn-minijogo { width: 100%; min-height: 52px; font-size: 1.02rem; justify-content: center; gap: 10px; }
+.btn-sem { padding: 2px 9px; border-radius: 999px; background: rgba(18, 32, 10, 0.16); font-weight: 800; }
+.fala-acao-nota { margin: 0; color: var(--ink2); font-size: 0.82rem; }
+.selo-pronto {
+  margin: 0; padding: 12px 14px; border-radius: 12px; background: rgba(79, 219, 155, 0.12);
+  color: var(--ok); font-weight: 700; display: flex; justify-content: space-between; align-items: center;
+}
+
+.mj-mais {
+  position: absolute; right: 16px; top: 8px; z-index: 5; pointer-events: none;
+  color: var(--acc); font-weight: 900; font-size: 1.6rem; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  animation: mj-sobe 1.5s ease-out forwards;
+}
+@keyframes mj-sobe { from { opacity: 0; transform: translateY(12px) scale(0.8); } 20% { opacity: 1; transform: translateY(0) scale(1.1); } to { opacity: 0; transform: translateY(-36px) scale(1); } }
+.pulsa-sem { animation: pulsa-sem 0.6s ease-out 2; }
+@keyframes pulsa-sem { 50% { transform: scale(1.12); } }
+
+.cuidar { scroll-margin-top: 12px; }
+.cuidar[data-aberto="1"] .cuidar-fechado { display: none; }
+.cuidar-palco {
+  display: grid; gap: 14px; justify-items: center; padding: 16px 14px 14px;
+  border-radius: var(--r-md); background: radial-gradient(120% 90% at 50% 100%, #1f3d2c, var(--s1));
+}
+.cuidar[data-aberto="0"] .cuidar-palco { opacity: 0.55; filter: grayscale(0.5); }
+.cuidar-planta { position: relative; width: 170px; transform-origin: 50% 100%; }
+.cuidar-planta.feliz { animation: planta-feliz 0.9s ease-in-out; }
+@keyframes planta-feliz { 25% { transform: rotate(-3deg) scale(1.03); } 50% { transform: rotate(3deg) scale(1.05); } 75% { transform: rotate(-1deg) scale(1.02); } }
+.cuidar-efeitos { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+.fx { position: absolute; left: var(--x); top: -6%; animation: fx-cai 1.2s ease-in var(--atraso, 0s) both; }
+.fx-gota { width: 9px; height: 13px; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; background: #6db9ff; }
+.fx-grao { width: 7px; height: 7px; border-radius: 50%; background: #c99a5b; box-shadow: 0 0 0 1px #8a5a35; }
+.fx-coracao { top: 55%; width: 12px; height: 12px; background: #ff8fb8; transform: rotate(45deg); animation-name: fx-sobe; }
+.fx-coracao::before, .fx-coracao::after { content: ""; position: absolute; width: 12px; height: 12px; border-radius: 50%; background: inherit; }
+.fx-coracao::before { left: -6px; top: 0; }
+.fx-coracao::after { left: 0; top: -6px; }
+@keyframes fx-cai { from { opacity: 0; transform: translateY(0); } 15% { opacity: 1; } to { opacity: 0; transform: translateY(130px); } }
+@keyframes fx-sobe { from { opacity: 0; transform: translateY(0) rotate(45deg) scale(0.6); } 20% { opacity: 1; } to { opacity: 0; transform: translateY(-110px) rotate(45deg) scale(1.1); } }
+.cuidar-botoes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; max-width: 420px; }
+.cuidar-btn {
+  position: relative; display: grid; justify-items: center; gap: 4px; min-height: 76px; padding: 10px 6px;
+  border: 0; border-radius: 14px; background: var(--s3); color: var(--ink); font: inherit; font-weight: 700; cursor: pointer;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.cuidar-btn svg { width: 30px; height: 30px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.cuidar-btn[data-acao="regar"] svg { color: #6db9ff; }
+.cuidar-btn[data-acao="adubar"] svg { color: #e0b070; }
+.cuidar-btn[data-acao="carinho"] svg { color: #ff8fb8; }
+.cuidar-btn:active:not(:disabled) { transform: scale(0.95); }
+.cuidar-btn:disabled { cursor: not-allowed; opacity: 0.5; }
+.cuidar-btn[data-feito] { box-shadow: inset 0 0 0 2px var(--ok); }
+.cuidar-btn[data-feito]::after {
+  content: ""; position: absolute; top: 7px; right: 9px; width: 9px; height: 5px;
+  border: solid var(--ok); border-width: 0 0 2px 2px; transform: rotate(-45deg);
+}
+.cuidar-fim { margin: 10px 0 0; text-align: center; color: var(--ok); font-weight: 700; }
+
+.album-progresso {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding: 10px 14px;
+  border-radius: 12px; background: var(--s1); font-size: 0.92rem;
+}
+.album-progresso b { margin-left: auto; }
+.album-pontos { display: inline-flex; gap: 6px; }
+.album-pontos i { width: 12px; height: 12px; border-radius: 50%; background: var(--s3); }
+.album-pontos i.on { background: var(--acc); }
+.album-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 10px; }
+.figurinha {
+  margin: 0; padding: 8px 6px 6px; border-radius: 12px; background: var(--s1); text-align: center;
+  box-shadow: inset 0 0 0 1px var(--s3); display: grid; gap: 4px; justify-items: center; overflow: hidden;
+}
+.figurinha-arte { width: 64px; filter: brightness(0) opacity(0.35); }
+.figurinha.revelada .figurinha-arte { filter: none; }
+.figurinha.revelada { background: var(--s2); }
+.figurinha.atual { box-shadow: inset 0 0 0 2px var(--acc); }
+.figurinha.dourada { box-shadow: inset 0 0 0 2px var(--ouro); background: linear-gradient(160deg, rgba(255, 211, 92, 0.18), var(--s2) 60%); }
+.figurinha.folga { opacity: 0.45; }
+.figurinha figcaption { display: grid; line-height: 1.15; font-size: 0.78rem; }
+.figurinha figcaption span { color: var(--ink2); }
+
+@media (min-width: 761px) {
+  .ritual-passos { grid-template-columns: repeat(3, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mj-mais, .pulsa-sem, .cuidar-planta.feliz, .fx { animation: none !important; }
+  .fx { display: none; }
+}

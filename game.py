@@ -36,6 +36,22 @@ SEED_ATA = 1              # por ata (daily/fechamento) com a fala da pessoa pree
 SEED_RELATOR = 1          # por fala de OUTRA pessoa que o relator (Scrum) preencheu na ata
 SEED_RELATOR_MAX_POR_ATA = 3   # limite do bonus do relator por ata (Daily ou Day Closing)
 
+# minigames do celular (aba Meu jardim). Rendem por FAZER, nunca pelo conteudo, e so em dia
+# letivo com presenca. O servidor so grava a jogada quando a regra foi cumprida (ex.: fala pronta
+# antes da vez da pessoa na rodada); aqui so se conta o que foi gravado.
+SEED_FALA_PRONTA = 5          # fala da daily pronta antes da sua vez na rodada
+SEED_FECHAMENTO_PRONTO = 3    # Day Closing preenchido no proprio dia
+SEED_CUIDAR = 3               # regar, adubar e carinho, depois do fechamento pronto
+SEED_FIGURINHA = 10           # semana do Album da estacao revelada
+SEED_ESTACAO_COMPLETA = 10    # todas as semanas de uma sprint reveladas (figurinha dourada)
+FIGURINHA_MIN_FALAS = 3       # falas prontas na semana para revelar a figurinha
+CUIDADOS = ("regar", "adubar", "carinho")
+MINIJOGOS = {
+    "fala_pronta": (SEED_FALA_PRONTA, "Fala pronta"),
+    "fechamento_pronto": (SEED_FECHAMENTO_PRONTO, "Fechamento pronto"),
+    "cuidar": (SEED_CUIDAR, "Cuidou da planta"),
+}
+
 SEED_MILESTONES = [
     (5,  3),
     (10, 5),
@@ -253,7 +269,8 @@ def calcular_semanas_fechadas(semanas_projeto, registros_por_data):
 
 
 def calcular_sementes(dias_letivos_lista, semanas_projeto, registros_por_data, floresceu,
-                      dias_cheios=None, atas_com_fala=0, falas_relatadas=0, bonus_metas=0):
+                      dias_cheios=None, atas_com_fala=0, falas_relatadas=0, bonus_metas=0,
+                      minijogos=()):
     """
     Calcula sementes ganhas (nunca perde por falta).
     Retorna dict com total e detalhes.
@@ -311,9 +328,10 @@ def calcular_sementes(dias_letivos_lista, semanas_projeto, registros_por_data, f
     por_ata = SEED_ATA * max(0, int(atas_com_fala))
     por_relator = SEED_RELATOR * max(0, int(falas_relatadas))
     por_metas = max(0, int(bonus_metas))
+    por_minijogos = sum(p["valor"] for p in minijogos)   # premios_minijogos(...)
 
     total = (seeds_eventos + semenas_fechadas * SEED_SEMANA_FECHADA + marcos + bonus_floresceu
-             + por_dia_cheio + por_boas_vindas + por_ata + por_relator + por_metas)
+             + por_dia_cheio + por_boas_vindas + por_ata + por_relator + por_metas + por_minijogos)
     return {
         "total": total,
         "por_presenca": seeds_eventos,
@@ -326,6 +344,7 @@ def calcular_sementes(dias_letivos_lista, semanas_projeto, registros_por_data, f
         "por_ata": por_ata,
         "por_relator": por_relator,
         "por_metas": por_metas,
+        "por_minijogos": por_minijogos,
         "semanas_fechadas": semenas_fechadas,
     }
 
@@ -537,7 +556,7 @@ ROTULO_EVENTO = {"daily": "Daily", "dev": "Dev", "encerramento": "Encerramento"}
 
 
 def extrato_sementes(dias_letivos_lista, semanas_projeto, registros_por_data, meta,
-                     dias_cheios=None, falas=(), relatadas=None, metas=()):
+                     dias_cheios=None, falas=(), relatadas=None, metas=(), minijogos=()):
     """Lista cada ganho de sementes, com data e motivo: o "extrato" da pessoa.
 
     A soma dos valores e IGUAL a calcular_sementes(...)["total"] com os mesmos dados (ha teste
@@ -633,6 +652,9 @@ def extrato_sementes(dias_letivos_lista, semanas_projeto, registros_por_data, me
     for p in metas:
         _add(p["data"], "meta", "Meta cumprida", p["valor"], p["titulo"])
 
+    for p in minijogos:
+        _add(p["data"], "minijogo", p["rotulo"], p["valor"], p["detalhe"])
+
     linhas.sort(key=lambda x: (x["data"], x["fonte"]))
     return linhas
 
@@ -661,4 +683,64 @@ def premios_de_metas(metas, member_id, equipe_ids):
         valor = max(0, min(int(m["sementes"]), SEED_META_MAX))
         if valor:
             premios.append({"data": feita, "titulo": m["titulo"], "valor": valor})
+    return premios
+
+
+# ---------------------------------------------------------------- minigames (aba Meu jardim)
+def album_estacao(datas_fala_pronta, semanas_projeto, sprint_semanas=2):
+    """Album da estacao: uma figurinha por semana do projeto.
+
+    A figurinha se revela quando a semana tem FIGURINHA_MIN_FALAS falas prontas (ou todos os dias
+    letivos dela, se a semana tiver menos dias por causa de feriado). Semana sem dia letivo e folga.
+    Quando todas as semanas com aula de uma sprint estao reveladas, a ultima delas vira dourada.
+    Perder uma semana nao apaga nada. Retorna [{'n', 'sprint', 'falas', 'minimo', 'revelada',
+    'data', 'dourada', 'folga'}], na ordem das semanas.
+    """
+    feitas = set(datas_fala_pronta)
+    album = []
+    for i, dias_sem in enumerate(semanas_projeto):
+        minimo = min(FIGURINHA_MIN_FALAS, len(dias_sem))
+        datas = sorted(d for d in dias_sem if d in feitas)
+        revelada = minimo > 0 and len(datas) >= minimo
+        album.append({
+            "n": i + 1, "sprint": i // max(sprint_semanas, 1) + 1, "falas": len(datas),
+            "minimo": minimo, "revelada": revelada, "data": datas[minimo - 1] if revelada else None,
+            "dourada": False, "folga": minimo == 0,
+        })
+    por_sprint = {}
+    for f in album:
+        por_sprint.setdefault(f["sprint"], []).append(f)
+    for semanas in por_sprint.values():
+        com_aula = [f for f in semanas if not f["folga"]]
+        if com_aula and all(f["revelada"] for f in com_aula):
+            max(com_aula, key=lambda f: f["data"])["dourada"] = True
+    return album
+
+
+def premios_minijogos(jogadas, semanas_projeto, registros_por_data, sprint_semanas=2):
+    """Sementes dos minigames de uma pessoa, uma linha de extrato por premio.
+
+    jogadas: [(data, jogo)] gravadas pelo servidor (jogo em MINIJOGOS; outras marcas, como as
+    acoes do cuidado, sao ignoradas). So vale em dia letivo com presenca. Uma por dia e jogo.
+    Retorna [{'data', 'rotulo', 'valor', 'detalhe'}].
+    """
+    letivos = {d for sem in semanas_projeto for d in sem}
+    validas = sorted({
+        (d, j) for d, j in jogadas
+        if j in MINIJOGOS and d in letivos and registros_por_data.get(d, {}).get("presente", False)
+    })
+    premios = []
+    detalhes = {"fala_pronta": "a fala da daily estava pronta antes da sua vez",
+                "fechamento_pronto": "o Day Closing ficou preenchido", "cuidar": "regou, adubou e fez carinho"}
+    for d, j in validas:
+        valor, rotulo = MINIJOGOS[j]
+        premios.append({"data": d, "rotulo": rotulo, "valor": valor, "detalhe": detalhes[j]})
+    falas = [d for d, j in validas if j == "fala_pronta"]
+    for f in album_estacao(falas, semanas_projeto, sprint_semanas):
+        if f["revelada"]:
+            premios.append({"data": f["data"], "rotulo": "Figurinha do Álbum da estação", "valor": SEED_FIGURINHA,
+                            "detalhe": f"semana {f['n']} com {FIGURINHA_MIN_FALAS} falas prontas"})
+        if f["dourada"]:
+            premios.append({"data": f["data"], "rotulo": "Figurinha dourada", "valor": SEED_ESTACAO_COMPLETA,
+                            "detalhe": f"todas as semanas da Sprint {f['sprint']} no álbum"})
     return premios
