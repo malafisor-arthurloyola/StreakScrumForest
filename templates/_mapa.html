@@ -1,0 +1,290 @@
+{% from "_planta.html" import conjunto %}
+{% from "_chama.html" import chama %}
+{#
+  Mapa do jardim (aba Painel): o jardim visto de cima, inclinado. O chao, os caminhos, os canteiros,
+  a fonte, o cenario e os bichinhos sao um SVG (viewBox 1600 x 1000); as plantas sao as mesmas do
+  canteiro (macro conjunto), posicionadas por cima em porcentagem, entao especies, vasos, extras e o
+  crescimento ao vivo continuam valendo. A tela do dia continua com o canteiro em fileira.
+#}
+{% macro canteiro(x, y, w=150, h=82, t=20, mudas=0, semente=0) %}
+<g class="lote-chao">
+  <ellipse class="lote-sombra" cx="{{ x + 10 }}" cy="{{ y + t + 12 }}" rx="{{ w + 14 }}" ry="{{ h * 0.7 }}"/>
+  <path class="lote-lado-e" d="M{{ x - w }} {{ y }}L{{ x }} {{ y + h }}V{{ y + h + t }}L{{ x - w }} {{ y + t }}Z"/>
+  <path class="lote-lado-d" d="M{{ x }} {{ y + h }}L{{ x + w }} {{ y }}V{{ y + t }}L{{ x }} {{ y + h + t }}Z"/>
+  <path class="lote-tabua" d="M{{ x - w }} {{ y + t / 2 }}L{{ x }} {{ y + h + t / 2 }}L{{ x + w }} {{ y + t / 2 }}"/>
+  <path class="lote-grama" d="M{{ x }} {{ y - h }}L{{ x + w }} {{ y }}L{{ x }} {{ y + h }}L{{ x - w }} {{ y }}Z"/>
+  {% set k = 0.82 %}
+  <path class="lote-terra" d="M{{ x }} {{ y - h * k }}L{{ x + w * k }} {{ y }}L{{ x }} {{ y + h * k }}L{{ x - w * k }} {{ y }}Z"/>
+  {% for i in range(1, 5) %}
+  {% set f = i / 5 %}
+  <path class="lote-sulco" d="M{{ x - w * k * (1 - f) }} {{ y - h * k * f }}L{{ x + w * k * f }} {{ y + h * k * (1 - f) }}"/>
+  {% endfor %}
+  {# mudinhas nos sulcos, longe do centro (onde fica o vaso) #}
+  {% for n in range(mudas) %}
+  {% set f = [0.2, 0.8, 0.4, 0.6, 0.2, 0.8, 0.4][n % 7] %}
+  {% set g = [0.18, 0.82, 0.86, 0.14, 0.62, 0.38, 0.3][(n + semente) % 7] %}
+  {% set sx = x - w * k * (1 - f) + (w * k) * g %}
+  {% set sy = y - h * k * f + (h * k) * g %}
+  <g class="muda" transform="translate({{ sx }} {{ sy }}) scale(1.6)"><path d="M0 0V-9"/><ellipse cx="-4.5" cy="-10" rx="5" ry="2.6" transform="rotate(-25 -4.5 -10)"/><ellipse cx="4.5" cy="-11" rx="5" ry="2.6" transform="rotate(25 4.5 -11)"/></g>
+  {% endfor %}
+  <g class="cerca">
+    {% set cantos = [(x, y - h), (x + w, y), (x, y + h), (x - w, y)] %}
+    <path class="cerca-trilho" d="M{{ x }} {{ y - h - 13 }}L{{ x + w }} {{ y - 13 }}L{{ x }} {{ y + h - 13 }}L{{ x - w }} {{ y - 13 }}Z"/>
+    <path class="cerca-trilho" d="M{{ x }} {{ y - h - 6 }}L{{ x + w }} {{ y - 6 }}L{{ x }} {{ y + h - 6 }}L{{ x - w }} {{ y - 6 }}Z"/>
+    {% for i in range(4) %}
+    {% set a = cantos[i] %}{% set b = cantos[(i + 1) % 4] %}
+    {% for j in range(7) %}
+    {% set px = a[0] + (b[0] - a[0]) * j / 7 %}{% set py = a[1] + (b[1] - a[1]) * j / 7 %}
+    <path class="mourao" d="M{{ px }} {{ py + 1 }}V{{ py - 17 }}"/>
+    {% endfor %}
+    {% endfor %}
+  </g>
+</g>
+{% endmacro %}
+
+{% macro pinheiro(x, y, k=1, tom=0) %}
+<g class="pinheiro t{{ tom }}" transform="translate({{ x }} {{ y }}) scale({{ k }})">
+  <path d="M0 -150L36 -86H18L48 -36H24L58 0H-58L-24 -36H-48L-18 -86H-36Z"/><rect x="-6" y="0" width="12" height="14"/>
+</g>
+{% endmacro %}
+
+{% macro arbusto(x, y, k=1) %}
+<g class="arbusto" transform="translate({{ x }} {{ y }}) scale({{ k }})">
+  <ellipse cx="0" cy="4" rx="40" ry="11" class="sombra"/>
+  <circle cx="-20" cy="-8" r="18"/><circle cx="18" cy="-9" r="19"/><circle cx="0" cy="-20" r="21"/>
+  <circle cx="-8" cy="-26" r="3" class="flor"/><circle cx="12" cy="-16" r="3" class="flor"/><circle cx="-22" cy="-12" r="2.6" class="flor"/>
+</g>
+{% endmacro %}
+
+{% macro poste(x, y) %}
+<g class="poste" transform="translate({{ x }} {{ y }})">
+  <ellipse cx="0" cy="0" rx="34" ry="12" class="luz-chao"/>
+  <rect x="-2.5" y="-62" width="5" height="62" rx="2"/><rect x="-9" y="-78" width="18" height="18" rx="3" class="lanterna"/>
+  <circle cx="0" cy="-69" r="20" class="halo"/>
+</g>
+{% endmacro %}
+
+{% macro coelho(x, y, k=1, d=0) %}
+<g class="bicho coelho" transform="translate({{ x }} {{ y }}) scale({{ k }})" style="--d: -{{ d }}s">
+  <ellipse cx="0" cy="2" rx="18" ry="5" class="sombra"/>
+  <g class="pulo">
+    <ellipse cx="2" cy="-12" rx="15" ry="12" class="pelo"/><circle cx="14" cy="-8" r="5" class="pelo-claro"/>
+    <circle cx="-11" cy="-24" r="9" class="pelo"/>
+    <g class="orelhas"><ellipse cx="-14" cy="-40" rx="3.4" ry="11" class="pelo" transform="rotate(-10 -14 -40)"/><ellipse cx="-7" cy="-40" rx="3.4" ry="11" class="pelo" transform="rotate(12 -7 -40)"/>
+      <ellipse cx="-14" cy="-40" rx="1.6" ry="7" class="rosa" transform="rotate(-10 -14 -40)"/></g>
+    <circle cx="-15" cy="-25" r="1.6" class="olho"/><circle cx="-19" cy="-21" r="1.4" class="rosa"/>
+  </g>
+</g>
+{% endmacro %}
+
+{% macro esquilo(x, y, k=1, d=0) %}
+<g class="bicho esquilo" transform="translate({{ x }} {{ y }}) scale({{ k }})" style="--d: -{{ d }}s">
+  <ellipse cx="0" cy="2" rx="18" ry="5" class="sombra"/>
+  <path class="cauda" d="M8 -6C30 -8 34 -30 24 -44C18 -52 6 -48 10 -38C14 -30 12 -20 4 -14Z"/>
+  <ellipse cx="-2" cy="-12" rx="11" ry="12" class="pelo"/><ellipse cx="-4" cy="-8" rx="6" ry="7" class="pelo-claro"/>
+  <circle cx="-8" cy="-27" r="8" class="pelo"/><path d="M-11 -35L-9 -42L-5 -34Z" class="pelo"/>
+  <circle cx="-11" cy="-28" r="1.5" class="olho"/><circle cx="-16" cy="-12" r="3.4" class="noz"/>
+</g>
+{% endmacro %}
+
+{% macro ourico(x, y, k=1, d=0) %}
+<g class="bicho ourico" transform="translate({{ x }} {{ y }}) scale({{ k }})" style="--d: -{{ d }}s">
+  <ellipse cx="0" cy="2" rx="22" ry="5" class="sombra"/>
+  <g class="anda">
+    <path class="espinhos" d="M-20 0C-24 -10 -18 -22 -6 -24L-2 -30L2 -24L8 -29L10 -22L16 -25L16 -18L22 -18L19 -11L25 -8L20 -3L22 0Z"/>
+    <path class="rosto" d="M-20 0C-22 -6 -20 -12 -14 -13L-28 -6C-30 -3 -26 0 -20 0Z"/>
+    <circle cx="-29" cy="-5" r="2" class="olho"/><circle cx="-19" cy="-8" r="1.4" class="olho"/>
+  </g>
+</g>
+{% endmacro %}
+
+{% macro mapa(lotes, convidados, marcos, centro, raios_praca) %}
+<link rel="stylesheet" href="{{ url_for('static', filename='mapa.css') }}">
+{% set cx, cy = centro %}
+{% set fy = cy + 50 %}{# a fonte desce um pouco para nao ficar atras da placa do canteiro de cima #}
+{% set fonte = 'fonte' in marcos %}
+<div class="mapa-rolagem" id="mapa-rolagem">
+<section class="mapa" data-periodo="{{ cena_periodo }}" aria-label="Mapa do jardim da equipe">
+  <svg class="mapa-chao" viewBox="0 0 1600 1000" aria-hidden="true">
+    <defs>
+      <radialGradient id="mapa-luz" cx="50%" cy="48%" r="64%">
+        <stop offset="0" stop-color="#2f7347"/><stop offset=".6" stop-color="#215537"/><stop offset="1" stop-color="#132f20"/>
+      </radialGradient>
+      <radialGradient id="mapa-brilho" cx="50%" cy="50%" r="50%">
+        <stop offset="0" stop-color="#fff4b8" stop-opacity=".55"/><stop offset="1" stop-color="#fff4b8" stop-opacity="0"/>
+      </radialGradient>
+      <linearGradient id="mapa-agua" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#8fd3ff"/><stop offset="1" stop-color="#3d8fd6"/>
+      </linearGradient>
+    </defs>
+    <rect width="1600" height="1000" fill="url(#mapa-luz)"/>
+
+    {# textura da grama e florzinhas espalhadas #}
+    <g class="mapa-tufos">
+      {% for i in range(140) %}
+      {% set tx = (i * 197 + 31) % 1580 + 10 %}{% set ty = (i * 113 + 57) % 900 + 60 %}
+      <path d="M{{ tx }} {{ ty }}l-3 -9M{{ tx }} {{ ty }}l1 -11M{{ tx }} {{ ty }}l5 -8"/>
+      {% endfor %}
+    </g>
+    <g class="mapa-flores">
+      {% for i in range(60) %}
+      <circle cx="{{ (i * 263 + 77) % 1560 + 20 }}" cy="{{ (i * 151 + 23) % 860 + 90 }}" r="{{ 2.4 + (i % 3) * 0.8 }}" fill="{{ ['#ffd35c', '#ff9ec4', '#ffffff', '#b79cff', '#ffb36b'][i % 5] }}"/>
+      {% endfor %}
+    </g>
+
+    {# caminhos de terra: praca da fonte, entrada e um ramo curvo ate cada canteiro #}
+    <g class="mapa-caminho">
+      {% for l in lotes %}<path d="M{{ cx }} {{ fy }}Q{{ (cx + l.x) / 2 + (l.y - fy) * 0.25 }} {{ (fy + l.y) / 2 - (l.x - cx) * 0.08 }} {{ l.x }} {{ l.y }}"/>{% endfor %}
+      <path d="M{{ cx }} {{ fy }}C{{ cx - 30 }} {{ fy + 180 }} {{ cx + 40 }} {{ fy + 330 }} {{ cx }} 1010"/>
+      {% if convidados %}<path d="M{{ cx }} {{ fy + 270 }}Q{{ cx - 300 }} {{ fy + 270 }} 210 870"/>{% endif %}
+    </g>
+    <g class="mapa-caminho-meio">
+      {% for l in lotes %}<path d="M{{ cx }} {{ fy }}Q{{ (cx + l.x) / 2 + (l.y - fy) * 0.25 }} {{ (fy + l.y) / 2 - (l.x - cx) * 0.08 }} {{ l.x }} {{ l.y }}"/>{% endfor %}
+      <path d="M{{ cx }} {{ fy }}C{{ cx - 30 }} {{ fy + 180 }} {{ cx + 40 }} {{ fy + 330 }} {{ cx }} 1010"/>
+    </g>
+    <g class="mapa-praca">
+      <ellipse cx="{{ cx }}" cy="{{ fy + 12 }}" rx="230" ry="122" class="praca-borda"/>
+      <ellipse cx="{{ cx }}" cy="{{ fy + 6 }}" rx="222" ry="116" class="praca"/>
+      {% for c, sn in raios_praca %}
+      <path class="praca-junta" d="M{{ cx + 150 * c }} {{ fy + 6 + 79 * sn }}L{{ cx + 222 * c }} {{ fy + 6 + 116 * sn }}"/>
+      {% endfor %}
+      <ellipse cx="{{ cx }}" cy="{{ fy + 6 }}" rx="150" ry="79" class="praca-junta"/>
+    </g>
+
+    {# bosque: pinheiros em camadas no alto e nas laterais #}
+    <g class="mapa-bosque">
+      {% for i in range(18) %}{{ pinheiro(i * 96 - 20 + (i % 2) * 30, 92 + (i * 17) % 30, 0.8 + (i % 3) * 0.12, i % 3) }}{% endfor %}
+      {% for i in range(14) %}{{ pinheiro(i * 120 + 40, 40 + (i * 13) % 20, 0.7, 2) }}{% endfor %}
+      {% for i in range(6) %}
+      {{ pinheiro(18 + (i % 2) * 34, 300 + i * 120, 0.75 + (i % 2) * 0.1, i % 3) }}
+      {{ pinheiro(1582 - (i % 2) * 34, 330 + i * 115, 0.75 + (i % 2) * 0.1, (i + 1) % 3) }}
+      {% endfor %}
+    </g>
+    {{ arbusto(560, 150, 0.9) }}{{ arbusto(1100, 360, 0.8) }}{{ arbusto(470, 380, 0.75) }}{{ arbusto(120, 650, 1) }}
+    {{ arbusto(1480, 560, 0.95) }}{{ arbusto(1220, 900, 0.9) }}{{ arbusto(420, 930, 0.85) }}{{ arbusto(1000, 935, 0.7) }}
+
+    {# estufa (alto, esquerda) #}
+    <g class="estufa" transform="translate(150 215)">
+      <ellipse cx="10" cy="14" rx="120" ry="30" class="sombra"/>
+      <path class="vidro-lado" d="M-100 0L0 50V-30L-100 -80Z"/><path class="vidro-frente" d="M0 50L110 -5V-85L0 -30Z"/>
+      <path class="vidro-teto" d="M-100 -80L-40 -140L70 -195L110 -85L0 -30Z"/><path class="vidro-teto2" d="M-40 -140L70 -195L110 -85L0 -30Z"/>
+      <path class="caixilho" d="M-100 0L0 50L110 -5M0 50V-30M-50 25V-55M55 22V-58M-100 -80L-40 -140L70 -195M0 -30L-40 -140M55 -58L30 -168M110 -85L70 -195M-100 -40L0 10L110 -45"/>
+      <g class="vasinhos-estufa"><circle cx="-60" cy="-12" r="9"/><circle cx="-30" cy="4" r="11"/><circle cx="40" cy="-6" r="10"/><circle cx="75" cy="-24" r="9"/></g>
+    </g>
+
+    {# casinha de ferramentas (alto, direita) #}
+    <g class="casinha" transform="translate(1455 200)">
+      <ellipse cx="0" cy="18" rx="105" ry="26" class="sombra"/>
+      <path class="parede-l" d="M-80 -10L0 30V-40L-80 -80Z"/><path class="parede-f" d="M0 30L80 -10V-80L0 -40Z"/>
+      <path class="telhado" d="M-92 -76L-12 -130L92 -78L0 -30Z"/><path class="telhado2" d="M-12 -130L92 -78L0 -30L-92 -76Z" opacity=".25"/>
+      <path class="porta" d="M24 18L52 4V-44L24 -30Z"/><circle cx="46" cy="-14" r="2.2" class="macaneta"/>
+      <path class="janela" d="M-58 -26L-24 -9V-34L-58 -51Z"/>
+      <path class="tabuas" d="M-80 -30L0 10M-80 -55L0 -15M0 10L80 -30M0 -15L80 -55"/>
+    </g>
+    <g class="carrinho" transform="translate(1335 300)">
+      <path class="cacamba" d="M-30 -20L30 -26L22 -4L-24 0Z"/><circle cx="-2" cy="4" r="7" class="roda"/><path d="M22 -10L44 -2" class="cabo"/>
+      <ellipse cx="-8" cy="-22" rx="14" ry="5" class="terra-carrinho"/>
+    </g>
+
+    {# lago (baixo, direita) #}
+    <g class="lago" transform="translate(1410 860)">
+      <ellipse cx="0" cy="6" rx="160" ry="62" class="margem"/>
+      <ellipse cx="0" cy="0" rx="146" ry="54" class="agua-lago"/>
+      <ellipse cx="-30" cy="-10" rx="60" ry="14" class="reflexo"/>
+      <g class="vitorias"><ellipse cx="-70" cy="10" rx="16" ry="7"/><ellipse cx="40" cy="-14" rx="13" ry="6"/><ellipse cx="70" cy="18" rx="15" ry="6"/></g>
+      <circle cx="-68" cy="6" r="4" class="flor-lago"/><circle cx="72" cy="14" r="3.4" class="flor-lago"/>
+      <g class="pedras"><ellipse cx="-150" cy="10" rx="18" ry="10"/><ellipse cx="146" cy="-6" rx="16" ry="9"/><ellipse cx="120" cy="40" rx="14" ry="8"/><ellipse cx="-110" cy="44" rx="15" ry="8"/></g>
+      <g class="juncos"><path d="M-140 -20V-62M-132 -18V-52M-148 -16V-48M136 -30V-70M128 -28V-58"/></g>
+    </g>
+
+    {% if 'arvore_time' in marcos %}
+    <g class="mapa-arvore" transform="translate(1040 170)">
+      <ellipse cx="0" cy="0" rx="70" ry="22" fill="#0f2618" opacity=".55"/>
+      <path d="M-9 0C-8-30-7-50-6-70H6C7-50 8-30 9 0Z" fill="#6b4a2f"/>
+      <circle cx="0" cy="-118" r="62" fill="#2fae66"/><circle cx="-44" cy="-88" r="42" fill="#4fcb7c"/>
+      <circle cx="46" cy="-90" r="44" fill="#4fcb7c"/><circle cx="0" cy="-150" r="38" fill="#82e29a"/>
+      <circle cx="-20" cy="-120" r="6" fill="#ffd35c"/><circle cx="24" cy="-136" r="6" fill="#ff9ec4"/><circle cx="34" cy="-96" r="6" fill="#ffd35c"/>
+    </g>
+    {% endif %}
+
+    {% for l in lotes %}
+    {% set pres = l.m.semana | selectattr('estado', 'equalto', 'presente') | list | length %}
+    {{ canteiro(l.x, l.y, mudas=2 + pres, semente=l.m.id) }}
+    {% endfor %}
+    {% if convidados %}{{ canteiro(210, 870, 150, 74, 16) }}{% endif %}
+
+    {# postes de luz na praca #}
+    {{ poste(cx - 250, fy + 40) }}{{ poste(cx + 250, fy + 40) }}{{ poste(cx - 92, fy + 148) }}{{ poste(cx + 92, fy + 148) }}
+
+    {# fonte de tres andares no centro: seca ate o jardim coletivo chegar a 25% #}
+    <g class="mapa-fonte{{ ' cheia' if fonte }}" transform="translate({{ cx }} {{ fy }})">
+      <ellipse cx="0" cy="30" rx="150" ry="60" class="sombra"/>
+      <path d="M-140 4V26A140 54 0 0 0 140 26V4Z" class="pedra-escura"/>
+      <ellipse cx="0" cy="4" rx="140" ry="54" class="pedra"/>
+      <ellipse cx="0" cy="4" rx="122" ry="44" class="agua"/>
+      <ellipse cx="-30" cy="-4" rx="60" ry="12" class="brilho-agua"/>
+      <path d="M-20 4V-58H20V4Z" class="pedra-escura"/>
+      <path d="M-78 -66V-56A78 28 0 0 0 78 -56V-66Z" class="pedra-escura"/>
+      <ellipse cx="0" cy="-66" rx="78" ry="28" class="pedra"/>
+      <ellipse cx="0" cy="-66" rx="64" ry="21" class="agua"/>
+      <path d="M-11 -66V-118H11V-66Z" class="pedra-escura"/>
+      <path d="M-40 -124V-117A40 14 0 0 0 40 -117V-124Z" class="pedra-escura"/>
+      <ellipse cx="0" cy="-124" rx="40" ry="14" class="pedra"/>
+      <ellipse cx="0" cy="-124" rx="31" ry="9" class="agua"/>
+      <path d="M-5 -124V-150H5V-124Z" class="pedra-escura"/><circle cx="0" cy="-153" r="7" class="pedra"/>
+      {% if fonte %}
+      <g class="jatos">
+        <path d="M0 -158C-20 -190 -46 -170 -52 -128"/><path d="M0 -158C20 -190 46 -170 52 -128"/><path d="M0 -160V-196"/>
+        <path d="M-34 -122C-60 -110 -74 -96 -78 -66"/><path d="M34 -122C60 -110 74 -96 78 -66"/>
+        <path d="M-70 -60C-104 -46 -116 -24 -118 4"/><path d="M70 -60C104 -46 116 -24 118 4"/>
+      </g>
+      {% endif %}
+    </g>
+    {% if not fonte %}
+    <text class="mapa-aviso" x="{{ cx }}" y="{{ fy + 100 }}">A fonte enche quando o jardim coletivo chega a 25%</text>
+    {% endif %}
+
+    {# bichinhos #}
+    {{ coelho(462, 625, 1.35, 0) }}{{ coelho(1290, 700, 1.25, 1.4) }}{{ coelho(92, 330, 1.2, 2.2) }}
+    {{ esquilo(1140, 478, 1.5, 0.6) }}{{ esquilo(300, 440, 1.4, 1.9) }}{{ esquilo(960, 175, 1.3, 1.1) }}
+    {{ ourico(700, 905, 1.5, 0.3) }}{{ ourico(600, 560, 1.3, 2.6) }}{{ ourico(1520, 730, 1.3, 1.5) }}
+  </svg>
+
+  {% for i in range(26 if 'vagalumes' in marcos else 16) %}
+  <i class="mapa-vagalume" style="--x:{{ (i * 71 + 9) % 96 + 2 }}%;--y:{{ (i * 43 + 11) % 80 + 6 }}%;--t:{{ 5 + (i % 4) }}s;--l:-{{ i * 0.8 }}s"></i>
+  {% endfor %}
+
+  {% for l in lotes %}
+  {% set m = l.m %}
+  <div class="lote" style="--x: {{ l.x / 16 }}%; --y: {{ l.y / 10 }}%; --k: {{ l.escala }}; z-index: {{ l.y }}" data-member-id="{{ m.id }}">
+    <div class="lote-planta">{{ conjunto(m, 120) }}</div>
+    <a class="lote-placa" href="{{ url_for('membro_page', member_id=m.id) }}">
+      <b>{{ m.name }}</b>
+      <span class="lote-info">{{ chama(m.streak, m.chama, m.aceso, m.id) }}<span data-estagio-for="{{ m.id }}">{{ m.estagio_nome }}</span></span>
+    </a>
+  </div>
+  {% endfor %}
+
+  {% if convidados %}
+  {% set n = convidados | length %}
+  <div class="lote lote-convidados" style="--x: {{ 210 / 16 }}%; --y: 88%; --k: 1; z-index: 2000">
+    <div class="convidados-vasos">
+      {% for m in convidados | sort(attribute='name') %}
+      <a class="convidado-vaso" href="{{ url_for('membro_page', member_id=m.id) }}" title="{{ m.name }}: {{ m.streak }} {{ 'dia' if m.streak == 1 else 'dias' }}, {{ m.estagio_nome }}">
+        {{ conjunto(m, 60) }}<span>{{ m.name.split()[0] }}</span>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</section>
+</div>
+<p class="mapa-dica">Arraste para o lado para ver o mapa todo.</p>
+<script>
+  // No celular o mapa e mais largo que a tela: comeca centrado na fonte.
+  (function () {
+    var r = document.getElementById('mapa-rolagem');
+    if (r && r.scrollWidth > r.clientWidth) r.scrollLeft = (r.scrollWidth - r.clientWidth) / 2;
+  })();
+</script>
+{% endmacro %}

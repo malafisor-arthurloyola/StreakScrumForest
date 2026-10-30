@@ -1611,7 +1611,46 @@ def dashboard():
         equipe=[m for m in ctx["ativos"]],
         seed_meta_max=game.SEED_META_MAX,
         **_painel_coletivo(db, ctx),
+        **_contexto_mapa(ctx),
     )
+
+
+# Mapa do jardim (aba Painel): canteiros em perspectiva ao redor da fonte. Coordenadas no
+# viewBox 1600 x 1000 do mapa. Os canteiros ficam numa elipse e sempre sobra um vao embaixo,
+# onde entram o caminho de entrada e o canteiro dos convidados.
+MAPA_CENTRO = (800, 470)
+MAPA_RAIO = (560, 300)
+
+
+def _posicoes_mapa(n):
+    if n <= 0:
+        return []
+    passo = 2 * math.pi / n
+    inicio = -math.pi / 2 + (passo / 2 if n % 2 == 0 else 0)
+    cx, cy = MAPA_CENTRO
+    rx, ry = MAPA_RAIO
+    pos = []
+    for k in range(n):
+        a = inicio + k * passo
+        pos.append((round(cx + rx * math.cos(a)), round(cy + ry * math.sin(a))))
+    return pos
+
+
+def _contexto_mapa(ctx):
+    """Canteiros do mapa do Painel. Espera ctx["ativos"] ja enriquecido (semana, chama)."""
+    lotes = []
+    topo, base = MAPA_CENTRO[1] - MAPA_RAIO[1], MAPA_CENTRO[1] + MAPA_RAIO[1]
+    for m, (x, y) in zip(ctx["ativos"], _posicoes_mapa(len(ctx["ativos"]))):
+        # quem esta mais ao fundo fica um pouco menor (perspectiva)
+        escala = round(0.84 + 0.16 * (y - topo) / max(base - topo, 1), 3)
+        lotes.append({"m": m, "x": x, "y": y, "escala": escala})
+    return {
+        "mapa_lotes": sorted(lotes, key=lambda l: l["y"]),
+        "mapa_centro": MAPA_CENTRO,
+        "mapa_raios_praca": [
+            (round(math.cos(k * math.pi / 12), 4), round(math.sin(k * math.pi / 12), 4)) for k in range(24)
+        ],
+    }
 
 
 def _int_ou_none(valor):

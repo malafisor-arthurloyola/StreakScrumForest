@@ -821,10 +821,14 @@ input.input-nome:hover, input.input-nome:focus { background: var(--s2); }
 .planta[data-vaso="pixel"] { --vaso: #8a5cf5; --vaso-2: #6f46d6; --borda: #a883ff; }
 .planta[data-vaso="dourado"] { --vaso: #e8b94a; --vaso-2: #c99a2e; --borda: #f5d27a; }
 
-.vasos { display: flex; align-items: flex-end; justify-content: center; width: 100%; }
-.vaso-principal { flex: 1 1 0; min-width: 0; }
-.vaso-extra { flex: 0.72 1 0; min-width: 0; margin-left: -14%; position: relative; z-index: 1; }
-.vaso-principal { position: relative; z-index: 2; }
+/* A principal ocupa sempre a largura toda: comprar uma extra nunca a encolhe. As extras sao
+   vasinhos menores sobrepostos na frente do vaso, a 1a no canto direito e a 2a no esquerdo, um pouco
+   mais baixos que a principal (a principal continua apoiada no chao, como as outras). */
+.vasos { position: relative; width: 100%; }
+.vaso-principal { position: relative; z-index: 1; }
+.vaso-extra { position: absolute; bottom: -8%; width: 46%; z-index: 2; pointer-events: none; }
+.vaso-extra:nth-child(2) { right: 4%; }
+.vaso-extra:nth-child(3) { left: 4%; }
 .vasos .planta { width: 100%; }
 
 .mov-joaninha { animation: anda 6s ease-in-out infinite alternate; }
@@ -1034,8 +1038,10 @@ a.gh-dia:hover { filter: brightness(1.25); }
 .placa-nome { color: var(--ink); text-decoration: none; }
 .placa-nome:hover { text-decoration: underline; }
 
-.fonte { position: absolute; left: 2%; bottom: calc(var(--chao-h) - 4px); width: 84px; pointer-events: none; }
-.cena-grande .fonte { width: 104px; }
+/* No fundo, na colina, acima das plantas: longe (menor e mais apagada), nunca escondida atras de um vaso */
+.fonte { position: absolute; left: 64%; bottom: calc(var(--chao-h) + 104px); width: 72px; transform: translateX(-50%); z-index: -1; opacity: 0.9; filter: brightness(0.85); pointer-events: none; }
+.cena-grande .fonte { width: 84px; bottom: calc(var(--chao-h) + 132px); }
+@media (max-width: 600px) { .cena .fonte { width: 52px; bottom: calc(var(--chao-h) + 78px); } }
 .fonte svg { display: block; width: 100%; height: auto; }
 .jato { opacity: 0; animation: jorra 1.7s ease-in infinite; }
 .jato.j1 { animation-name: jorra1; }
