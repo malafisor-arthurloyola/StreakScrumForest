@@ -205,13 +205,11 @@ class TestFechamentoECuidar(MinijogosBase):
         r = self.jogo("fechamento")
         self.assertEqual(r.get_json()["ganhou"], game.SEED_FECHAMENTO_PRONTO)
 
-    def test_cuidar_so_abre_depois_de_fechar_o_dia(self):
-        self.assertEqual(self.jogo("cuidar", acao="regar").status_code, 400)
-        self.fechar()
-        self.assertEqual(self.jogo("cuidar", acao="regar").status_code, 200)
+    def test_cuidar_vale_a_qualquer_hora_do_dia(self):
+        r = self.jogo("cuidar", acao="regar")                    # sem fechar o dia
+        self.assertEqual(r.status_code, 200)
 
     def test_cuidar_premia_uma_vez_com_os_tres_cuidados(self):
-        self.fechar()
         ganhos = [self.jogo("cuidar", acao=a).get_json()["ganhou"] for a in ("regar", "regar", "adubar", "carinho")]
         self.assertEqual(ganhos, [0, 0, 0, game.SEED_CUIDAR])
         self.assertEqual(self.jogo("cuidar", acao="carinho").get_json()["ganhou"], 0)
@@ -263,10 +261,45 @@ class TestPaginaMeuJardim(MinijogosBase):
         con.close()
         self.assertTrue(salvo is None or not salvo[0])
 
-    def test_cuidar_fechado_ate_o_fechamento(self):
-        self.presente(self.ana)
+    def test_canteiro_aberto_desde_cedo(self):
         h = self.cel.get("/eu").get_data(as_text=True)
-        self.assertIn('data-aberto="0"', h)
+        self.assertIn('id="cuidar"', h)
+        self.assertIn('data-aberto="1"', h)
+
+
+class TestCaminhoAteOJardim(MinijogosBase):
+    def test_meu_jardim_esta_na_barra_principal(self):
+        h = self.cel.get(f"/dia/{HOJE}").get_data(as_text=True)
+        nav = h[h.index('<nav class="nav"'):h.index("</nav>", h.index('<nav class="nav"'))]
+        self.assertIn("Meu jardim", nav)
+        self.assertNotIn("Histórico", nav)                      # foi para as abas do Painel
+
+    def test_hoje_chama_a_pessoa_para_preparar_a_fala(self):
+        h = self.cel.get(f"/dia/{HOJE}").get_data(as_text=True)
+        self.assertIn("chamada-jardim", h)
+        self.assertIn("Preparar minha fala", h)
+        self.assertIn("/eu#fala-daily", h)
+
+    def test_hoje_sem_login_convida_a_entrar(self):
+        h = appmod.app.test_client().get(f"/dia/{HOJE}").get_data(as_text=True)
+        self.assertIn("Seu jardim no celular", h)
+
+    def test_a_chamada_segue_o_passo_do_dia(self):
+        self.fala("feito", "a")
+        self.fala("planejado", "b")
+        self.jogo("fala-pronta")
+        h = self.cel.get(f"/dia/{HOJE}").get_data(as_text=True)
+        self.assertIn("Cuidar da planta", h)
+        self.assertNotIn("Preparar minha fala", h)
+
+    def test_outro_dia_nao_tem_chamada(self):
+        h = self.cel.get(f"/dia/{ONTEM}").get_data(as_text=True)
+        self.assertNotIn("chamada-jardim", h)
+
+    def test_paginas_de_informacao_ficam_nas_abas_do_painel(self):
+        for url in ("/dashboard", "/sementes", "/historico", "/membros"):
+            r = self.cel.get(url, follow_redirects=True)
+            self.assertIn("painel-abas", r.get_data(as_text=True), url)
 
 
 if __name__ == "__main__":

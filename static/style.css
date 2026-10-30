@@ -620,7 +620,7 @@ input.input-nome:hover, input.input-nome:focus { background: var(--s2); }
   .container { padding-bottom: 104px; }
   .nav {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
-    display: grid; grid-template-columns: repeat(6, 1fr); gap: 1px;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
     padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
     background: var(--s2);
   }
@@ -2075,13 +2075,6 @@ body.holofote-escuro .cena.holofote-ativo { position: relative; z-index: 901; }
 @keyframes fx-cai { from { transform: translate(0, 0); opacity: 1; } 85% { opacity: 1; } to { transform: translate(var(--desvio, 0), var(--queda, 80px)); opacity: 0; } }
 @keyframes fx-sobe { from { opacity: 0.4; transform: translate(0, 0) rotate(45deg) scale(0.5); } 12% { opacity: 1; } 70% { opacity: 1; } to { opacity: 0; transform: translate(var(--desvio, 0), -70px) rotate(45deg) scale(1.15); } }
 
-.cuidar-fechado {
-  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 7; margin: 0;
-  padding: 10px 16px; border-radius: 999px; background: rgba(11, 21, 17, 0.85); color: var(--ink); font-weight: 700; white-space: nowrap;
-}
-.cuidar[data-aberto="1"] .cuidar-fechado { display: none; }
-.cuidar[data-aberto="0"] .cuidar-cena > :not(.cuidar-fechado) { filter: grayscale(0.55) brightness(0.75); }
-.cuidar[data-aberto="0"] .cuidar-planta { cursor: default; touch-action: auto; }
 .cuidar-dica { margin: 10px 0 0; text-align: center; color: var(--ink2); font-size: 0.9rem; min-height: 1.3em; }
 .cuidar-fim { margin: 6px 0 0; text-align: center; color: var(--ok); font-weight: 700; }
 
@@ -2115,3 +2108,62 @@ body.holofote-escuro .cena.holofote-ativo { position: relative; z-index: 901; }
   .fx { animation-duration: 0.01s !important; }
 }
 .cuidar-cena .mj-mais { top: 54px; right: 50%; transform: translateX(50%); z-index: 8; }
+
+/* ===== Navegacao: Hoje, Meu jardim (destaque), Loja, Painel (com as abas de informacao) ===== */
+.nav-jardim { color: var(--ink); box-shadow: inset 0 0 0 2px var(--acc); }
+.nav-jardim svg { color: var(--acc); }
+.nav-jardim.ativo svg { color: var(--acc-ink); }
+@media (max-width: 760px) {
+  .nav { padding-top: 8px; }
+  .nav-link { font-size: 0.72rem; }
+  .nav-link svg { width: 21px; height: 21px; }
+  .nav-jardim { box-shadow: none; position: relative; }
+  .nav-jardim svg {
+    width: 44px; height: 44px; padding: 10px; margin-top: -22px; border-radius: 50%;
+    background: var(--acc); color: var(--acc-ink); box-shadow: 0 0 0 4px var(--s2), 0 6px 14px rgba(0, 0, 0, 0.35);
+  }
+  .nav-jardim.ativo { background: none; color: var(--acc); }
+}
+
+.painel-abas { display: flex; gap: 6px; margin: 4px 0 18px; overflow-x: auto; scrollbar-width: none; }
+.painel-abas::-webkit-scrollbar { display: none; }
+.painel-aba {
+  flex: none; padding: 8px 14px; border-radius: 999px; background: var(--s2); color: var(--ink2);
+  font-weight: 700; font-size: 0.9rem; text-decoration: none; white-space: nowrap;
+}
+.painel-aba:hover { color: var(--ink); background: var(--s3); }
+.painel-aba.ativo { background: var(--ink); color: var(--bg); }
+
+.chamada-jardim {
+  display: grid; grid-template-columns: 44px 1fr auto; align-items: center; gap: 12px;
+  margin: 4px 0 18px; padding: 12px 14px; border-radius: var(--r-md); text-decoration: none; color: var(--ink);
+  background: linear-gradient(120deg, #23452f, var(--s2)); box-shadow: inset 0 0 0 2px var(--acc);
+}
+.chamada-icone { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--acc); color: var(--acc-ink); }
+.chamada-icone svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.chamada-txt { display: grid; gap: 2px; line-height: 1.25; }
+.chamada-txt small { color: var(--ink2); }
+.chamada-btn {
+  padding: 9px 14px; border-radius: 999px; background: var(--acc); color: var(--acc-ink); font-weight: 800; white-space: nowrap; font-size: 0.92rem;
+}
+.chamada-btn em { font-style: normal; opacity: 0.75; margin-left: 2px; }
+.chamada-jardim[data-passo="pronto"] { box-shadow: inset 0 0 0 1px var(--s4); }
+.chamada-jardim[data-passo="pronto"] .chamada-btn { background: var(--s3); color: var(--ink); }
+@media (max-width: 480px) {
+  .chamada-jardim { grid-template-columns: 40px 1fr; }
+  .chamada-icone { width: 40px; height: 40px; }
+  .chamada-btn { grid-column: 1 / -1; text-align: center; }
+}
+
+/* Meu jardim: topo enxuto (o ritual do dia aparece logo) */
+.eu-hero { display: grid; grid-template-columns: 96px 1fr auto; align-items: center; gap: 12px; margin: 4px 0 4px; }
+.eu-planta { width: 96px; }
+.eu-ident h1 { font-size: 1.45rem; }
+.eu-sementes-topo {
+  display: grid; gap: 0; justify-items: center; padding: 8px 14px; border-radius: 14px;
+  background: var(--acc); color: var(--acc-ink); text-decoration: none;
+}
+.eu-sementes-topo .eu-kpi-valor { font-size: 1.5rem; }
+.eu-sementes-topo .eu-kpi-valor svg { width: 20px; height: 20px; }
+.eu-numeros .eu-kpis { grid-template-columns: repeat(3, 1fr); }
+.eu-fala-bloco, .ritual, .cuidar, .album-estacao { scroll-margin-top: 16px; }

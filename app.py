@@ -1318,6 +1318,7 @@ def dia(data_str):
         marcos_ids=_marcos_liberados(stats_list, game.meta_floracao(len(dias_letivos_lista))),
         panorama=_panorama(db, _base_coletivo(db), request.args.get("p", "projeto")),
         dia_cheio_inicial=_dia_cheio_na_data(db, data_str, dias_letivos_lista),
+        chamada_jardim=_chamada_jardim(db, data_str),
     )
 
 
@@ -3427,6 +3428,27 @@ def _estado_minijogos(db, member_id, hoje=None):
     }
 
 
+def _chamada_jardim(db, data_str):
+    """Cartao da tela Hoje que leva cada pessoa ao proprio jardim, no passo do dia em que ela esta."""
+    hoje = date.today().isoformat()
+    if data_str != hoje or not _e_dia_letivo(hoje, db):
+        return None
+    membro = _eu_membro(db)
+    if membro is None:
+        return {"logado": False, "sementes": game.SEED_FALA_PRONTA}
+    e = _estado_minijogos(db, membro["id"], hoje)
+    if not e["fala_pronta"] and not e["vez_passou"]:
+        passo = ("fala", "Sua fala da daily já está pronta?", "Preparar minha fala", "#fala-daily", game.SEED_FALA_PRONTA)
+    elif not e["cuidar"]:
+        passo = ("cuidar", "Sua planta está esperando o cuidado de hoje.", "Cuidar da planta", "#cuidar", game.SEED_CUIDAR)
+    elif not e["fechamento_pronto"]:
+        passo = ("fechamento", "No fim do dia, feche o dia no seu jardim.", "Fechar o dia", "#ritual", game.SEED_FECHAMENTO_PRONTO)
+    else:
+        passo = ("pronto", "Tudo feito hoje. Sua planta agradece.", "Ver meu jardim", "", 0)
+    return {"logado": True, "nome": membro["name"].split()[0], "passo": passo[0], "texto": passo[1],
+            "acao": passo[2], "ancora": passo[3], "sementes": passo[4]}
+
+
 def _album_do_membro(db, member_id):
     semanas = _semanas_projeto(db)
     reg = _registros_membro(db, member_id)
@@ -3488,14 +3510,12 @@ def api_minijogo(jogo):
             return _erro("Preencha O que concluí hoje e O que fica para amanhã para fechar o dia.")
         gravar("fechamento_pronto")
         db.commit()
-        return _minijogo_resposta(db, mid, game.SEED_FECHAMENTO_PRONTO, "Dia fechado! O cuidado da planta abriu.")
+        return _minijogo_resposta(db, mid, game.SEED_FECHAMENTO_PRONTO, "Dia fechado!")
 
     if jogo == "cuidar":
         acao = p.get("acao")
         if acao not in game.CUIDADOS:
             return _erro("Cuidado inválido.")
-        if "fechamento_pronto" not in feitas:
-            return _erro("O cuidado abre depois do Fechamento pronto.")
         gravar(f"cuidar_{acao}")
         ganhou = 0
         if "cuidar" not in feitas and all(f"cuidar_{c}" in (feitas | {f"cuidar_{acao}"}) for c in game.CUIDADOS):

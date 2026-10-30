@@ -9,33 +9,17 @@
 {% endif %}
 <section class="eu-topo" aria-label="Meu jardim">
   <div class="eu-hero">
-    <div class="eu-planta">{{ conjunto(eu, 150) }}</div>
+    <div class="eu-planta">{{ conjunto(eu, 96) }}</div>
     <div class="eu-ident">
       <h1>{{ eu.name }}{% if eu.convidado %} <span class="chip chip-convidado">convidado</span>{% endif %}</h1>
       <p class="eu-estagio">{{ eu.estagio_nome }}</p>
       <a class="eu-sair" href="{{ url_for('eu_sair') }}">Sair deste aparelho</a>
     </div>
-  </div>
-
-  <div class="eu-kpis">
-    <div class="eu-kpi eu-kpi-destaque">
+    <a class="eu-kpi-destaque eu-sementes-topo" href="{{ url_for('sementes_page', m=eu.id) }}" aria-label="Minhas sementes: ver de onde vêm">
       <span class="eu-kpi-rotulo">Sementes</span>
       <span class="eu-kpi-valor"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#p-semente" class="sem-corpo"/><use href="#p-semente-brilho" class="sem-brilho"/></svg>{{ eu.sementes }}</span>
-    </div>
-    <div class="eu-kpi">
-      <span class="eu-kpi-rotulo">Sequência</span>
-      <span class="eu-kpi-valor">{{ eu.streak }}</span>
-    </div>
-    <div class="eu-kpi">
-      <span class="eu-kpi-rotulo">Dias presentes</span>
-      <span class="eu-kpi-valor">{{ eu.dias_presentes }}</span>
-    </div>
-    <div class="eu-kpi">
-      <span class="eu-kpi-rotulo">Próximo estágio</span>
-      <span class="eu-kpi-valor eu-kpi-pequeno">{% if eu.floresceu %}Floresceu{% elif eu.dias_ate_proximo %}faltam {{ eu.dias_ate_proximo }}{% else %}—{% endif %}</span>
-    </div>
+    </a>
   </div>
-  <a class="eu-link-sementes" href="{{ url_for('sementes_page', m=eu.id) }}">Ver de onde vêm as sementes →</a>
 </section>
 
 {# Ritual do dia: os 3 minigames em ordem. Cada passo leva ao lugar onde se joga. #}
@@ -51,18 +35,18 @@
         <span class="passo-sem">+{{ seeds_mj.fala_pronta }}</span>
       </a>
     </li>
-    <li class="passo" data-passo="fechamento" data-estado="{{ 'feito' if mj.fechamento_pronto else ('aberto' if tem_fechamento else 'depois') }}">
-      <a href="{{ '#fala-fechamento' if tem_fechamento else '#ritual' }}">
+    <li class="passo" data-passo="cuidar" data-estado="{{ 'feito' if mj.cuidar else 'aberto' }}">
+      <a href="#cuidar">
         <span class="passo-n" aria-hidden="true">2</span>
-        <span class="passo-txt"><b>Fechar o dia</b><small>{% if mj.fechamento_pronto %}Day Closing preenchido{% elif tem_fechamento %}preencha o Day Closing{% else %}abre no Day Closing{% endif %}</small></span>
-        <span class="passo-sem">+{{ seeds_mj.fechamento }}</span>
+        <span class="passo-txt"><b>Cuidar da planta</b><small>{% if mj.cuidar %}cuidada hoje{% else %}regar, adubar e carinho, a qualquer hora{% endif %}</small></span>
+        <span class="passo-sem">+{{ seeds_mj.cuidar }}</span>
       </a>
     </li>
-    <li class="passo" data-passo="cuidar" data-estado="{{ 'feito' if mj.cuidar else ('aberto' if mj.fechamento_pronto else 'depois') }}">
-      <a href="#cuidar">
+    <li class="passo" data-passo="fechamento" data-estado="{{ 'feito' if mj.fechamento_pronto else ('aberto' if tem_fechamento else 'depois') }}">
+      <a href="{{ '#fala-fechamento' if tem_fechamento else '#ritual' }}">
         <span class="passo-n" aria-hidden="true">3</span>
-        <span class="passo-txt"><b>Cuidar da planta</b><small>{% if mj.cuidar %}cuidada hoje{% elif mj.fechamento_pronto %}regar, adubar e carinho{% else %}depois de fechar o dia{% endif %}</small></span>
-        <span class="passo-sem">+{{ seeds_mj.cuidar }}</span>
+        <span class="passo-txt"><b>Fechar o dia</b><small>{% if mj.fechamento_pronto %}Day Closing preenchido{% elif tem_fechamento %}preencha o Day Closing{% else %}abre no Day Closing{% endif %}</small></span>
+        <span class="passo-sem">+{{ seeds_mj.fechamento }}</span>
       </a>
     </li>
   </ol>
@@ -137,7 +121,7 @@
 {% endif %}
 
 {% if mj.letivo %}
-<section class="cuidar" id="cuidar" aria-label="Cuidar da planta" data-aberto="{{ '1' if mj.fechamento_pronto else '0' }}" data-feito="{{ '1' if mj.cuidar else '0' }}">
+<section class="cuidar" id="cuidar" aria-label="Cuidar da planta" data-aberto="1" data-feito="{{ '1' if mj.cuidar else '0' }}">
   <h2 class="secao-titulo">Cuidar da planta</h2>
   <p class="sub sub-secao">Seu canteiro. Arraste o regador e o adubo até a planta e faça carinho esfregando o dedo nela.</p>
   <div class="cuidar-cena{{ ' molhado' if 'regar' in mj.cuidados }}{{ ' adubado' if 'adubar' in mj.cuidados }}" id="cuidar-cena">
@@ -169,7 +153,7 @@
       {% endfor %}
     </div>
     <div class="cuidar-planta" id="cuidar-planta" role="button" tabindex="0" aria-label="Fazer carinho na planta">{{ conjunto(eu, 130) }}</div>
-    <button type="button" class="ferramenta" data-acao="regar" aria-label="Regador: arraste até a planta"{% if not mj.fechamento_pronto %} disabled{% endif %}>
+    <button type="button" class="ferramenta" data-acao="regar" aria-label="Regador: arraste até a planta">
       <svg viewBox="0 0 100 80" aria-hidden="true">
         <path class="reg-alca" d="M44 30C44 6 80 6 80 30"/>
         <path class="reg-bico" d="M36 56L8 30l5-5 27 23z"/>
@@ -180,7 +164,7 @@
       </svg>
       <span class="ponta" aria-hidden="true"></span>
     </button>
-    <button type="button" class="ferramenta" data-acao="adubar" aria-label="Adubo: arraste até a planta"{% if not mj.fechamento_pronto %} disabled{% endif %}>
+    <button type="button" class="ferramenta" data-acao="adubar" aria-label="Adubo: arraste até a planta">
       <svg viewBox="0 0 80 90" aria-hidden="true">
         <path class="saco" d="M14 30Q8 80 20 86H60Q72 80 66 30Z"/>
         <path class="saco-boca" d="M14 30Q40 16 66 30Q40 40 14 30Z"/>
@@ -191,7 +175,6 @@
       <span class="ponta" aria-hidden="true"></span>
     </button>
     <div class="cuidar-fx" aria-hidden="true"></div>
-    <p class="cuidar-fechado">Abre depois de fechar o dia</p>
   </div>
   <p class="cuidar-dica" id="cuidar-dica" aria-live="polite"></p>
   <p class="cuidar-fim" {% if not mj.cuidar %}hidden{% endif %}>Planta cuidada hoje <b>+{{ seeds_mj.cuidar }}</b></p>
@@ -217,6 +200,25 @@
     </figure>
     {% endfor %}
   </div>
+</section>
+
+<section class="eu-numeros" aria-label="Meus números">
+  <h2 class="secao-titulo">Meus números</h2>
+  <div class="eu-kpis">
+    <div class="eu-kpi">
+      <span class="eu-kpi-rotulo">Sequência</span>
+      <span class="eu-kpi-valor">{{ eu.streak }}</span>
+    </div>
+    <div class="eu-kpi">
+      <span class="eu-kpi-rotulo">Dias presentes</span>
+      <span class="eu-kpi-valor">{{ eu.dias_presentes }}</span>
+    </div>
+    <div class="eu-kpi">
+      <span class="eu-kpi-rotulo">Próximo estágio</span>
+      <span class="eu-kpi-valor eu-kpi-pequeno">{% if eu.floresceu %}Floresceu{% elif eu.dias_ate_proximo %}faltam {{ eu.dias_ate_proximo }}{% else %}—{% endif %}</span>
+    </div>
+  </div>
+  <a class="eu-link-sementes" href="{{ url_for('sementes_page', m=eu.id) }}">Ver de onde vêm as sementes →</a>
 </section>
 
 <section class="eu-loja" aria-label="Loja">
@@ -511,18 +513,27 @@
     if (e.fala_pronta) passo('fala', 'feito', 'pronta antes da daily');
     if (e.fechamento_pronto) passo('fechamento', 'feito', 'Day Closing preenchido');
     if (e.cuidar) passo('cuidar', 'feito', 'cuidada hoje');
-    else if (e.fechamento_pronto) passo('cuidar', 'aberto', 'regar, adubar e carinho');
     var sec = document.getElementById('cuidar');
     if (sec) {
-      sec.dataset.aberto = e.fechamento_pronto ? '1' : '0';
       sec.dataset.feito = e.cuidar ? '1' : '0';
-      sec.querySelectorAll('.ferramenta').forEach(function (b) { b.disabled = !e.fechamento_pronto; });
       sec.querySelectorAll('.medidor').forEach(function (m) {
         if (e.cuidados.indexOf(m.dataset.acao) >= 0) { m.dataset.feito = '1'; m.style.setProperty('--p', 100); }
       });
       if (window.atualizarDicaCuidar) window.atualizarDicaCuidar();
       var fim = sec.querySelector('.cuidar-fim');
       if (fim) fim.hidden = !e.cuidar;
+    }
+  }
+
+  // Veio da tela Hoje com uma ancora (#fala-daily, #cuidar...): partes da pagina carregam depois
+  // (GitLab) e empurram o alvo para baixo. Se a pessoa ainda nao rolou, reposiciona uma vez.
+  if (location.hash && /^#[\w-]+$/.test(location.hash)) {
+    var alvoHash = document.querySelector(location.hash);
+    if (alvoHash) {
+      var rolouAntes = window.scrollY;
+      setTimeout(function () {
+        if (Math.abs(window.scrollY - rolouAntes) < 40) alvoHash.scrollIntoView({ block: 'start' });
+      }, 900);
     }
   }
 
@@ -547,7 +558,6 @@
 
     window.atualizarDicaCuidar = function () {
       if (!dica) return;
-      if (!aberto()) { dica.textContent = 'Feche o dia no Day Closing para abrir o canteiro.'; return; }
       if (!feito('regar')) dica.textContent = 'Arraste o regador até a planta e segure para regar.';
       else if (!feito('adubar')) dica.textContent = 'Agora arraste o saco de adubo até a planta.';
       else if (!feito('carinho')) dica.textContent = 'Esfregue o dedo na planta para fazer carinho.';
