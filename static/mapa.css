@@ -38,21 +38,19 @@
 .mapa[data-periodo="manha"] .mapa-vagalume, .mapa[data-periodo="meiodia"] .mapa-vagalume,
 .mapa[data-periodo="tarde"] .mapa-vagalume, .mapa[data-periodo="amanhecer"] .mapa-vagalume { display: none; }
 
-/* Cada canteiro: o vaso apoiado no centro do lote e a placa na ponta da frente */
+/* Cada canteiro: as plantas crescem direto na terra e a placa fica na ponta da frente */
 .lote { position: absolute; left: var(--x); top: var(--y); width: 0; height: 0; }
-/* Cada planta do canteiro fica apoiada num ponto da terra: --dx/--dy em unidades do viewBox (1/16 cqw),
-   medidos do centro do lote. A base do vaso (ou da muda solta) encosta nesse ponto. */
+/* Cada planta fica num ponto da terra: --dx/--dy em unidades do viewBox (1/16 cqw), medidos do centro do
+   lote. Sem vaso, a terra do desenho fica em y = 116 de 150: o desenho desce para a raiz tocar o ponto. */
 .lote-vaga {
   position: absolute; left: calc(var(--dx) / 16 * 1cqw * var(--k)); top: calc(var(--dy) / 16 * 1cqw * var(--k));
-  width: calc(var(--w, 13cqw) * var(--k)); transform: translate(-50%, -100%);
-  filter: drop-shadow(0 6px 4px rgba(0, 0, 0, 0.35));
+  width: calc(var(--w, 10.5cqw) * var(--k)); transform: translate(-50%, -77.5%);
+  filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.3));
 }
 .lote-vaga .planta { display: block; width: 100%; height: auto; }
-.lote-vaga.lado { --w: 7.6cqw; }
-/* sem vaso a terra do desenho fica em y = 116 de 150: desce o desenho para a raiz tocar o chao */
-.lote-vaga.solta { --w: 6.6cqw; transform: translate(-50%, -77.5%); filter: none; }
-.planta.sem-vaso .vaso, .planta.sem-vaso .semente, .planta.sem-vaso .balao,
-.planta.sem-vaso .gotas, .planta.sem-vaso .brilhos { display: none; }
+.lote-vaga.lado { --w: 6.6cqw; }
+.lote-vaga.solta { --w: 5.4cqw; }
+.planta.sem-vaso .vaso, .planta.sem-vaso .no-vaso { display: none; }
 .mapa { container-type: inline-size; }
 .lote-placa {
   position: absolute; left: 0; top: 4.6cqw; transform: translateX(-50%);
@@ -69,6 +67,7 @@
 .convidados-vasos { position: absolute; left: 0; bottom: -1.2cqw; transform: translateX(-50%); display: flex; gap: 0.6cqw; align-items: flex-end; }
 .convidado-vaso { display: grid; justify-items: center; width: 4.6cqw; color: #e9d7c1; font-size: 0.76rem; text-decoration: none; }
 .convidado-vaso span { margin-top: 1px; padding: 0 5px; border-radius: 5px; background: rgba(61, 39, 22, 0.85); }
+.convidado-vaso .planta { width: 100%; height: auto; margin-bottom: -22%; }
 
 .mapa-legenda { margin-top: 16px; }
 .mapa-legenda h2 { margin: 0 0 8px; font-size: 1.05rem; }
@@ -105,7 +104,7 @@
 .lote-terra { fill: #573a26; }
 .lote-sulco { stroke: #432c1d; stroke-width: 6; }
 .muda path { stroke: #4caf50; stroke-width: 2; stroke-linecap: round; }
-.muda ellipse { fill: #6fcf6a; }
+.muda ellipse { fill: #5fae5a; }
 .cerca .mourao { stroke: #8a5a35; stroke-width: 5; stroke-linecap: round; }
 .cerca .cerca-trilho { stroke: #b58252; stroke-width: 3.2; }
 
