@@ -29,6 +29,20 @@
     {% if admin %}<a class="btn btn-primary btn-qr-modal" href="{{ url_for('qr_page', evento='daily') }}">QR de presença</a>{% endif %}
   </div>
 </header>
+{% if chamada_jardim and papel_admin != 'computador' %}
+<a class="chamada-jardim" data-passo="{{ chamada_jardim.passo or 'entrar' }}" href="{{ url_for('eu_page') }}{{ chamada_jardim.ancora or '' }}">
+  <span class="chamada-icone" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 20v-7"/><path d="M12 14c-4 0-6-2.4-6-6 3.8 0 6 2.2 6 6z"/><path d="M12 12c0-4.4 2.8-7 7-7 0 4.4-2.4 7-7 7z"/><path d="M7.5 20h9"/></svg></span>
+  <span class="chamada-txt">
+    {% if chamada_jardim.logado %}
+    <b>{{ chamada_jardim.nome }}, {{ chamada_jardim.texto[0]|lower }}{{ chamada_jardim.texto[1:] }}</b>
+    {% else %}
+    <b>Seu jardim no celular</b>
+    <small>Prepare sua fala antes da daily e ganhe sementes.</small>
+    {% endif %}
+  </span>
+  <span class="chamada-btn">{{ chamada_jardim.acao if chamada_jardim.logado else 'Entrar' }}{% if chamada_jardim.sementes %} <em>+{{ chamada_jardim.sementes }}</em>{% endif %}</span>
+</a>
+{% endif %}
 
 {% if not e_letivo %}
 <div class="aviso">

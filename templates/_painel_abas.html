@@ -1,0 +1,7 @@
+{# Abas do Painel: o jardim do time e as paginas de informacao (sementes, historico, membros). #}
+{% set ep = request.endpoint %}
+<nav class="painel-abas" aria-label="Painel">
+  {% for nome, rotulo in [('dashboard', 'Jardim do time'), ('sementes_page', 'Sementes'), ('historico', 'Histórico'), ('membros_page', 'Membros')] %}
+  <a class="painel-aba{{ ' ativo' if ep == nome }}" href="{{ url_for(nome) }}"{% if ep == nome %} aria-current="page"{% endif %}>{{ rotulo }}</a>
+  {% endfor %}
+</nav>

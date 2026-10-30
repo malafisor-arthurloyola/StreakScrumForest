@@ -5,6 +5,7 @@
 {% block title %}Painel · Jardim da Equipe{% endblock %}
 
 {% block content %}
+{% include "_painel_abas.html" %}
 {% set ativos = membros | selectattr('active') | rejectattr('convidado') | list %}
 {% set rotulo_meta = {'presenca_pct': 'de presença do time', 'dias_cheios': 'dias com todo mundo', 'sequencia_time': 'dias cheios seguidos'} %}
 <header class="pagina-cab">
