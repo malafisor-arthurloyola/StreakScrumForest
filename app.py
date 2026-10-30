@@ -2571,6 +2571,7 @@ def _contexto_sementes(db, member_id, compare_id=None):
         "relator": game.SEED_RELATOR,
         "relator_max": game.SEED_RELATOR_MAX_POR_ATA,
         "fala_pronta": game.SEED_FALA_PRONTA,
+        "fala_avisada": game.SEED_FALA_AVISADA,
         "fechamento_pronto": game.SEED_FECHAMENTO_PRONTO,
         "cuidar": game.SEED_CUIDAR,
         "figurinha": game.SEED_FIGURINHA,
@@ -2783,7 +2784,8 @@ def eu_page():
         "eu.html", eu=stats, hoje=hoje, minhas_falas=minhas_falas,
         eu_member_id=membro["id"], mj=_estado_minijogos(db, membro["id"], hoje),
         album=_album_do_membro(db, membro["id"]), seeds_mj={
-            "fala_pronta": game.SEED_FALA_PRONTA, "fechamento": game.SEED_FECHAMENTO_PRONTO,
+            "fala_pronta": game.SEED_FALA_PRONTA, "fala_avisada": game.SEED_FALA_AVISADA,
+            "fechamento": game.SEED_FECHAMENTO_PRONTO,
             "cuidar": game.SEED_CUIDAR, "figurinha": game.SEED_FIGURINHA,
             "dourada": game.SEED_ESTACAO_COMPLETA, "min_falas": game.FIGURINHA_MIN_FALAS},
         **ctx
@@ -3418,9 +3420,12 @@ def _estado_minijogos(db, member_id, hoje=None):
     hoje = hoje or date.today().isoformat()
     feitas = _jogadas_do_dia(db, member_id, hoje)
     letivo = _e_dia_letivo(hoje, db)
+    st_daily = _status_do_evento(db, hoje, "daily").get(member_id)
     return {
         "letivo": letivo,
         "fala_pronta": "fala_pronta" in feitas,
+        "fala_avisada": "fala_avisada" in feitas and st_daily == "justificada",
+        "status_daily": st_daily or "",
         "vez_passou": "vez_daily" in feitas,
         "fechamento_pronto": "fechamento_pronto" in feitas,
         "cuidados": [c for c in game.CUIDADOS if f"cuidar_{c}" in feitas],
@@ -3437,7 +3442,7 @@ def _chamada_jardim(db, data_str):
     if membro is None:
         return {"logado": False, "sementes": game.SEED_FALA_PRONTA}
     e = _estado_minijogos(db, membro["id"], hoje)
-    if not e["fala_pronta"] and not e["vez_passou"]:
+    if not e["fala_pronta"] and not e["fala_avisada"] and not e["vez_passou"]:
         passo = ("fala", "Sua fala da daily já está pronta?", "Preparar minha fala", "#fala-daily", game.SEED_FALA_PRONTA)
     elif not e["cuidar"]:
         passo = ("cuidar", "Sua planta está esperando o cuidado de hoje.", "Cuidar da planta", "#cuidar", game.SEED_CUIDAR)
@@ -3453,7 +3458,8 @@ def _album_do_membro(db, member_id):
     semanas = _semanas_projeto(db)
     reg = _registros_membro(db, member_id)
     falas = [d for d, j in _jogadas_por_membro(db).get(member_id, [])
-             if j == "fala_pronta" and reg.get(d, {}).get("presente", False)]
+             if (j == "fala_pronta" and reg.get(d, {}).get("presente", False))
+             or (j == "fala_avisada" and reg.get(d, {}).get("justificada", False) and not reg.get(d, {}).get("presente", False))]
     album = game.album_estacao(falas, semanas, _sprint_semanas(db))
     especies = [i["id"] for i in catalog.ITENS if i["tipo"] == "especie" and not i.get("padrao")] or ["muda"]
     hoje = date.today().isoformat()
@@ -3499,9 +3505,39 @@ def api_minijogo(jogo):
             return _erro("Preencha O que fiz e O que vou fazer para a fala ficar pronta.")
         if "vez_daily" in feitas:
             return _erro("Sua vez na daily já passou hoje. A fala continua valendo na ata; amanhã dá para deixar pronta antes.")
+        if _status_do_evento(db, hoje, "daily").get(mid) == "justificada":
+            return _erro("Você avisou que não vai hoje. Se for à daily, desfaça o aviso primeiro.")
         gravar("fala_pronta")
         db.commit()
         return _minijogo_resposta(db, mid, game.SEED_FALA_PRONTA, "Fala pronta! Ela vale no dia em que você marcar presença.")
+
+    if jogo == "avisar":
+        # Nao vai a daily: a fala fica na ata (o relator le) e a daily fica como "Avisou".
+        st = _status_do_evento(db, hoje, "daily").get(mid)
+        if st == "presente":
+            return _erro("Você já está presente na daily de hoje.")
+        if st == "faltou":
+            return _erro("O Scrum já registrou falta na daily de hoje. Fale com ele para trocar por Avisou.")
+        if not _fala_preenchida(db, mid, hoje, "daily"):
+            return _erro("Preencha O que fiz e O que vou fazer: é o que o relator vai ler por você.")
+        eventos = EVENT_KEYS if p.get("dia_todo") else ["daily"]
+        for ev in eventos:
+            if _status_do_evento(db, hoje, ev).get(mid) in (None, "justificada"):
+                _definir_status(db, mid, hoje, ev, "justificada")
+        ja = "fala_avisada" in feitas
+        gravar("fala_avisada")
+        db.commit()
+        return _minijogo_resposta(db, mid, 0 if ja else game.SEED_FALA_AVISADA,
+                                  "Aviso registrado. Sua parte vai para a ata da daily.")
+
+    if jogo == "desavisar":
+        # Mudou de ideia e vai: tira o Avisou que ainda estiver la (nao mexe em presenca ou falta).
+        for ev in EVENT_KEYS:
+            if _status_do_evento(db, hoje, ev).get(mid) == "justificada":
+                _definir_status(db, mid, hoje, ev, None)
+        db.execute("DELETE FROM minijogos WHERE member_id = ? AND data = ? AND jogo = 'fala_avisada'", (mid, hoje))
+        db.commit()
+        return _minijogo_resposta(db, mid, 0, "Aviso desfeito. Te esperamos na daily!")
 
     if jogo == "fechamento":
         if "fechamento_pronto" in feitas:

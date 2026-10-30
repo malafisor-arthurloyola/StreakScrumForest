@@ -28,11 +28,11 @@
   <h2 class="secao-titulo">Seu dia no jardim</h2>
   {% if mj.letivo %}
   <ol class="ritual-passos">
-    <li class="passo" data-passo="fala" data-estado="{{ 'feito' if mj.fala_pronta else ('perdido' if mj.vez_passou else 'aberto') }}">
+    <li class="passo" data-passo="fala" data-estado="{{ 'feito' if (mj.fala_pronta or mj.fala_avisada) else ('perdido' if mj.vez_passou else 'aberto') }}">
       <a href="#fala-daily">
         <span class="passo-n" aria-hidden="true">1</span>
-        <span class="passo-txt"><b>Fala pronta</b><small>{% if mj.fala_pronta %}pronta antes da daily{% elif mj.vez_passou %}sua vez já passou hoje{% else %}antes da sua vez na daily{% endif %}</small></span>
-        <span class="passo-sem">+{{ seeds_mj.fala_pronta }}</span>
+        <span class="passo-txt"><b>Fala pronta</b><small>{% if mj.fala_pronta %}pronta antes da daily{% elif mj.fala_avisada %}avisou e deixou a fala{% elif mj.vez_passou %}sua vez já passou hoje{% else %}antes da sua vez na daily{% endif %}</small></span>
+        <span class="passo-sem">+{{ seeds_mj.fala_avisada if mj.fala_avisada else seeds_mj.fala_pronta }}</span>
       </a>
     </li>
     <li class="passo" data-passo="cuidar" data-estado="{{ 'feito' if mj.cuidar else 'aberto' }}">
@@ -65,13 +65,25 @@
   </div>
   {% for f in minhas_falas %}
   <article class="eu-fala-bloco" data-tipo="{{ f.tipo }}" id="fala-{{ f.tipo }}">
-    <h3>{{ f.rotulo }}</h3>
+    {% if f.tipo == 'daily' %}
+      {% set est = 'pronta' if mj.fala_pronta else ('avisou' if mj.fala_avisada else 'rascunho') %}
+      {% set est_txt = {'pronta': 'Pronta', 'avisou': 'Avisou que não vai', 'rascunho': 'Rascunho'}[est] %}
+    {% else %}
+      {% set est = 'pronta' if mj.fechamento_pronto else 'rascunho' %}
+      {% set est_txt = {'pronta': 'Dia fechado', 'rascunho': 'Rascunho'}[est] %}
+    {% endif %}
+    <div class="fala-cab">
+      <h3>{{ f.rotulo }}</h3>
+      <span class="fala-estado" data-estado="{{ est }}">{{ est_txt }}</span>
+      <span class="fala-salvo" aria-live="polite"></span>
+    </div>
     <label><span class="vasinho{{ ' cheio' if f.feito.strip() }}" data-vaso="feito" aria-hidden="true"></span>{{ f.rot_feito }}
       <button type="button" class="gl-ajuda" aria-label="O que é este campo" data-ajuda="{{ 'O que você concluiu ou avançou desde a última daily. Sugerimos seus cards que foram para Waiting review, Review ou foram fechados nos últimos dias.' if f.tipo == 'daily' else 'O que você concluiu hoje. Sugerimos seus cards em Doing, em revisão ou fechados; use a busca para achar outro.' }}">i</button>
     </label>
     <textarea class="eu-fala-texto" data-campo="feito" rows="2" placeholder="pode citar cards como #101">{{ f.feito }}</textarea>
     <div class="gl-chips" data-chips-para="feito" hidden></div>
-    <div class="gl-backlog">
+    <button type="button" class="gl-mais">Buscar outro card</button>
+    <div class="gl-backlog" hidden>
           <input type="search" class="gl-sprint-busca" data-para="feito" placeholder="buscar card concluído ou em revisão (número ou título)" aria-label="Buscar card">
           <div class="gl-sprint-res" hidden></div>
         </div>
@@ -81,7 +93,8 @@
     <textarea class="eu-fala-texto" data-campo="planejado" rows="2"{% if f.sugestao and not f.planejado %} data-sugerido="1"{% endif %}>{{ f.planejado or f.sugestao }}</textarea>
     {% if f.sugestao and not f.planejado %}<p class="fala-sugestao">Veio do seu Day Closing de ontem. Edite se mudou algo; ele é salvo quando você confirmar.</p>{% endif %}
     <div class="gl-chips" data-chips-para="planejado" hidden></div>
-    <div class="gl-backlog">
+    <button type="button" class="gl-mais">Buscar outro card</button>
+    <div class="gl-backlog" hidden>
       <input type="search" class="gl-backlog-busca" placeholder="buscar no Backlog (número ou título)" aria-label="Buscar card no Backlog">
       <div class="gl-backlog-res" hidden></div>
     </div>
@@ -91,7 +104,8 @@
     </label>
     <textarea class="eu-fala-texto" data-campo="review" rows="2" placeholder="cards que você vai revisar">{{ f.review }}</textarea>
     <div class="gl-chips" data-chips-para="review" hidden></div>
-    <div class="gl-backlog">
+    <button type="button" class="gl-mais">Buscar outro card</button>
+    <div class="gl-backlog" hidden>
           <input type="search" class="gl-sprint-busca" data-para="review" placeholder="buscar card em revisão (número ou título)" aria-label="Buscar card">
           <div class="gl-sprint-res" hidden></div>
         </div>
@@ -100,11 +114,25 @@
       {% if f.tipo == 'daily' %}
         {% if mj.fala_pronta %}
         <p class="selo-pronto">Fala pronta antes da daily <b>+{{ seeds_mj.fala_pronta }}</b></p>
+        {% elif mj.fala_avisada %}
+        <p class="selo-pronto selo-aviso">Você avisou que não vai. O relator lê sua parte na daily. <b>+{{ seeds_mj.fala_avisada }}</b></p>
+        <button type="button" class="link-acao" data-minijogo-simples="desavisar">Vou à daily, desfazer o aviso</button>
         {% elif mj.vez_passou %}
         <p class="fala-acao-nota">Sua vez na daily já passou hoje: a fala continua valendo na ata. Amanhã, deixe pronta antes.</p>
         {% elif mj.letivo %}
-        <button type="button" class="btn btn-primary btn-minijogo" data-minijogo="fala-pronta">Minha fala está pronta <span class="btn-sem">+{{ seeds_mj.fala_pronta }}</span></button>
-        <p class="fala-acao-nota">Preencha O que fiz e O que vou fazer antes da sua vez na rodada. Vale no dia em que você marcar presença.</p>
+        <button type="button" class="btn btn-primary btn-minijogo" data-minijogo="fala-pronta">Fala pronta <span class="btn-sem">+{{ seeds_mj.fala_pronta }}</span></button>
+        {% if mj.status_daily != 'presente' and mj.status_daily != 'faltou' %}
+        <button type="button" class="btn btn-ghost btn-avisar" aria-expanded="false" aria-controls="aviso-daily">Não vou hoje <span class="btn-sem">+{{ seeds_mj.fala_avisada }}</span></button>
+        <div class="aviso-painel" id="aviso-daily" hidden>
+          <p>A daily fica como <b>Avisou</b> (não conta como falta) e o relator lê a sua parte por você.</p>
+          <label class="aviso-dia-todo"><input type="checkbox" id="aviso-dia-todo"> Também não vou no resto do dia</label>
+          <div class="aviso-botoes">
+            <button type="button" class="btn btn-primary btn-minijogo" data-minijogo="avisar">Avisar e enviar a fala <span class="btn-sem">+{{ seeds_mj.fala_avisada }}</span></button>
+            <button type="button" class="btn btn-ghost aviso-cancelar">Cancelar</button>
+          </div>
+        </div>
+        {% endif %}
+        <p class="fala-acao-nota">Preencha O que fiz e O que vou fazer antes da sua vez na rodada.</p>
         {% endif %}
       {% else %}
         {% if mj.fechamento_pronto %}
@@ -312,12 +340,53 @@
         })
         .then(function (res) {
           var bom = res.ok && res.j.ok;
-          if (!bom || !opcoes.quieto) mostrarToast(bom ? 'Salvo' : (res.j.erro || 'Não salvou.'), bom ? 'sucesso' : 'info');
+          if (!bom) mostrarToast(res.j.erro || 'Não salvou.', 'info');
+          else marcarSalvo(tipo);
           if (bom && aoOk) aoOk();
           return bom;
         })
         .catch(function () { if (!opcoes.keepalive) mostrarToast('Sem conexão. O texto continua aqui; tente de novo.', 'info'); return false; });
     }
+    // "Salvo" discreto no canto do bloco, em vez de um aviso a cada campo.
+    function marcarSalvo(tipo) {
+      var el = secFala.querySelector('#fala-' + tipo + ' .fala-salvo');
+      if (!el) return;
+      var d = new Date();
+      el.textContent = 'Salvo ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+      el.classList.remove('pisca'); void el.offsetWidth; el.classList.add('pisca');
+    }
+    // Busca de outro card fica recolhida: os chips ja cobrem o caso comum.
+    secFala.querySelectorAll('.gl-mais').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var caixa = b.nextElementSibling;
+        if (!caixa) return;
+        caixa.hidden = false;
+        b.hidden = true;
+        var inp = caixa.querySelector('input');
+        if (inp) inp.focus();
+      });
+    });
+    // Nao vou a daily: abre a confirmacao logo abaixo do botao.
+    secFala.querySelectorAll('.btn-avisar').forEach(function (b) {
+      var painel = document.getElementById(b.getAttribute('aria-controls'));
+      b.addEventListener('click', function () {
+        var abrir = painel.hidden;
+        painel.hidden = !abrir;
+        b.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+      });
+      var cancelar = painel.querySelector('.aviso-cancelar');
+      if (cancelar) cancelar.addEventListener('click', function () { painel.hidden = true; b.setAttribute('aria-expanded', 'false'); });
+    });
+    secFala.querySelectorAll('[data-minijogo-simples]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        b.disabled = true;
+        pedirMinijogo(b.dataset.minijogoSimples, {}).then(function (j) {
+          if (!j) { b.disabled = false; return; }
+          if (j.mensagem) mostrarToast(j.mensagem, 'sucesso');
+          setTimeout(function () { window.location.reload(); }, 600);
+        });
+      });
+    });
     var ESPERA_FALA = 1000;
     var textos = secFala.querySelectorAll('.eu-fala-texto');
     function salvarSeMudou(ta, opcoes) {
@@ -360,15 +429,35 @@
         var salvos = Array.prototype.map.call(bloco.querySelectorAll('.eu-fala-texto'), function (ta) { return salvarSeMudou(ta, { quieto: true }); });
         Promise.all(salvos).then(function (oks) {
           if (oks.indexOf(false) >= 0) { btn.disabled = false; return; }
-          return pedirMinijogo(btn.dataset.minijogo, {}).then(function (j) {
+          var jogo = btn.dataset.minijogo;
+          var dados = jogo === 'avisar' ? { dia_todo: !!(document.getElementById('aviso-dia-todo') || {}).checked } : {};
+          return pedirMinijogo(jogo, dados).then(function (j) {
             if (!j) { btn.disabled = false; return; }
             comemorar(bloco, j.ganhou);
+            var SELO = { fechamento: ['Dia fechado', 'Dia fechado'], avisar: ['Você avisou que não vai. O relator lê sua parte na daily.', 'Avisou que não vai'],
+                         'fala-pronta': ['Fala pronta antes da daily', 'Pronta'] }[jogo];
             var p = document.createElement('p');
-            p.className = 'selo-pronto';
-            p.innerHTML = (btn.dataset.minijogo === 'fechamento' ? 'Dia fechado' : 'Fala pronta antes da daily') + ' <b>+' + (j.ganhou || 0) + '</b>';
+            p.className = 'selo-pronto' + (jogo === 'avisar' ? ' selo-aviso' : '');
+            p.innerHTML = SELO[0] + ' <b>+' + (j.ganhou || 0) + '</b>';
+            var chip = bloco.querySelector('.fala-estado');
+            if (chip) { chip.textContent = SELO[1]; chip.dataset.estado = jogo === 'avisar' ? 'avisou' : 'pronta'; }
             var acao = btn.closest('.fala-acao');
             acao.innerHTML = '';
             acao.appendChild(p);
+            if (jogo === 'avisar') {
+              var desf = document.createElement('button');
+              desf.type = 'button';
+              desf.className = 'link-acao';
+              desf.textContent = 'Vou à daily, desfazer o aviso';
+              desf.addEventListener('click', function () {
+                desf.disabled = true;
+                pedirMinijogo('desavisar', {}).then(function (k) {
+                  if (!k) { desf.disabled = false; return; }
+                  setTimeout(function () { window.location.reload(); }, 400);
+                });
+              });
+              acao.appendChild(desf);
+            }
             aplicarEstado(j.estado);
             if (j.mensagem) mostrarToast(j.mensagem, 'sucesso');
           });
@@ -511,6 +600,7 @@
       if (small && texto) small.textContent = texto;
     }
     if (e.fala_pronta) passo('fala', 'feito', 'pronta antes da daily');
+    else if (e.fala_avisada) passo('fala', 'feito', 'avisou e deixou a fala');
     if (e.fechamento_pronto) passo('fechamento', 'feito', 'Day Closing preenchido');
     if (e.cuidar) passo('cuidar', 'feito', 'cuidada hoje');
     var sec = document.getElementById('cuidar');
