@@ -101,6 +101,8 @@ def main():
                 )
                 continue
             for ev, p in (("daily", 1.0), ("dev", p_dev), ("encerramento", p_enc)):
+                if ev not in appmod.game.eventos_do_dia(d):     # sexta: so a daily
+                    continue
                 if ev == "daily" or _pseudo(nome, i, ev) <= p:
                     con.execute(
                         "INSERT OR IGNORE INTO attendance (member_id, event_date, event_type, status) VALUES (?,?,?,'presente')",

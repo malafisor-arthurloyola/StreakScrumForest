@@ -40,6 +40,15 @@ EVENTS = [
     ("encerramento", "Encerramento"),
 ]
 EVENT_KEYS = [chave for chave, _ in EVENTS]
+# Mesmo filtro de game.registro_vale, em SQL (tabela com alias "a"): na sexta (strftime %w = 5)
+# so a daily existe; falta e aviso no Dev/encerramento da sexta nao contam.
+SQL_REGISTRO_VALE = "(a.status = 'presente' OR a.event_type = 'daily' OR strftime('%w', a.event_date) <> '5')"
+
+
+def _eventos_do_dia(data_str):
+    """[(chave, rotulo)] dos eventos que acontecem na data (sexta: so a daily)."""
+    do_dia = game.eventos_do_dia(data_str)
+    return [(k, nome) for k, nome in EVENTS if k in do_dia]
 
 DEFAULT_MEMBERS = [
     "Arthur", "Bento", "Dominique", "Vitor", "Tiago",
@@ -264,6 +273,7 @@ ENDPOINTS_ADMIN = {
     "qr_page", "baixar_banco",
 }
 MSG_SO_ADMIN = "Só o administrador (o Scrum do dia ou quem está no computador) pode fazer isso."
+MSG_SO_DAILY = "Na sexta só tem daily (a aula vai até 12h): não há Dev nem encerramento."
 
 
 def _requisicao_local():
@@ -807,6 +817,8 @@ def _registros_membro(db, member_id):
     ).fetchall()
     by_date = {}
     for r in rows:
+        if not game.registro_vale(r["event_date"], r["event_type"], r["status"]):
+            continue
         by_date.setdefault(r["event_date"], {})
         if r["status"] == "presente":
             by_date[r["event_date"]]["presente"] = True
@@ -842,6 +854,8 @@ def _registros_globais(db):
     """{data: {member_id: {'presente': True, ...}}} em uma unica consulta."""
     glob = {}
     for r in db.execute("SELECT member_id, event_date, event_type, status FROM attendance").fetchall():
+        if not game.registro_vale(r["event_date"], r["event_type"], r["status"]):
+            continue
         reg = glob.setdefault(r["event_date"], {}).setdefault(r["member_id"], {})
         reg[r["status"]] = True
         if r["status"] == "presente":
@@ -1101,8 +1115,8 @@ def _extras_dia(db, ids, data_str, dias_set):
     datas = [seg + timedelta(days=i) for i in range(5)]
     marcadores = ",".join("?" * len(ids))
     rows = db.execute(
-        f"SELECT member_id, event_date, status FROM attendance "
-        f"WHERE member_id IN ({marcadores}) AND event_date BETWEEN ? AND ?",
+        f"SELECT member_id, event_date, status FROM attendance a "
+        f"WHERE member_id IN ({marcadores}) AND event_date BETWEEN ? AND ? AND {SQL_REGISTRO_VALE}",
         (*ids, datas[0].isoformat(), datas[-1].isoformat()),
     ).fetchall()
     regs = {}
@@ -1154,13 +1168,14 @@ def cena_contexto():
 
 def get_overall_trend(db, dias=14):
     linhas = db.execute(
-        """
+        f"""
         SELECT event_date,
                SUM(CASE WHEN status = 'presente' THEN 1 ELSE 0 END) AS presentes,
                SUM(CASE WHEN status = 'faltou' THEN 1 ELSE 0 END) AS faltas,
                COUNT(*) as total_reg
         FROM attendance a
         JOIN members m ON m.id = a.member_id AND COALESCE(m.tipo, 'equipe') = 'equipe'
+        WHERE {SQL_REGISTRO_VALE}
         GROUP BY event_date
         ORDER BY event_date DESC
         LIMIT ?
@@ -1195,13 +1210,13 @@ def build_line_chart(serie, width=600, height=160, pad_x=24, pad_y=20):
 
 def get_presencas_por_membro(db):
     linhas = db.execute(
-        """
+        f"""
         SELECT m.id, m.name,
                SUM(CASE WHEN a.status = 'presente' THEN 1 ELSE 0 END) AS presentes,
                SUM(CASE WHEN a.status = 'justificada' THEN 1 ELSE 0 END) AS justificadas,
                SUM(CASE WHEN a.status = 'faltou' THEN 1 ELSE 0 END) AS faltas
         FROM members m
-        LEFT JOIN attendance a ON a.member_id = m.id
+        LEFT JOIN attendance a ON a.member_id = m.id AND {SQL_REGISTRO_VALE}
         WHERE m.active = 1 AND COALESCE(m.tipo, 'equipe') = 'equipe'
         GROUP BY m.id
         ORDER BY presentes DESC
@@ -1291,9 +1306,15 @@ def dia(data_str):
     stats_list = get_member_stats(db, dias_letivos_lista)
     stats_by_id = {s["id"]: s for s in stats_list}
 
+    # Sexta so tem daily. Uma coluna de Dev/encerramento so aparece numa sexta se ja houver
+    # registro antigo nela (para dar para ver e limpar); nada novo e marcado ali.
+    do_dia = set(game.eventos_do_dia(data_str))
+    com_registro = {r["event_type"] for r in registros}
+    eventos_visiveis = [(k, nome) for k, nome in EVENTS if k in do_dia or k in com_registro]
+
     linhas = []
     for m in membros:
-        celulas = {ev: status_map.get((m["id"], ev)) for ev in EVENT_KEYS}
+        celulas = {ev: status_map.get((m["id"], ev)) for ev, _ in eventos_visiveis}
         linhas.append({"member": m, "cells": celulas, "stats": stats_by_id.get(m["id"])})
 
     dia_anterior = (data_atual - timedelta(days=1)).isoformat()
@@ -1311,7 +1332,9 @@ def dia(data_str):
         "dia.html",
         data_str=data_str,
         linhas=linhas,
-        events=EVENTS,
+        events=eventos_visiveis,
+        eventos_do_dia=do_dia,
+        so_daily=do_dia == {"daily"},
         hoje=date.today().isoformat(),
         dia_anterior=dia_anterior,
         dia_seguinte=dia_seguinte,
@@ -1967,11 +1990,13 @@ def _presenca_por_evento(db, decorridos, ativos_ids):
         (*decorridos, *ativos_ids),
     ).fetchall()
     cont = {r["event_type"]: r["c"] for r in rows}
-    possiveis = len(decorridos) * len(ativos_ids)
-    return [
-        {"chave": k, "nome": nome, "pct": round(100 * cont.get(k, 0) / possiveis)}
-        for k, nome in EVENTS
-    ]
+    # o Dev e o encerramento nao existem na sexta: a conta de cada evento so usa os dias em que ele houve
+    saida = []
+    for k, nome in EVENTS:
+        possiveis = sum(1 for d in decorridos if k in game.eventos_do_dia(d)) * len(ativos_ids)
+        saida.append({"chave": k, "nome": nome,
+                      "pct": min(100, round(100 * cont.get(k, 0) / possiveis)) if possiveis else 0})
+    return saida
 
 
 def _resumo_sprint(db, ctx, n):
@@ -2097,14 +2122,15 @@ def membro_page(member_id):
 def historico():
     db = get_db()
     dias = db.execute(
-        """
+        f"""
         SELECT
             event_date,
             COUNT(*) FILTER (WHERE status = 'presente') AS presentes,
             COUNT(*) FILTER (WHERE status = 'faltou') AS faltas,
             COUNT(*) FILTER (WHERE status = 'justificada') AS justificadas,
             COUNT(DISTINCT member_id) AS membros_registrados
-        FROM attendance
+        FROM attendance a
+        WHERE {SQL_REGISTRO_VALE}
         GROUP BY event_date
         ORDER BY event_date DESC
         """
@@ -2258,6 +2284,8 @@ def api_attendance():
         abort(400)
     if status not in (None, "presente", "faltou", "justificada"):
         abort(400)
+    if status is not None and event_type not in game.eventos_do_dia(event_date):
+        return _erro(MSG_SO_DAILY)   # limpar (status None) continua liberado, para registros antigos
 
     db = get_db()
     membro = db.execute("SELECT id FROM members WHERE id = ?", (member_id,)).fetchone()
@@ -2302,6 +2330,8 @@ def api_marcar_todos():
         abort(400)
     if tipo not in (None, "equipe", "convidado"):
         abort(400)
+    if event_type not in game.eventos_do_dia(event_date):
+        return _erro(MSG_SO_DAILY)
 
     db = get_db()
     if tipo is None:
@@ -2592,12 +2622,16 @@ def _contexto_sementes(db, member_id, compare_id=None):
     # mesmas funcoes de game.py para o grafico nunca mentir se as constantes mudarem.
     dias = _dias_letivos(db)
     semanas = _semanas_projeto(db)
+    # Na sexta so ha daily: o dedicado nao tem Dev, encerramento, Day Closing nem "Fechar o dia".
     regs_dedicado = {
-        d: {"presente": True, "eventos": set(game.SEED_POR_EVENTO)} for d in dias
+        d: {"presente": True, "eventos": set(game.eventos_do_dia(d))} for d in dias
     }
-    jog_ded = [(d, j) for d in dias for j in game.MINIJOGOS if j != "fala_avisada"]    # o dedicado vai a todas
+    jog_ded = [(d, j) for d in dias for j in game.MINIJOGOS
+               if j != "fala_avisada"                                   # o dedicado vai a todas
+               and (j != "fechamento_pronto" or "encerramento" in game.eventos_do_dia(d))]
+    atas_ded = sum(2 if "encerramento" in game.eventos_do_dia(d) else 1 for d in dias)
     ded = game.calcular_sementes(dias, semanas, regs_dedicado, True, dias_cheios=set(dias),
-                                 atas_com_fala=2 * len(dias),
+                                 atas_com_fala=atas_ded,
                                  minijogos=game.premios_minijogos(jog_ded, semanas, regs_dedicado, _sprint_semanas(db)))
     composicao = [
         {"id": "eventos", "rotulo": "Presença nos eventos", "valor": ded["por_presenca"]},
@@ -2825,6 +2859,11 @@ def _fica_para_amanha(db, member_id, hoje):
     r = db.execute(
         "SELECT planejado FROM ata_falas WHERE member_id = ? AND tipo = 'fechamento' AND data = ?",
         (member_id, anteriores[-1])).fetchone()
+    if r is None and "encerramento" not in game.eventos_do_dia(anteriores[-1]):
+        # depois de uma sexta (sem Day Closing), o plano que ficou e o "O que vou fazer" da daily dela
+        r = db.execute(
+            "SELECT planejado FROM ata_falas WHERE member_id = ? AND tipo = 'daily' AND data = ?",
+            (member_id, anteriores[-1])).fetchone()
     return (r["planejado"] or "").strip() if r else ""
 
 
@@ -2894,6 +2933,8 @@ def qr_page(evento):
     if evento not in EVENT_KEYS:
         abort(404)
     hoje = date.today().isoformat()
+    if evento not in game.eventos_do_dia(hoje):   # sexta: so o QR da daily
+        return redirect(url_for("qr_page", evento="daily", **request.args))
     codigo = codigo_do_evento(hoje, evento)
     caminho = url_for("presenca_page", evento=evento, codigo=codigo)
     # Preferimos o IP da maquina na rede local, para o celular (mesma Wi-Fi) abrir direto.
@@ -2914,6 +2955,7 @@ def qr_page(evento):
         template,
         evento=evento,
         evento_nome=EVENT_NOMES.get(evento, evento),
+        eventos_qr=_eventos_do_dia(hoje),
         codigo=codigo,
         url=url,
         caminho=caminho,
@@ -2965,10 +3007,13 @@ def _salvar_fala(db, data_str, tipo, member_id, feito=None, planejado=None, revi
 
 
 def _definir_status(db, member_id, data_str, evento, status):
-    """Define (ou apaga, se status vazio) a presenca da pessoa naquele evento do dia."""
+    """Define (ou apaga, se status vazio) a presenca da pessoa naquele evento do dia.
+    Evento que nao acontece no dia (Dev ou encerramento na sexta) nao recebe status novo."""
     if status in (None, ""):
         db.execute("DELETE FROM attendance WHERE member_id = ? AND event_date = ? AND event_type = ?",
                    (member_id, data_str, evento))
+        return
+    if evento not in game.eventos_do_dia(data_str):
         return
     db.execute(
         """
@@ -3002,6 +3047,11 @@ def presenca_page(evento, codigo):
         # precisa estar logado no /eu para marcar a propria presenca
         destino = request.full_path.rstrip("?")
         return render_template("presenca.html", estado="sem_login", destino=destino, **base)
+
+    if evento not in game.eventos_do_dia(hoje):
+        if request.method == "POST":
+            return _erro(MSG_SO_DAILY)
+        return render_template("presenca.html", estado="sem_evento", **base)
 
     if not valido and request.method != "POST":
         return render_template("presenca.html", estado="expirado",
@@ -3215,6 +3265,11 @@ def ata_page(data_str, tipo):
     except ValueError:
         abort(404)
     db = get_db()
+    # sexta nao tem Day Closing; uma ata antiga de sexta continua abrindo
+    tem_fechamento = (ATA_EVENTO["fechamento"] in game.eventos_do_dia(data_str)
+                      or _carregar_ata(db, data_str, "fechamento") is not None)
+    if tipo == "fechamento" and not tem_fechamento:
+        return redirect(url_for("ata_page", data_str=data_str, tipo="daily"))
     cfg = _get_config(db)
     cab = _carregar_ata(db, data_str, tipo)
     linhas = _linhas_da_ata(db, data_str, tipo)
@@ -3237,6 +3292,7 @@ def ata_page(data_str, tipo):
         idioma_ata=cfg.get("idioma_ata", "pt"),
         rot_feito=ATA_ROTULOS_FALA[tipo][0], rot_planejado=ATA_ROTULOS_FALA[tipo][1],
         evento_qr=ATA_EVENTO[tipo],
+        tem_fechamento=tem_fechamento,
     )
 
 
@@ -3454,6 +3510,7 @@ def _estado_minijogos(db, member_id, hoje=None):
         "status_daily": st_daily or "",
         "vez_passou": "vez_daily" in feitas,
         "fechamento_pronto": "fechamento_pronto" in feitas,
+        "tem_fechamento": "encerramento" in game.eventos_do_dia(hoje),   # sexta nao tem Day Closing
         "cuidados": [c for c in game.CUIDADOS if f"cuidar_{c}" in feitas],
         "cuidar": "cuidar" in feitas,
     }
@@ -3472,7 +3529,7 @@ def _chamada_jardim(db, data_str):
         passo = ("fala", "Sua fala da daily já está pronta?", "Preparar minha fala", "#fala-daily", game.SEED_FALA_PRONTA)
     elif not e["cuidar"]:
         passo = ("cuidar", "Sua planta está esperando o cuidado de hoje.", "Cuidar da planta", "#cuidar", game.SEED_CUIDAR)
-    elif not e["fechamento_pronto"]:
+    elif not e["fechamento_pronto"] and e["tem_fechamento"]:
         passo = ("fechamento", "No fim do dia, feche o dia no seu jardim.", "Fechar o dia", "#ritual", game.SEED_FECHAMENTO_PRONTO)
     else:
         if _amanha_aberto(db, hoje):
@@ -3577,6 +3634,8 @@ def api_minijogo(jogo):
         return resp(0, "Aviso desfeito. Te esperamos na daily!")
 
     if jogo == "fechamento":
+        if "encerramento" not in game.eventos_do_dia(hoje):
+            return _erro("Sexta não tem Day Closing: a aula vai até 12h. O dia fecha na daily.")
         if "fechamento_pronto" in feitas:
             return resp(0, "O dia já estava fechado.")
         if not _fala_preenchida(db, mid, hoje, "fechamento"):

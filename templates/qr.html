@@ -20,7 +20,7 @@
   </div>
 
   <div class="qr-eventos" aria-label="Trocar de evento">
-    {% for chave, label in [('daily','Daily'),('dev','Presença no Dev'),('encerramento','Encerramento')] %}
+    {% for chave, label in eventos_qr %}
     <a class="btn {{ 'btn-primary' if chave == evento else 'btn-ghost' }}" href="{{ url_for('qr_page', evento=chave) }}">{{ label }}</a>
     {% endfor %}
   </div>

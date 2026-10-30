@@ -9,7 +9,7 @@
   </div>
   <div class="date-nav nao-imprime">
     <a class="btn {{ 'btn-primary' if tipo == 'daily' else 'btn-ghost' }}" href="{{ url_for('ata_page', data_str=data_str, tipo='daily') }}">Daily</a>
-    <a class="btn {{ 'btn-primary' if tipo == 'fechamento' else 'btn-ghost' }}" href="{{ url_for('ata_page', data_str=data_str, tipo='fechamento') }}">Day Closing</a>
+    {% if tem_fechamento %}<a class="btn {{ 'btn-primary' if tipo == 'fechamento' else 'btn-ghost' }}" href="{{ url_for('ata_page', data_str=data_str, tipo='fechamento') }}">Day Closing</a>{% endif %}
     <a class="btn btn-ghost" href="{{ url_for('ata_imprimir', data_str=data_str, tipo=tipo) }}">Ver / exportar</a>
     {% if admin %}<a class="btn btn-primary btn-qr-modal" href="{{ url_for('qr_page', evento=evento_qr) }}">QR de presença</a>{% endif %}
   </div>

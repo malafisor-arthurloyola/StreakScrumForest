@@ -11,6 +11,11 @@
     <p class="sub">Entre primeiro no seu jardim com o seu PIN. Depois escaneie o QR de novo.</p>
     <a class="btn btn-primary presenca-btn" href="{{ url_for('eu_page') }}">Abrir meu jardim</a>
 
+  {% elif estado == 'sem_evento' %}
+    <h1>Sexta só tem daily</h1>
+    <p class="sub">A aula vai até 12h, então hoje não há {{ evento_nome }}. A presença de hoje é só a da daily.</p>
+    <a class="btn btn-ghost presenca-btn" href="{{ url_for('eu_page') }}">Ir para o meu jardim</a>
+
   {% elif estado == 'expirado' %}
     <h1>Código expirado</h1>
     <p class="sub">Este QR da {{ evento_nome }} não vale mais. Peça para reabrirem o QR e escaneie de novo.</p>

@@ -3,6 +3,7 @@ na Day Closing: a pessoa lia o QR, escrevia com calma e, ao salvar, o site recus
 import sqlite3
 import time
 import unittest
+from unittest import mock
 
 from test_fase5 import DB, HOJE, Fase5Base, appmod
 
@@ -12,6 +13,10 @@ VELHO = time.time() - 3 * appmod.JANELA_QR_SEG     # um codigo de meia hora atra
 class TestQrExpirado(Fase5Base):
     def setUp(self):
         super().setUp()
+        # usa o Dev/encerramento de hoje (relogio real); numa sexta eles nao existem
+        sexta = mock.patch.object(appmod.game, "DIAS_SO_DAILY", ())
+        sexta.start()
+        self.addCleanup(sexta.stop)
         self.mid = self.ids()[0]
         self.entrar_como(self.mid)
 

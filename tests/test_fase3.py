@@ -4,6 +4,7 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest import mock
 from datetime import date
 
 # O banco de teste e sempre um arquivo temporario; nunca o banco real.
@@ -252,6 +253,13 @@ class TestPresenca(Fase3Base):
 
 # ---------------------------------------------------------------- QR/presenca v2: data e fala
 class TestPresencaDataEFala(Fase3Base):
+    def setUp(self):
+        super().setUp()
+        # usa o Dev/encerramento de hoje (relogio real); numa sexta eles nao existem
+        sexta = mock.patch.object(appmod.game, "DIAS_SO_DAILY", ())
+        sexta.start()
+        self.addCleanup(sexta.stop)
+
     def _logar(self, mid, pin="1234"):
         self.client.post("/eu/criar", json={"member_id": mid, "pin": pin, "pin2": pin})
 

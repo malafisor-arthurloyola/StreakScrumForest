@@ -52,6 +52,7 @@
         <span class="passo-sem">+{{ seeds_mj.cuidar }}</span>
       </a>
     </li>
+    {% if mj.tem_fechamento or mj.fechamento_pronto %}
     <li class="passo" data-passo="fechamento" data-estado="{{ 'feito' if mj.fechamento_pronto else ('aberto' if tem_fechamento else 'depois') }}">
       <a href="{{ '#fala-fechamento' if tem_fechamento else '#ritual' }}">
         <span class="passo-n" aria-hidden="true">3</span>
@@ -59,7 +60,9 @@
         <span class="passo-sem">+{{ seeds_mj.fechamento }}</span>
       </a>
     </li>
+    {% endif %}
   </ol>
+  {% if not mj.tem_fechamento %}<p class="sub sub-secao">Sexta só tem daily: a aula vai até 12h, então não há Day Closing para fechar.</p>{% endif %}
   {% else %}
   <p class="sub sub-secao">Hoje não tem aula. O ritual volta no próximo dia letivo; enquanto isso, dá uma olhada no álbum.</p>
   {% endif %}
@@ -101,7 +104,7 @@
       <button type="button" class="gl-ajuda" aria-label="O que é este campo" data-ajuda="{{ 'No que você vai trabalhar hoje. Sugerimos seus cards em Doing; use a busca para puxar um card do Backlog.' if f.tipo == 'daily' else 'O que ficou pendente para o próximo dia. Sugerimos seus cards em Doing; use a busca para puxar um card do Backlog.' }}">i</button>
     </label>
     <textarea class="eu-fala-texto" data-campo="planejado" rows="2"{% if f.sugestao and not f.planejado %} data-sugerido="1"{% endif %}>{{ f.planejado or f.sugestao }}</textarea>
-    {% if f.sugestao and not f.planejado %}<p class="fala-sugestao">Veio do seu Day Closing de ontem. Edite se mudou algo; ele é salvo quando você confirmar.</p>{% endif %}
+    {% if f.sugestao and not f.planejado %}<p class="fala-sugestao">Veio do que ficou para depois no seu último dia (Day Closing, ou a daily de sexta). Edite se mudou algo; ele é salvo quando você confirmar.</p>{% endif %}
     <div class="gl-chips" data-chips-para="planejado" hidden></div>
     <button type="button" class="gl-mais">Buscar outro card</button>
     <div class="gl-backlog" hidden>
@@ -135,7 +138,7 @@
         <button type="button" class="btn btn-ghost btn-avisar" aria-expanded="false" aria-controls="aviso-daily">Não vou {{ quando }} <span class="btn-sem">+{{ seeds_mj.fala_avisada }}</span></button>
         <div class="aviso-painel" id="aviso-daily" hidden>
           <p>A daily fica como <b>Avisou</b> (não conta como falta). Se aparecer depois no dia, os +3 continuam valendo. Se der, escreva sua parte acima: o relator lê por você.</p>
-          <label class="aviso-dia-todo"><input type="checkbox" id="aviso-dia-todo"> Também não vou no resto do dia</label>
+          {% if mj.tem_fechamento %}<label class="aviso-dia-todo"><input type="checkbox" id="aviso-dia-todo"> Também não vou no resto do dia</label>{% endif %}
           <div class="aviso-botoes">
             <button type="button" class="btn btn-primary btn-minijogo" data-minijogo="avisar">Avisar <span class="btn-sem">+{{ seeds_mj.fala_avisada }}</span></button>
             <button type="button" class="btn btn-ghost aviso-cancelar">Cancelar</button>

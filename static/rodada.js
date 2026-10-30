@@ -7,8 +7,9 @@
   if (!box) return;
   var DATA = box.dataset.data;
   var EH_HOJE = box.dataset.hoje === '1';
-  // hoje, depois das 15h45 abre na Day Closing; num dia que ja passou, abre na Daily
-  var TIPO = (EH_HOJE && new Date().getHours() * 60 + new Date().getMinutes() >= 15 * 60 + 45) ? 'fechamento' : 'daily';
+  var SO_DAILY = box.dataset.soDaily === '1';   // sexta: so tem daily
+  // hoje, depois das 15h45 abre na Day Closing; num dia que ja passou (ou na sexta), abre na Daily
+  var TIPO = (!SO_DAILY && EH_HOJE && new Date().getHours() * 60 + new Date().getMinutes() >= 15 * 60 + 45) ? 'fechamento' : 'daily';
   var chipsTipo = document.querySelectorAll('#rodada-tipo [data-tipo]');
   function chave() { return 'rodada-hoje:' + DATA + ':' + TIPO; }
   var painel = document.getElementById('rodada-painel');

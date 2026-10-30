@@ -67,14 +67,14 @@
 {% endif %}
 
 {% if admin and e_letivo and data_str <= hoje %}
-<section class="card ata-rodada nao-imprime" id="rodada" aria-labelledby="rodada-titulo" data-data="{{ data_str }}" data-hoje="{{ '1' if data_str == hoje else '0' }}">
+<section class="card ata-rodada nao-imprime" id="rodada" aria-labelledby="rodada-titulo" data-data="{{ data_str }}" data-hoje="{{ '1' if data_str == hoje else '0' }}" data-so-daily="{{ '1' if so_daily else '0' }}">
   <div class="rodada-topo">
     <div>
       <h2 id="rodada-titulo">Rodada de fala{% if data_str != hoje %} <span class="rodada-dia">da ata de {{ data_str[8:10] }}/{{ data_str[5:7] }}</span>{% endif %}</h2>
       <p class="ata-dica">Sorteie a ordem. A planta de cada pessoa acende, a tela escurece e aparecem os campos com os cards sugeridos. Por padrão, quem está na vez preenche no próprio celular; você pode preencher por ela.</p>
       <div class="rodada-tipo" id="rodada-tipo" role="group" aria-label="Qual reunião">
         <button type="button" class="chip-modo" data-tipo="daily" aria-pressed="true">Daily</button>
-        <button type="button" class="chip-modo" data-tipo="fechamento" aria-pressed="false">Day Closing</button>
+        {% if not so_daily %}<button type="button" class="chip-modo" data-tipo="fechamento" aria-pressed="false">Day Closing</button>{% endif %}
       </div>
     </div>
     <button type="button" class="btn btn-primary" id="rodada-iniciar">Sortear a ordem e começar</button>
@@ -102,14 +102,16 @@
 {% if not linhas %}
   <p class="vazio">Nenhum membro ativo ainda. Cadastre o grupo em <a href="{{ url_for('membros_page') }}">Membros</a>.</p>
 {% else %}
-<section class="registro{{ '' if admin else ' somente-leitura' }}" aria-label="Registro de presença"
+<section class="registro{{ '' if admin else ' somente-leitura' }}{{ ' so-daily' if so_daily else '' }}" aria-label="Registro de presença"
+         style="--n-eventos: {{ events | length }}"
          data-dia-data="{{ data_str }}" data-dia-cheio-inicial="{{ 'true' if dia_cheio_inicial else 'false' }}">
   <div class="registro-topo">
     <h2>Quem veio?</h2>
+    {% if so_daily %}<p class="aviso-sexta">Sexta só tem daily: a aula vai até 12h, então não há Dev nem encerramento. Vir à daily já conta o dia inteiro.</p>{% endif %}
     {% if not admin %}<p class="aviso-leitura">Só o Scrum do dia ou quem está no computador marca a presença de todos. Você marca a sua pelo QR, em <a href="{{ url_for('eu_page') }}">Meu jardim</a>.</p>{% endif %}
     <div class="todos so-admin">
       <span class="todos-rotulo">Todos presentes em</span>
-      {% for chave, label in events %}
+      {% for chave, label in events if chave in eventos_do_dia %}
         <button type="button" class="btn btn-ghost btn-marcar-todos" data-event-type="{{ chave }}" data-tipo="equipe">{{ label }}</button>
       {% endfor %}
     </div>
@@ -135,8 +137,8 @@
         </div>
       </div>
       {% for chave, label in events %}
-      <div class="celula">
-        <span class="celula-rotulo">{{ label }}</span>
+      <div class="celula{% if chave not in eventos_do_dia %} celula-antiga{% endif %}">
+        <span class="celula-rotulo">{{ label }}{% if chave not in eventos_do_dia %} <small>(registro antigo)</small>{% endif %}</span>
         <div class="status-toggle" role="group" aria-label="{{ label }} de {{ linha.member.name }}"
              data-member-id="{{ linha.member.id }}" data-event-date="{{ data_str }}" data-event-type="{{ chave }}">
           <button type="button" class="btn-status btn-presente {% if linha.cells[chave] == 'presente' %}active{% endif %}" data-status="presente">Presente</button>
@@ -163,7 +165,7 @@
       <h3 class="convidados-subtitulo">Convidados</h3>
       <div class="todos so-admin">
         <span class="todos-rotulo">Todos presentes em</span>
-        {% for chave, label in events %}
+        {% for chave, label in events if chave in eventos_do_dia %}
           <button type="button" class="btn btn-ghost btn-marcar-todos" data-event-type="{{ chave }}" data-tipo="convidado">{{ label }}</button>
         {% endfor %}
       </div>

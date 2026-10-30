@@ -6,6 +6,7 @@ import sqlite3
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from datetime import date
 
 _TMP = tempfile.mkdtemp()
@@ -248,6 +249,13 @@ class TestPresencaNoPainel(FluxoBase):
 
 
 class TestDayClosingNoHolofote(FluxoBase):
+    def setUp(self):
+        super().setUp()
+        # usa o Dev/encerramento de hoje (relogio real); numa sexta eles nao existem
+        sexta = mock.patch.object(appmod.game, "DIAS_SO_DAILY", ())
+        sexta.start()
+        self.addCleanup(sexta.stop)
+
     def test_closing_usa_o_evento_de_encerramento_e_a_ata_do_fechamento(self):
         self.holofote(self.ana, modo="scrum", tipo="fechamento")
         self.pc.post("/api/ata/salvar", json={"data": HOJE, "tipo": "fechamento", "campo": "feito", "member_id": self.ana, "valor": "terminei"})
