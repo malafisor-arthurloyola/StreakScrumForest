@@ -1,4 +1,4 @@
-{% from "_planta.html" import conjunto %}
+{% from "_planta.html" import conjunto, planta, extra %}
 {% from "_chama.html" import chama %}
 {#
   Mapa do jardim (aba Painel): o jardim visto de cima, inclinado. O chao, os caminhos, os canteiros,
@@ -257,7 +257,18 @@
   {% for l in lotes %}
   {% set m = l.m %}
   <div class="lote" style="--x: {{ l.x / 16 }}%; --y: {{ l.y / 10 }}%; --k: {{ l.escala }}; z-index: {{ l.y }}" data-member-id="{{ m.id }}">
-    <div class="lote-planta">{{ conjunto(m, 120) }}</div>
+    {# Lugares na terra do canteiro (unidades do viewBox, a partir do centro do lote). A principal fica
+       no meio; as extras compradas (2a e 3a plantinha) ao lado, no vaso; cada outra especie comprada
+       nasce solta na terra, primeiro na frente do vaso e depois atras dele. #}
+    {% set colecao = (m.visual.colecao or [])[:4] if m.visual else [] %}
+    {% set soltas = [(-52, 46), (52, 46), (-34, -40), (34, -40)] %}
+    {% for e in colecao %}{% set p = soltas[loop.index0] %}
+    <div class="lote-vaga solta" style="--dx: {{ p[0] }}; --dy: {{ p[1] }}; z-index: {{ 1 if p[1] < 0 else 4 }}">{{ extra(m, e, 60, sem_vaso=True) }}</div>
+    {% endfor %}
+    {% for e in (m.visual.extras if m.visual else []) %}
+    <div class="lote-vaga lado" style="--dx: {{ 92 if loop.first else -92 }}; --dy: 8; z-index: 2">{{ extra(m, e, 70) }}</div>
+    {% endfor %}
+    <div class="lote-vaga lote-planta" style="--dx: 0; --dy: 14; z-index: 3">{{ planta(m, 120) }}</div>
     <a class="lote-placa" href="{{ url_for('membro_page', member_id=m.id) }}">
       <b>{{ m.name }}</b>
       <span class="lote-info">{{ chama(m.streak, m.chama, m.aceso, m.id) }}<span data-estagio-for="{{ m.id }}">{{ m.estagio_nome }}</span></span>

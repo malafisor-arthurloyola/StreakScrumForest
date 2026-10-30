@@ -158,6 +158,14 @@ class TestMontarVisual(unittest.TestCase):
         self.assertEqual([e["especie"] for e in v["extras"]], ["muda", "muda"])
         self.assertEqual([e["slot"] for e in v["extras"]], [2, 3])
 
+    def test_colecao_tem_as_especies_compradas_fora_de_uso(self):
+        self.assertEqual(catalog.montar_visual(set(), {})["colecao"], [])
+        v = catalog.montar_visual({"girassol", "cacto", "lavanda", "slot_2", "gato"},
+                                  {"especie": "cacto", "especie_2": "girassol"})
+        # cacto esta no vaso, girassol na extra: so a lavanda cresce solta; companheiro nao entra
+        self.assertEqual([e["especie"] for e in v["colecao"]], ["lavanda"])
+        self.assertEqual(v["colecao"][0]["folha"], catalog._folha("lavanda"))
+
 
 class TestFundador(unittest.TestCase):
     """Fase 1.5: Selo Fundador e um acessorio exclusivo (preco 0, flag exclusivo)."""
