@@ -27,6 +27,24 @@ VIGOR_LEVELS = [
 # sementes por evento com presenca (um dia com os tres eventos rende 3)
 SEED_POR_EVENTO = {"daily": 1, "dev": 1, "encerramento": 1}
 
+# Na sexta a aula vai ate 12h: so tem daily (sem Dev e sem encerramento/Day Closing).
+EVENTOS = ("daily", "dev", "encerramento")
+DIAS_SO_DAILY = (4,)   # date.weekday(): 4 = sexta
+
+
+def eventos_do_dia(data_iso):
+    """Eventos que acontecem na data (AAAA-MM-DD): sexta so a daily, nos outros dias os tres."""
+    if date.fromisoformat(data_iso).weekday() in DIAS_SO_DAILY:
+        return ("daily",)
+    return EVENTOS
+
+
+def registro_vale(data_iso, evento, status):
+    """Se um registro de presenca entra nas contas. Num evento que nao acontece no dia (Dev ou
+    encerramento numa sexta), falta e aviso sao ignorados: ninguem perde por um evento que nao
+    existe. Presenca antiga nesses eventos continua valendo: semente ganha nao some."""
+    return status == "presente" or evento in eventos_do_dia(data_iso)
+
 # bonus fixos (fonte unica de verdade: usados em calcular_sementes e na aba /sementes)
 SEED_SEMANA_FECHADA = 3   # por semana fechada
 SEED_DIA_CHEIO = 1        # por dia cheio do time, para cada presente

@@ -28,7 +28,7 @@ Tudo é editável na tela Calendário. Se D mudar, a meta e os estágios se ajus
 
 ## 3. Crescimento da planta (por dia, não por evento)
 
-- Um dia conta como **presença** se o membro marcou **pelo menos um** dos três eventos.
+- Um dia conta como **presença** se o membro marcou **pelo menos um** dos três eventos (na sexta, a daily).
 - Meta de floração: `ceil(0,80 x D)` = **36 presenças**. Folga de 20% para imprevistos.
 - Presença: +1. Falta (só faltou, sem nenhuma presença no dia): -2. Justificada e pendente: neutro.
 - Estágios 0 a 10; um estágio novo a cada 3 a 4 dias letivos. O estágio 10 (Floresceu) é permanente.
@@ -37,6 +37,22 @@ Tudo é editável na tela Calendário. Se D mudar, a meta e os estágios se ajus
 **Por que o crescimento continua por dia?** Se crescesse por evento, quem perde só o encerramento
 (por compromisso, por exemplo) pareceria "atrasado" na planta. As sementes premiam o esforço extra
 sem deixar ninguém para trás no visual.
+
+### 3.1 Sexta só tem daily
+
+Na sexta a aula vai até 12h: não há Dev nem encerramento (Day Closing). A regra está em
+`game.eventos_do_dia` (`DIAS_SO_DAILY = (4,)`) e `game.registro_vale`.
+
+- Presença na daily da sexta conta o dia inteiro para a planta, a sequência, a semana fechada e o dia cheio
+  (o dia cheio da sexta só pede a daily de todos).
+- Falta e aviso no Dev/encerramento de uma sexta são **ignorados**, inclusive registros antigos: ninguém
+  perde G, sequência ou dia cheio por um evento que não existe.
+- Presença antiga no Dev/encerramento de uma sexta **continua valendo** (semente já ganha não some, e
+  nenhum saldo cai). Registro novo nesses eventos é recusado.
+- O que muda no teto (perfil dedicado da aba Sementes, 45 dias letivos, 9 sextas): presença nos eventos
+  135 -> 117 (-18), atas 90 -> 81 (-9), "Fechar o dia" -27. Total do dedicado com minigames
+  **1.000 -> 946**. Essas sementes nunca puderam ser ganhas de verdade (ninguém ia ao Dev da sexta), então
+  ninguém perde nada; o teto só passou a contar o que existe. Os preços não mudam.
 
 ## 4. Sementes (a economia)
 
@@ -53,8 +69,9 @@ automáticos que o sistema soma sozinho por cima.
 | Presença no dev | +1 |
 | Presença no encerramento | +1 |
 
-Um dia em que a pessoa vai aos três rende **3 sementes**. Durante os 45 dias letivos, o máximo
-possível é 45 x 3 = **135 sementes só da base**.
+Um dia em que a pessoa vai aos três rende **3 sementes**; a sexta (só daily) rende 1. Durante os 45
+dias letivos (9 sextas), o máximo possível é 36 x 3 + 9 x 1 = **117 sementes só da base** (era 135
+quando a conta supunha Dev e encerramento também na sexta; ver 3.1).
 
 **Jeito 2: semana fechada (+3)**: bônus por constância semanal. Uma semana "fecha" quando a pessoa
 teve presença (em qualquer evento) em pelo menos 4 dias da semana. Em semana com feriado, vale um dia
@@ -130,6 +147,9 @@ deixou a fala registrada nas duas atas de cada dia.
 | Boas-vindas | bônus único | 20 |
 | Ata da daily (adubo) | 45 dias x 2 atas x 1 | 90 |
 | **Total** | | **375** |
+
+Com a sexta só de daily (seção 3.1), a mesma conta fica: presença 36 x 3 + 9 x 1 = 117 e atas
+36 x 2 + 9 x 1 = 81, total **357** (sem minigames). Os outros itens não mudam.
 
 O total **375** é sem contar o bônus de relator (+1 por fala de outra pessoa que ele preenche, à parte, conforme o
 rodízio). Impedimentos não entram. Só 135 de 375 vêm de "estar presente em cada evento"; o resto são
@@ -247,3 +267,7 @@ total esperado (`tests/test_catalog.py`, `tests/test_game.py`) avisam se o equil
   sendo só "O que fiz" e "O que vou fazer" (os campos `feito`/`planejado`); "Vou revisar"
   (`ata_falas.review`) **nunca rende**. Os rótulos visíveis mudaram; as constantes e os totais acima
   seguem iguais.
+- **Sexta só tem daily (30/10/2026)**: a aula de sexta vai até 12h, sem Dev nem encerramento. A daily
+  da sexta conta o dia inteiro; falta/aviso em Dev ou encerramento de sexta não contam (nem os antigos);
+  presença antiga neles continua valendo. Teto do dedicado com minigames 1.000 -> 946 (base 135 -> 117,
+  atas 90 -> 81, "Fechar o dia" -27). Preços iguais. Ver 3.1.

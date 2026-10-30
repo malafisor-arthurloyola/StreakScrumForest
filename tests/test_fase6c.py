@@ -3,6 +3,7 @@ import sqlite3
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from datetime import date
 
 _TMP = tempfile.mkdtemp()
@@ -223,6 +224,13 @@ class TestExportERende(Base):
 
 # ------------------------------------------------------------ impedimento por pessoa (presenca)
 class TestImpedimentoPessoal(Base):
+    def setUp(self):
+        super().setUp()
+        # usa o Dev/encerramento de hoje (relogio real); numa sexta eles nao existem
+        sexta = mock.patch.object(appmod.game, "DIAS_SO_DAILY", ())
+        sexta.start()
+        self.addCleanup(sexta.stop)
+
     def test_coluna_bloqueios_idempotente(self):
         appmod.init_db()   # roda de novo; nao pode quebrar
         con = sqlite3.connect(DB)

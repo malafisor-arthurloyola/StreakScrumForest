@@ -101,6 +101,18 @@ esquecer de marcar não pune.
 | **Dev** | durante o dia | Trabalho em conjunto; não tem ata |
 | **Day Closing** (encerramento) | 15h45 | Fecha o dia; tem ata |
 
+**Sexta só tem daily.** Na sexta a aula vai até 12h, então não há Dev nem Day Closing. A regra mora em
+`game.eventos_do_dia` (`DIAS_SO_DAILY`) e vale em todo o site:
+
+- Ir à daily da sexta conta o **dia inteiro**: planta (+1 G), sequência, semana fechada e dia cheio.
+- O dia cheio da sexta só pede a daily de todos.
+- Não dá para marcar Dev nem encerramento numa sexta (tela Hoje, QR, ata, rodada e aviso "o dia todo"
+  oferecem só a daily). O Day Closing e o minigame "Fechar o dia" não aparecem na sexta.
+- Histórico: falta ou aviso antigo no Dev/encerramento de uma sexta é **ignorado** (ninguém perde por um
+  evento que não existe); presença antiga nesses eventos **continua valendo** (semente ganha não some). A
+  tela Hoje mostra essa coluna antiga, marcada como "registro antigo", só para dar para ver e limpar.
+- Na segunda, a sugestão de "O que vou fazer" vem do "O que vou fazer" da daily de sexta (não há Day Closing).
+
 O céu do jardim acompanha o horário das aulas: manhã (8h), tarde (14h) e entardecer (15h45).
 
 ---
@@ -195,19 +207,19 @@ bloqueia compra nova, mas nunca remove o que já foi comprado.
 
 | Fonte | Valor | Observação |
 |---|---|---|
-| Presença em evento | +1 por evento | Daily, Dev e Encerramento |
+| Presença em evento | +1 por evento | Daily, Dev e Encerramento (na sexta, só a daily) |
 | Semana fechada | +3 | Uma vez por semana |
 | Marco de sequência | +3 (5 dias), +5 (10), +10 (20), +20 (40) | Uma vez cada; não é multiplicador |
 | Dia cheio do time | +1 | Para cada presente |
 | Floresceu | +20 | Uma vez |
 | Boas-vindas | +20 | Na primeira presença |
-| Ata preenchida | +1 por ata (Daily e Day Closing) | Fala com conteúdo; só em dia letivo |
+| Ata preenchida | +1 por ata (Daily e Day Closing) | Fala com conteúdo; só em dia letivo; sexta só tem a da Daily |
 | Bônus de relator (Scrum) | +1 por fala de **outra pessoa** que o Scrum preenche | Máximo 3 por ata; só vale se o Scrum entrou com o PIN e é o relator da ata |
 | Meta com recompensa | 1 a 30 por meta (recomendado 3 a 10) | Definida pelo admin; só rende se cumprida até o prazo |
 | Impedimentos, campo de revisão, escolha de cards do GitLab | 0 | Nunca rendem semente |
 
 **Total de referência:** o perfil "dedicado" (todos os eventos, todos os dias, fala nas duas atas) chega a
-**375** sementes no projeto; o "típico" a cerca de 275. O bônus de relator e as metas com recompensa ficam
+**375** sementes no projeto sem os minigames (357 com a sexta só de daily, ver BALANCEAMENTO 3.1); o "típico" a cerca de 275. O bônus de relator e as metas com recompensa ficam
 fora desses totais. A conta completa está em [BALANCEAMENTO.md](BALANCEAMENTO.md).
 
 ![Aba Sementes: de onde vêm as sementes, com as fontes e os valores](img/sementes.png)

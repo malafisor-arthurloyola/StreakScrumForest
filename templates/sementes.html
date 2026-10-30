@@ -26,6 +26,7 @@
       <span class="sem-ev sem-ev-total">{{ dia_completo }} sementes</span>
     </div>
   </div>
+  <p class="fonte-nota">Na sexta só tem daily (a aula vai até 12h): a base do dia é +{{ fontes.por_evento.daily }}, e o dia conta inteiro para a planta, a sequência e a semana.</p>
   <p class="fonte-nota">Essa é a base. Por cima vêm os bônus de constância, de time e de boas-vindas — é por isso que o total final é bem maior do que "{{ dia_completo }} por dia".</p>
 </section>
 
@@ -56,7 +57,7 @@
     <span class="fonte-faixa"></span>
     <h2>Presença nos eventos</h2>
     <p class="fonte-grande">+{{ dia_completo }}<small>/dia</small></p>
-    <p class="fonte-nota">+{{ fontes.por_evento.daily }} por evento (daily, dev e encerramento). A base de tudo.</p>
+    <p class="fonte-nota">+{{ fontes.por_evento.daily }} por evento (daily, dev e encerramento; na sexta só a daily). A base de tudo.</p>
   </article>
 
   <article class="card fonte-card" style="--cor: {{ cores.semanas }}">

@@ -410,7 +410,7 @@ input::placeholder { color: var(--ink2); opacity: 0.8; }
 
 .linhas-cab, .linha {
   display: grid;
-  grid-template-columns: minmax(170px, 1fr) repeat(3, minmax(0, 1.6fr));
+  grid-template-columns: minmax(170px, 1fr) repeat(var(--n-eventos, 3), minmax(0, 1.6fr));
   gap: 14px;
   align-items: center;
 }
@@ -2380,3 +2380,11 @@ body.holofote-escuro .cena.holofote-ativo { position: relative; z-index: 901; }
 .ritual-dias { display: inline-flex; gap: 4px; margin: 6px 0 8px; padding: 3px; border-radius: 999px; background: var(--s2); border: 1px solid var(--s4); }
 .ritual-dias a { padding: 6px 14px; border-radius: 999px; font-weight: 700; text-decoration: none; color: inherit; opacity: .75; }
 .ritual-dias a[aria-current="page"] { background: var(--acc); color: var(--acc-ink); opacity: 1; }
+/* sexta: so a daily (aula ate 12h). Aviso no "Quem veio?" e coluna unica sem esticar os botoes */
+.aviso-sexta {
+  flex-basis: 100%; margin: 0; padding: 8px 12px; border-radius: 12px; background: var(--s2);
+  color: var(--ink2); font-size: var(--t-sm); border-left: 4px solid var(--acc);
+}
+.registro.so-daily .status-toggle { max-width: 420px; }
+.celula-antiga { opacity: 0.7; }
+.celula-antiga small { font-weight: 400; }
