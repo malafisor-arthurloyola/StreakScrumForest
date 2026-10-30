@@ -139,18 +139,61 @@
 {% if mj.letivo %}
 <section class="cuidar" id="cuidar" aria-label="Cuidar da planta" data-aberto="{{ '1' if mj.fechamento_pronto else '0' }}" data-feito="{{ '1' if mj.cuidar else '0' }}">
   <h2 class="secao-titulo">Cuidar da planta</h2>
-  <p class="sub sub-secao cuidar-fechado">Abre depois de fechar o dia, no fim da tarde. Assim a daily fica só para a daily.</p>
-  <div class="cuidar-palco">
-    <div class="cuidar-planta" id="cuidar-planta">{{ conjunto(eu, 170) }}<div class="cuidar-efeitos" aria-hidden="true"></div></div>
-    <div class="cuidar-botoes" role="group" aria-label="Cuidados">
-      {% for acao, rotulo in [('regar', 'Regar'), ('adubar', 'Adubar'), ('carinho', 'Carinho')] %}
-      <button type="button" class="cuidar-btn" data-acao="{{ acao }}"{% if acao in mj.cuidados %} data-feito="1"{% endif %}{% if not mj.fechamento_pronto %} disabled{% endif %}>
-        <svg viewBox="0 0 24 24" aria-hidden="true">{% if acao == 'regar' %}<path d="M4 11h9l4-4 2 2-4 4v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM8 11V8a2 2 0 0 1 4 0"/><path d="M20 15c0 1.2-.8 2-1.5 2S17 16.2 17 15c0-.9 1.5-2.6 1.5-2.6S20 14.1 20 15z"/>{% elif acao == 'adubar' %}<path d="M6 20h12l-1.5-10h-9z"/><path d="M9 10V7a3 3 0 0 1 6 0v3"/><circle cx="12" cy="15" r="1.2"/>{% else %}<path d="M12 20s-7-4.4-7-9.5A3.5 3.5 0 0 1 12 8a3.5 3.5 0 0 1 7 2.5C19 15.6 12 20 12 20z"/>{% endif %}</svg>
-        <span>{{ rotulo }}</span>
-      </button>
+  <p class="sub sub-secao">Seu canteiro. Arraste o regador e o adubo até a planta e faça carinho esfregando o dedo nela.</p>
+  <div class="cuidar-cena{{ ' molhado' if 'regar' in mj.cuidados }}{{ ' adubado' if 'adubar' in mj.cuidados }}" id="cuidar-cena">
+    <svg class="canteiro-fundo" viewBox="0 0 360 300" aria-hidden="true">
+      <defs>
+        <linearGradient id="cena-ceu" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1d4a3a"/><stop offset="1" stop-color="#2c6b4c"/></linearGradient>
+        <radialGradient id="cena-mancha"><stop offset="0" stop-color="#2e1e14"/><stop offset="1" stop-color="#2e1e14" stop-opacity="0"/></radialGradient>
+      </defs>
+      <rect width="360" height="160" fill="url(#cena-ceu)"/>
+      <path class="cena-sebe" d="M0 150V108c18-20 40-20 54-6 12-18 38-22 54-4 14-16 40-16 52 2 14-18 40-18 54 0 14-16 40-16 52 2 14-14 34-12 44 2V150z"/>
+      <g class="cena-cerca">
+        <path class="trilho" d="M0 126H360M0 142H360"/>
+        <path d="M14 118v38M58 118v38M102 118v38M146 118v38M190 118v38M234 118v38M278 118v38M322 118v38"/>
+      </g>
+      <rect class="cena-grama" y="150" width="360" height="150"/>
+      <g class="cena-tufos"><path d="M28 182l4-10 4 10M330 190l4-10 4 10M52 280l4-10 4 10M310 276l4-10 4 10M18 238l3-8 3 8M342 246l3-8 3 8"/></g>
+      <g class="cena-flores"><circle cx="40" cy="168" r="4" fill="#ff9ec4"/><circle cx="48" cy="172" r="3" fill="#ffd35c"/><circle cx="322" cy="170" r="4" fill="#b9a6ff"/><circle cx="312" cy="176" r="3" fill="#ff9ec4"/></g>
+      <ellipse class="cena-sombra" cx="180" cy="270" rx="118" ry="10"/>
+      <path class="cena-terra" d="M95 200H265L287 236H73Z"/>
+      <ellipse class="cena-molhado" cx="180" cy="220" rx="80" ry="14" fill="url(#cena-mancha)"/>
+      <path class="cena-sulco" d="M110 208H250M96 218H264M86 228H274"/>
+      <g class="cena-adubo"><circle cx="128" cy="214" r="2"/><circle cx="150" cy="226" r="2.2"/><circle cx="214" cy="212" r="2"/><circle cx="236" cy="226" r="2.2"/><circle cx="196" cy="230" r="1.8"/><circle cx="120" cy="228" r="1.8"/><circle cx="246" cy="216" r="1.8"/></g>
+      <path class="cena-frente" d="M73 236H287V266H73Z"/>
+      <path class="cena-tabua" d="M73 251H287M126 236v15M180 251v15M234 236v15"/>
+    </svg>
+    <div class="cuidar-medidores" aria-label="Cuidados de hoje">
+      {% for acao, rotulo in [('regar', 'Água'), ('adubar', 'Adubo'), ('carinho', 'Carinho')] %}
+      <span class="medidor" data-acao="{{ acao }}"{% if acao in mj.cuidados %} data-feito="1"{% endif %} style="--p: {{ 100 if acao in mj.cuidados else 0 }}"><b>{{ rotulo }}</b><i aria-hidden="true"></i></span>
       {% endfor %}
     </div>
+    <div class="cuidar-planta" id="cuidar-planta" role="button" tabindex="0" aria-label="Fazer carinho na planta">{{ conjunto(eu, 130) }}</div>
+    <button type="button" class="ferramenta" data-acao="regar" aria-label="Regador: arraste até a planta"{% if not mj.fechamento_pronto %} disabled{% endif %}>
+      <svg viewBox="0 0 100 80" aria-hidden="true">
+        <path class="reg-alca" d="M44 30C44 6 80 6 80 30"/>
+        <path class="reg-bico" d="M36 56L8 30l5-5 27 23z"/>
+        <ellipse class="reg-crivo" cx="9" cy="27" rx="7" ry="4.5" transform="rotate(-42 9 27)"/>
+        <rect class="reg-corpo" x="34" y="28" width="52" height="44" rx="9"/>
+        <rect class="reg-faixa" x="34" y="40" width="52" height="7"/>
+        <path class="reg-brilho" d="M42 52v12"/>
+      </svg>
+      <span class="ponta" aria-hidden="true"></span>
+    </button>
+    <button type="button" class="ferramenta" data-acao="adubar" aria-label="Adubo: arraste até a planta"{% if not mj.fechamento_pronto %} disabled{% endif %}>
+      <svg viewBox="0 0 80 90" aria-hidden="true">
+        <path class="saco" d="M14 30Q8 80 20 86H60Q72 80 66 30Z"/>
+        <path class="saco-boca" d="M14 30Q40 16 66 30Q40 40 14 30Z"/>
+        <circle class="saco-grao" cx="34" cy="27" r="2.4"/><circle class="saco-grao" cx="44" cy="25" r="2.4"/><circle class="saco-grao" cx="39" cy="30" r="2"/>
+        <rect class="saco-rotulo" x="24" y="50" width="32" height="22" rx="4"/>
+        <path class="saco-folha" d="M40 68c-7-2-9-9-7-14 6 0 10 5 7 14zm0 0c4-4 9-6 11-4-1 4-6 6-11 4z"/>
+      </svg>
+      <span class="ponta" aria-hidden="true"></span>
+    </button>
+    <div class="cuidar-fx" aria-hidden="true"></div>
+    <p class="cuidar-fechado">Abre depois de fechar o dia</p>
   </div>
+  <p class="cuidar-dica" id="cuidar-dica" aria-live="polite"></p>
   <p class="cuidar-fim" {% if not mj.cuidar %}hidden{% endif %}>Planta cuidada hoje <b>+{{ seeds_mj.cuidar }}</b></p>
 </section>
 {% endif %}
@@ -473,52 +516,200 @@
     if (sec) {
       sec.dataset.aberto = e.fechamento_pronto ? '1' : '0';
       sec.dataset.feito = e.cuidar ? '1' : '0';
-      sec.querySelectorAll('.cuidar-btn').forEach(function (b) {
-        b.disabled = !e.fechamento_pronto;
-        if (e.cuidados.indexOf(b.dataset.acao) >= 0) b.dataset.feito = '1';
+      sec.querySelectorAll('.ferramenta').forEach(function (b) { b.disabled = !e.fechamento_pronto; });
+      sec.querySelectorAll('.medidor').forEach(function (m) {
+        if (e.cuidados.indexOf(m.dataset.acao) >= 0) { m.dataset.feito = '1'; m.style.setProperty('--p', 100); }
       });
+      if (window.atualizarDicaCuidar) window.atualizarDicaCuidar();
       var fim = sec.querySelector('.cuidar-fim');
       if (fim) fim.hidden = !e.cuidar;
     }
   }
 
-  // Cuidar da planta: cada botao faz uma animacao na propria planta.
-  var palco = document.getElementById('cuidar-planta');
-  if (palco) {
-    var efeitos = palco.querySelector('.cuidar-efeitos');
-    var FORMAS = { regar: 'gota', adubar: 'grao', carinho: 'coracao' };
-    function animar(acao) {
-      for (var i = 0; i < 9; i++) {
-        var s = document.createElement('i');
-        s.className = 'fx fx-' + FORMAS[acao];
-        s.style.setProperty('--x', (15 + Math.round(i * 70 / 8)) + '%');
-        s.style.setProperty('--atraso', (i % 3) * 0.12 + 's');
-        efeitos.appendChild(s);
-      }
-      palco.classList.remove('feliz'); void palco.offsetWidth; palco.classList.add('feliz');
-      setTimeout(function () { efeitos.innerHTML = ''; }, 1800);
+  // Cuidar da planta: o canteiro da pessoa. Regador e adubo se arrastam ate a planta (inclinam e
+  // derramam enquanto estao sobre ela); o carinho e esfregar o dedo na planta. Cada cuidado enche
+  // um medidor; cheio, conta no servidor uma vez. Depois disso da para continuar brincando.
+  var sec = document.getElementById('cuidar');
+  var cena = document.getElementById('cuidar-cena');
+  if (sec && cena) {
+    var planta = document.getElementById('cuidar-planta');
+    var fx = cena.querySelector('.cuidar-fx');
+    var dica = document.getElementById('cuidar-dica');
+    var progresso = { regar: 0, adubar: 0, carinho: 0 };
+    var pedindo = {};
+    var DURACAO = { regar: 1600, adubar: 1400 };
+    var ESFREGAR = 900;                                   // pixels de esfregada para encher o carinho
+
+    function medidor(acao) { return cena.querySelector('.medidor[data-acao="' + acao + '"]'); }
+    function feito(acao) { var m = medidor(acao); return !!(m && m.dataset.feito); }
+    function aberto() { return sec.dataset.aberto === '1'; }
+    sec.querySelectorAll('.medidor').forEach(function (m) { if (m.dataset.feito) progresso[m.dataset.acao] = 100; });
+
+    window.atualizarDicaCuidar = function () {
+      if (!dica) return;
+      if (!aberto()) { dica.textContent = 'Feche o dia no Day Closing para abrir o canteiro.'; return; }
+      if (!feito('regar')) dica.textContent = 'Arraste o regador até a planta e segure para regar.';
+      else if (!feito('adubar')) dica.textContent = 'Agora arraste o saco de adubo até a planta.';
+      else if (!feito('carinho')) dica.textContent = 'Esfregue o dedo na planta para fazer carinho.';
+      else dica.textContent = 'Planta cuidada hoje. Pode continuar mimando à vontade.';
+    };
+    window.atualizarDicaCuidar();
+
+    function ponto(el) { var r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }
+    function noAlvo(p) {
+      var r = planta.getBoundingClientRect();
+      return p.x > r.left - 24 && p.x < r.right + 24 && p.y > r.top - 90 && p.y < r.top + r.height * 0.75;
     }
-    document.querySelectorAll('.cuidar-btn').forEach(function (b) {
-      b.addEventListener('click', function () {
-        if (b.disabled) return;
-        animar(b.dataset.acao);
-        if (b.dataset.feito) return;              // pode repetir a animacao a vontade; o premio e um so
-        pedirMinijogo('cuidar', { acao: b.dataset.acao }).then(function (j) {
-          if (!j) return;
-          b.dataset.feito = '1';
-          if (j.ganhou) { comemorarCuidado(j.ganhou); }
-          aplicarEstado(j.estado);
-        });
+    function particula(classe, x, y, extra) {
+      var c = cena.getBoundingClientRect();
+      var i = document.createElement('i');
+      i.className = 'fx ' + classe;
+      i.style.left = (x - c.left) + 'px';
+      i.style.top = (y - c.top) + 'px';
+      var chao = planta.getBoundingClientRect().bottom - c.top - 8;
+      i.style.setProperty('--queda', Math.max(chao - (y - c.top), 20) + 'px');
+      i.style.setProperty('--desvio', (extra || 0) + 'px');
+      i.addEventListener('animationend', function () { i.remove(); });
+      fx.appendChild(i);
+      setTimeout(function () { i.remove(); }, 2000);
+    }
+    function encher(acao, quanto) {
+      if (progresso[acao] >= 100) return;
+      progresso[acao] = Math.min(100, progresso[acao] + quanto);
+      var m = medidor(acao);
+      if (m) m.style.setProperty('--p', Math.round(progresso[acao]));
+      if (progresso[acao] >= 100) concluir(acao);
+    }
+    function reagir(classe) {
+      planta.classList.remove(classe); void planta.offsetWidth; planta.classList.add(classe);
+    }
+    function concluir(acao) {
+      if (acao === 'regar') cena.classList.add('molhado');
+      if (acao === 'adubar') cena.classList.add('adubado');
+      reagir('feliz');
+      if (navigator.vibrate) { try { navigator.vibrate(15); } catch (e) { /* sem vibracao */ } }
+      if (feito(acao) || pedindo[acao]) { window.atualizarDicaCuidar(); return; }
+      pedindo[acao] = true;
+      pedirMinijogo('cuidar', { acao: acao }).then(function (j) {
+        pedindo[acao] = false;
+        if (!j) { progresso[acao] = 0; var m = medidor(acao); if (m) m.style.setProperty('--p', 0); return; }
+        var m2 = medidor(acao); if (m2) m2.dataset.feito = '1';
+        if (j.ganhou) comemorarCuidado(j.ganhou);
+        aplicarEstado(j.estado);
       });
-    });
+    }
     function comemorarCuidado(valor) {
       var m = document.createElement('span');
       m.className = 'mj-mais';
       m.textContent = '+' + valor;
-      palco.appendChild(m);
+      cena.appendChild(m);
       setTimeout(function () { m.remove(); }, 1600);
       mostrarToast('Planta cuidada! +' + valor + ' sementes', 'sucesso');
     }
+
+    // Regador e adubo: pegar, arrastar, inclinar sobre a planta.
+    cena.querySelectorAll('.ferramenta').forEach(function (tool) {
+      var acao = tool.dataset.acao;
+      var ponta = tool.querySelector('.ponta');
+      var inicio = null, ultimo = 0, ultimaGota = 0, andou = 0, quadro = null;
+
+      function mover(dx, dy) { tool.style.setProperty('--dx', dx + 'px'); tool.style.setProperty('--dy', dy + 'px'); }
+      function passo(t) {
+        if (!inicio) return;
+        var dt = ultimo ? t - ultimo : 16;
+        ultimo = t;
+        var p = ponto(ponta);
+        var sobre = noAlvo(p);
+        tool.classList.toggle('derramando', sobre);
+        planta.classList.toggle('bebendo', sobre);
+        if (sobre) {
+          if (t - ultimaGota > (acao === 'regar' ? 55 : 80)) {
+            ultimaGota = t;
+            particula(acao === 'regar' ? 'fx-gota' : 'fx-grao', p.x + (Math.random() * 16 - 8), p.y, Math.random() * 20 - 10);
+          }
+          encher(acao, dt / DURACAO[acao] * 100);
+        }
+        quadro = requestAnimationFrame(passo);
+      }
+      function soltar() {
+        if (!inicio) return;
+        if (andou < 8) {                                  // so tocou: mostra o que fazer
+          tool.classList.remove('balanca'); void tool.offsetWidth; tool.classList.add('balanca');
+          if (dica) dica.textContent = acao === 'regar' ? 'Segure o regador e arraste até a planta.' : 'Segure o saco de adubo e arraste até a planta.';
+        }
+        inicio = null; ultimo = 0;
+        cancelAnimationFrame(quadro);
+        tool.classList.remove('pegando', 'derramando');
+        planta.classList.remove('bebendo');
+        mover(0, 0);
+      }
+      tool.addEventListener('pointerdown', function (ev) {
+        if (tool.disabled || !aberto()) return;
+        ev.preventDefault();
+        try { tool.setPointerCapture(ev.pointerId); } catch (e) { /* ok */ }
+        inicio = { x: ev.clientX, y: ev.clientY };
+        andou = 0;
+        tool.classList.add('pegando');
+        quadro = requestAnimationFrame(passo);
+      });
+      tool.addEventListener('pointermove', function (ev) {
+        if (!inicio) return;
+        var dx = ev.clientX - inicio.x, dy = ev.clientY - inicio.y;
+        andou = Math.max(andou, Math.abs(dx) + Math.abs(dy));
+        mover(dx, dy - 24);                               // um pouco acima do dedo, para o dedo nao cobrir
+      });
+      tool.addEventListener('pointerup', soltar);
+      tool.addEventListener('pointercancel', soltar);
+      // Teclado: Enter leva a ferramenta sozinha ate a planta.
+      tool.addEventListener('keydown', function (ev) {
+        if ((ev.key !== 'Enter' && ev.key !== ' ') || tool.disabled || !aberto()) return;
+        ev.preventDefault();
+        var a = ponto(tool), b = planta.getBoundingClientRect();
+        inicio = { x: a.x, y: a.y }; andou = 99;
+        tool.classList.add('pegando');
+        mover(b.left + b.width / 2 - a.x + (acao === 'regar' ? 40 : -40), b.top - a.y - 10);
+        quadro = requestAnimationFrame(passo);
+        setTimeout(soltar, DURACAO[acao] + 500);
+      });
+    });
+
+    // Carinho: esfregar o dedo na planta. Ela inclina para o lado do dedo e solta coracoes.
+    var esfrega = null, desdeCoracao = 0;
+    planta.addEventListener('pointerdown', function (ev) {
+      if (!aberto()) return;
+      ev.preventDefault();
+      try { planta.setPointerCapture(ev.pointerId); } catch (e) { /* ok */ }
+      esfrega = { x: ev.clientX, y: ev.clientY };
+      planta.classList.add('acariciando');
+    });
+    planta.addEventListener('pointermove', function (ev) {
+      if (!esfrega) return;
+      var dx = ev.clientX - esfrega.x, dy = ev.clientY - esfrega.y;
+      var d = Math.sqrt(dx * dx + dy * dy);
+      esfrega = { x: ev.clientX, y: ev.clientY };
+      var r = planta.getBoundingClientRect();
+      var lado = (ev.clientX - (r.left + r.width / 2)) / (r.width / 2);
+      planta.style.setProperty('--inclina', Math.max(-1, Math.min(1, lado)) * 7 + 'deg');
+      desdeCoracao += d;
+      if (desdeCoracao > 38) { desdeCoracao = 0; particula('fx-coracao', ev.clientX, ev.clientY, Math.random() * 30 - 15); }
+      encher('carinho', d / ESFREGAR * 100);
+    });
+    function pararCarinho() {
+      if (!esfrega) return;
+      esfrega = null;
+      planta.classList.remove('acariciando');
+      planta.style.setProperty('--inclina', '0deg');
+    }
+    planta.addEventListener('pointerup', pararCarinho);
+    planta.addEventListener('pointercancel', pararCarinho);
+    planta.addEventListener('keydown', function (ev) {
+      if ((ev.key !== 'Enter' && ev.key !== ' ') || !aberto()) return;
+      ev.preventDefault();
+      var r = planta.getBoundingClientRect();
+      for (var k = 0; k < 6; k++) particula('fx-coracao', r.left + r.width * (0.25 + k * 0.1), r.top + r.height * 0.4, 0);
+      reagir('feliz');
+      encher('carinho', 34);
+    });
   }
 })();
 </script>
