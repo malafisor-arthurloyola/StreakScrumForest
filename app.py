@@ -2749,7 +2749,12 @@ def eu_page():
     # O Day Closing so aparece quando faz sentido: quando a pessoa ja marcou presenca no
     # encerramento de hoje (leu o QR do encerramento) ou ja escreveu algo nele. De manha,
     # com so a daily, o /eu mostra so a Daily (nao polui com o fim do dia ainda).
-    hoje = date.today().isoformat()
+    # Na vespera (so o dia seguinte do calendario, e so se for letivo) da para preparar a fala,
+    # avisar que nao vai e cuidar da planta de amanha. Mais cedo que isso, nao abre.
+    dia_real = date.today().isoformat()
+    amanha = _amanha_aberto(db)
+    vendo_amanha = request.args.get("dia") == "amanha" and amanha is not None
+    hoje = amanha if vendo_amanha else dia_real
     tem_presenca_hoje = db.execute(
         "SELECT 1 FROM attendance WHERE member_id = ? AND event_date = ? AND status = 'presente' LIMIT 1",
         (membro["id"], hoje),
@@ -2788,7 +2793,8 @@ def eu_page():
             })
 
     return render_template(
-        "eu.html", eu=stats, hoje=hoje, minhas_falas=minhas_falas,
+        "eu.html", eu=stats, hoje=hoje, dia_real=dia_real, amanha=amanha, vendo_amanha=vendo_amanha,
+        hoje_extenso=_data_extenso(date.fromisoformat(hoje)), minhas_falas=minhas_falas,
         eu_member_id=membro["id"], mj=_estado_minijogos(db, membro["id"], hoje),
         album=_album_do_membro(db, membro["id"]), seeds_mj={
             "fala_pronta": game.SEED_FALA_PRONTA, "fala_avisada": game.SEED_FALA_AVISADA,
@@ -2797,6 +2803,14 @@ def eu_page():
             "dourada": game.SEED_ESTACAO_COMPLETA, "min_falas": game.FIGURINHA_MIN_FALAS},
         **ctx
     )
+
+
+def _amanha_aberto(db, hoje=None):
+    """O dia que ja pode ser preparado na vespera: so o dia seguinte do calendario, e so se for
+    letivo (sexta a noite nao abre segunda). None quando amanha nao tem daily."""
+    base = date.fromisoformat(hoje) if hoje else date.today()
+    amanha = (base + timedelta(days=1)).isoformat()
+    return amanha if _e_dia_letivo(amanha, db) else None
 
 
 def _fica_para_amanha(db, member_id, hoje):
@@ -3376,9 +3390,11 @@ def api_ata_minha_fala():
     tipo = p.get("tipo")
     campo = p.get("campo")
     try:
-        date.fromisoformat(data_str or "")
+        data_fala = date.fromisoformat(data_str or "")
     except (TypeError, ValueError):
         return _erro("Data inválida.")
+    if data_fala > date.today() + timedelta(days=1):
+        return _erro("A fala abre no máximo na véspera: dá para escrever a de hoje ou a de amanhã.")
     if tipo not in ATA_TIPOS or campo not in ("feito", "planejado", "review", "bloqueios"):
         return _erro("Pedido inválido.")
     if campo == "review" and tipo != "daily":
@@ -3456,7 +3472,11 @@ def _chamada_jardim(db, data_str):
     elif not e["fechamento_pronto"]:
         passo = ("fechamento", "No fim do dia, feche o dia no seu jardim.", "Fechar o dia", "#ritual", game.SEED_FECHAMENTO_PRONTO)
     else:
-        passo = ("pronto", "Tudo feito hoje. Sua planta agradece.", "Ver meu jardim", "", 0)
+        if _amanha_aberto(db, hoje):
+            passo = ("pronto", "Tudo feito hoje. Já dá para preparar a fala de amanhã.", "Preparar amanhã",
+                     "?dia=amanha#fala-daily", game.SEED_FALA_PRONTA)
+        else:
+            passo = ("pronto", "Tudo feito hoje. Sua planta agradece.", "Ver meu jardim", "", 0)
     return {"logado": True, "nome": membro["name"].split()[0], "passo": passo[0], "texto": passo[1],
             "acao": passo[2], "ancora": passo[3], "sementes": passo[4]}
 
@@ -3481,33 +3501,43 @@ def _album_do_membro(db, member_id):
     return album
 
 
-def _minijogo_resposta(db, member_id, ganhou, mensagem):
+def _minijogo_resposta(db, member_id, ganhou, mensagem, data_str=None):
     stats = _stats_membro(db, member_id)
     return jsonify({"ok": True, "ganhou": ganhou, "mensagem": mensagem,
                     "sementes": stats["sementes"] if stats else None,
-                    "estado": _estado_minijogos(db, member_id)})
+                    "estado": _estado_minijogos(db, member_id, data_str)})
 
 
 @app.route("/api/minijogo/<jogo>", methods=["POST"])
 def api_minijogo(jogo):
-    """Fala pronta, Fechamento pronto e Cuidar da planta. A propria pessoa, logada no /eu, hoje."""
+    """Fala pronta, Fechamento pronto e Cuidar da planta. A propria pessoa, logada no /eu.
+    Vale para hoje ou, na vespera, para amanha (nunca mais cedo); o Day Closing so no proprio dia."""
     db = get_db()
     membro = _eu_membro(db)
     if membro is None:
         return _erro("Entre no seu jardim primeiro.", 401)
     mid = membro["id"]
-    hoje = date.today().isoformat()
-    if not _e_dia_letivo(hoje, db):
-        return _erro("Hoje não tem daily: os minigames voltam no próximo dia de aula.")
-    feitas = _jogadas_do_dia(db, mid, hoje)
     p = request.get_json(force=True, silent=True) or {}
+    dia_real = date.today().isoformat()
+    hoje = p.get("data") or dia_real
+    if hoje == dia_real:
+        if not _e_dia_letivo(hoje, db):
+            return _erro("Hoje não tem daily: os minigames voltam no próximo dia de aula.")
+    elif hoje != _amanha_aberto(db):
+        return _erro("Os minigames abrem no máximo na véspera: dá para jogar o dia de hoje ou o de amanhã.")
+    elif jogo == "fechamento":
+        return _erro("O dia só fecha no próprio dia.")
+    feitas = _jogadas_do_dia(db, mid, hoje)
+
+    def resp(ganhou, mensagem):
+        return _minijogo_resposta(db, mid, ganhou, mensagem, hoje)
 
     def gravar(nome):
         db.execute("INSERT OR IGNORE INTO minijogos (member_id, data, jogo) VALUES (?, ?, ?)", (mid, hoje, nome))
 
     if jogo == "fala-pronta":
         if "fala_pronta" in feitas:
-            return _minijogo_resposta(db, mid, 0, "Sua fala já estava pronta.")
+            return resp(0, "Sua fala já estava pronta.")
         if not _fala_preenchida(db, mid, hoje, "daily"):
             return _erro("Preencha O que fiz e O que vou fazer para a fala ficar pronta.")
         if "vez_daily" in feitas:
@@ -3516,7 +3546,7 @@ def api_minijogo(jogo):
             return _erro("Você avisou que não vai hoje. Se for à daily, desfaça o aviso primeiro.")
         gravar("fala_pronta")
         db.commit()
-        return _minijogo_resposta(db, mid, game.SEED_FALA_PRONTA, "Fala pronta! Ela vale no dia em que você marcar presença.")
+        return resp(game.SEED_FALA_PRONTA, "Fala pronta! Ela vale no dia em que você marcar presença.")
 
     if jogo == "avisar":
         # Nao vai a daily: a fala fica na ata (o relator le) e a daily fica como "Avisou".
@@ -3532,8 +3562,7 @@ def api_minijogo(jogo):
         ja = "fala_avisada" in feitas
         gravar("fala_avisada")
         db.commit()
-        return _minijogo_resposta(db, mid, 0 if ja else game.SEED_FALA_AVISADA,
-                                  "Aviso registrado. Obrigado por avisar!")
+        return resp(0 if ja else game.SEED_FALA_AVISADA, "Aviso registrado. Obrigado por avisar!")
 
     if jogo == "desavisar":
         # Mudou de ideia e vai: tira o Avisou que ainda estiver la (nao mexe em presenca ou falta).
@@ -3542,16 +3571,16 @@ def api_minijogo(jogo):
                 _definir_status(db, mid, hoje, ev, None)
         db.execute("DELETE FROM minijogos WHERE member_id = ? AND data = ? AND jogo = 'fala_avisada'", (mid, hoje))
         db.commit()
-        return _minijogo_resposta(db, mid, 0, "Aviso desfeito. Te esperamos na daily!")
+        return resp(0, "Aviso desfeito. Te esperamos na daily!")
 
     if jogo == "fechamento":
         if "fechamento_pronto" in feitas:
-            return _minijogo_resposta(db, mid, 0, "O dia já estava fechado.")
+            return resp(0, "O dia já estava fechado.")
         if not _fala_preenchida(db, mid, hoje, "fechamento"):
             return _erro("Preencha O que concluí hoje e O que fica para amanhã para fechar o dia.")
         gravar("fechamento_pronto")
         db.commit()
-        return _minijogo_resposta(db, mid, game.SEED_FECHAMENTO_PRONTO, "Dia fechado!")
+        return resp(game.SEED_FECHAMENTO_PRONTO, "Dia fechado!")
 
     if jogo == "cuidar":
         acao = p.get("acao")
@@ -3563,7 +3592,7 @@ def api_minijogo(jogo):
             gravar("cuidar")
             ganhou = game.SEED_CUIDAR
         db.commit()
-        return _minijogo_resposta(db, mid, ganhou, "Planta cuidada!" if ganhou else "")
+        return resp(ganhou, "Planta cuidada!" if ganhou else "")
 
     abort(404)
 

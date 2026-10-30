@@ -3,9 +3,10 @@
 {% block title %}{{ eu.name }} · Meu jardim{% endblock %}
 
 {% block content %}
+{% set quando = 'amanhã' if vendo_amanha else 'hoje' %}
 {% if papel_admin == 'scrum' %}
 <p class="aviso-scrum">Você é o <b>Scrum de hoje</b>: pode marcar presença de todos e editar a ata do dia.
-  <a href="{{ url_for('ata_page', data_str=hoje, tipo='daily') }}">Abrir a ata</a></p>
+  <a href="{{ url_for('ata_page', data_str=dia_real, tipo='daily') }}">Abrir a ata</a></p>
 {% endif %}
 <section class="eu-topo" aria-label="Meu jardim">
   <div class="eu-hero">
@@ -24,21 +25,30 @@
 
 {# Ritual do dia: os 3 minigames em ordem. Cada passo leva ao lugar onde se joga. #}
 {% set tem_fechamento = minhas_falas | selectattr('tipo', 'equalto', 'fechamento') | list | length > 0 %}
-<section class="ritual" id="ritual" aria-label="Seu dia no jardim">
+<section class="ritual" id="ritual" aria-label="Seu dia no jardim" data-dia="{{ hoje }}" data-quando="{{ quando }}">
   <h2 class="secao-titulo">Seu dia no jardim</h2>
+  {% if amanha %}
+  {# Na vespera ja da para preparar o dia seguinte; mais cedo que isso, nao abre. #}
+  <nav class="ritual-dias" aria-label="Qual dia preparar">
+    <a href="{{ url_for('eu_page') }}"{% if not vendo_amanha %} aria-current="page"{% endif %}>Hoje</a>
+    <a href="{{ url_for('eu_page', dia='amanha') }}"{% if vendo_amanha %} aria-current="page"{% endif %}>Amanhã</a>
+  </nav>
+  {% endif %}
+  <p class="ritual-data">{{ hoje_extenso[:1]|upper }}{{ hoje_extenso[1:] }}</p>
+  {% if vendo_amanha %}<p class="sub sub-secao">Preparando a véspera: a fala e o cuidado de amanhã já podem ficar prontos hoje. As sementes valem no dia, quando você marcar presença (o aviso vale na hora).</p>{% endif %}
   {% if mj.letivo %}
   <ol class="ritual-passos">
     <li class="passo" data-passo="fala" data-estado="{{ 'feito' if (mj.fala_pronta or mj.fala_avisada) else ('perdido' if mj.vez_passou else 'aberto') }}">
       <a href="#fala-daily">
         <span class="passo-n" aria-hidden="true">1</span>
-        <span class="passo-txt"><b>Fala pronta</b><small>{% if mj.fala_pronta %}pronta antes da daily{% elif mj.fala_avisada %}avisou que não vai{% elif mj.vez_passou %}sua vez já passou hoje{% else %}antes da sua vez na daily{% endif %}</small></span>
+        <span class="passo-txt"><b>Fala pronta</b><small>{% if mj.fala_pronta %}pronta antes da daily{% elif mj.fala_avisada %}avisou que não vai{% elif mj.vez_passou %}sua vez já passou {{ quando }}{% else %}antes da sua vez na daily{% endif %}</small></span>
         <span class="passo-sem">+{{ seeds_mj.fala_avisada if mj.fala_avisada else seeds_mj.fala_pronta }}</span>
       </a>
     </li>
     <li class="passo" data-passo="cuidar" data-estado="{{ 'feito' if mj.cuidar else 'aberto' }}">
       <a href="#cuidar">
         <span class="passo-n" aria-hidden="true">2</span>
-        <span class="passo-txt"><b>Cuidar da planta</b><small>{% if mj.cuidar %}cuidada hoje{% else %}regar, adubar e carinho, a qualquer hora{% endif %}</small></span>
+        <span class="passo-txt"><b>Cuidar da planta</b><small>{% if mj.cuidar %}cuidada {{ quando }}{% else %}regar, adubar e carinho, a qualquer hora{% endif %}</small></span>
         <span class="passo-sem">+{{ seeds_mj.cuidar }}</span>
       </a>
     </li>
@@ -56,8 +66,8 @@
 </section>
 
 {% if minhas_falas %}
-<section class="eu-fala" aria-label="Minha fala de hoje" data-hoje="{{ hoje }}" data-member-id="{{ eu_member_id }}">
-  <h2 class="secao-titulo">Minha fala de hoje</h2>
+<section class="eu-fala" aria-label="Minha fala de {{ quando }}" data-hoje="{{ hoje }}" data-member-id="{{ eu_member_id }}">
+  <h2 class="secao-titulo">Minha fala de {{ quando }}</h2>
   <p class="sub sub-secao">Escreva a sua parte da ata. O relator vê o que você preencheu e pode completar. Salva sozinho.</p>
   <div class="gl-sync" id="gl-sync" hidden>
     <span class="gl-sync-ponto" aria-hidden="true"></span>
@@ -122,7 +132,7 @@
         {% elif mj.letivo %}
         <button type="button" class="btn btn-primary btn-minijogo" data-minijogo="fala-pronta">Fala pronta <span class="btn-sem">+{{ seeds_mj.fala_pronta }}</span></button>
         {% if mj.status_daily != 'presente' and mj.status_daily != 'faltou' %}
-        <button type="button" class="btn btn-ghost btn-avisar" aria-expanded="false" aria-controls="aviso-daily">Não vou hoje <span class="btn-sem">+{{ seeds_mj.fala_avisada }}</span></button>
+        <button type="button" class="btn btn-ghost btn-avisar" aria-expanded="false" aria-controls="aviso-daily">Não vou {{ quando }} <span class="btn-sem">+{{ seeds_mj.fala_avisada }}</span></button>
         <div class="aviso-painel" id="aviso-daily" hidden>
           <p>A daily fica como <b>Avisou</b> (não conta como falta). Se aparecer depois no dia, os +3 continuam valendo. Se der, escreva sua parte acima: o relator lê por você.</p>
           <label class="aviso-dia-todo"><input type="checkbox" id="aviso-dia-todo"> Também não vou no resto do dia</label>
@@ -175,7 +185,7 @@
       <path class="cena-frente" d="M73 236H287V266H73Z"/>
       <path class="cena-tabua" d="M73 251H287M126 236v15M180 251v15M234 236v15"/>
     </svg>
-    <div class="cuidar-medidores" aria-label="Cuidados de hoje">
+    <div class="cuidar-medidores" aria-label="Cuidados de {{ quando }}">
       {% for acao, rotulo in [('regar', 'Água'), ('adubar', 'Adubo'), ('carinho', 'Carinho')] %}
       <span class="medidor" data-acao="{{ acao }}"{% if acao in mj.cuidados %} data-feito="1"{% endif %} style="--p: {{ 100 if acao in mj.cuidados else 0 }}"><b>{{ rotulo }}</b><i aria-hidden="true"></i></span>
       {% endfor %}
@@ -205,14 +215,14 @@
     <div class="cuidar-fx" aria-hidden="true"></div>
   </div>
   <p class="cuidar-dica" id="cuidar-dica" aria-live="polite"></p>
-  <p class="cuidar-fim" {% if not mj.cuidar %}hidden{% endif %}>Planta cuidada hoje <b>+{{ seeds_mj.cuidar }}</b></p>
+  <p class="cuidar-fim" {% if not mj.cuidar %}hidden{% endif %}>Planta cuidada {{ quando }} <b>+{{ seeds_mj.cuidar }}</b></p>
 </section>
 {% endif %}
 
 {% set semana_atual = album | selectattr('atual') | first %}
 <section class="album-estacao" id="album" aria-label="Álbum da estação">
   <h2 class="secao-titulo">Álbum da estação</h2>
-  <p class="sub sub-secao">Uma figurinha por semana: deixe a fala pronta em {{ seeds_mj.min_falas }} dias da semana para revelar (+{{ seeds_mj.figurinha }}). Sprint completa vira dourada (+{{ seeds_mj.dourada }}). Perder uma semana não apaga nada.</p>
+  <p class="sub sub-secao">Uma figurinha por semana: deixe a fala pronta (ou avise que não vai) em {{ seeds_mj.min_falas }} dias da semana para revelar (+{{ seeds_mj.figurinha }}). Sprint completa vira dourada (+{{ seeds_mj.dourada }}). Perder uma semana não apaga nada.</p>
   {% if semana_atual and not semana_atual.folga %}
   <div class="album-progresso" aria-label="Esta semana">
     <span>Esta semana</span>
@@ -293,6 +303,9 @@
 <script>
 (function () {
   var EU = {{ eu.id }};
+  var RITUAL = document.getElementById('ritual');
+  var DIA_ALVO = RITUAL ? RITUAL.dataset.dia : '';      // hoje, ou amanha quando preparando a vespera
+  var QUANDO = RITUAL ? RITUAL.dataset.quando : 'hoje';
   function enviar(url, dados, mensagem) {
     fetch(url, {
       method: 'POST',
@@ -573,8 +586,9 @@
   }
 
   function pedirMinijogo(jogo, dados) {
+    var corpo = Object.assign({}, dados || {}, { data: DIA_ALVO });
     return fetch('/api/minijogo/' + jogo, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dados || {}),
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo),
     })
       .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }, function () { return { ok: false, j: {} }; }); })
       .then(function (res) {
@@ -602,7 +616,7 @@
     if (e.fala_pronta) passo('fala', 'feito', 'pronta antes da daily');
     else if (e.fala_avisada) passo('fala', 'feito', 'avisou que não vai');
     if (e.fechamento_pronto) passo('fechamento', 'feito', 'Day Closing preenchido');
-    if (e.cuidar) passo('cuidar', 'feito', 'cuidada hoje');
+    if (e.cuidar) passo('cuidar', 'feito', 'cuidada ' + QUANDO);
     var sec = document.getElementById('cuidar');
     if (sec) {
       sec.dataset.feito = e.cuidar ? '1' : '0';
@@ -651,7 +665,7 @@
       if (!feito('regar')) dica.textContent = 'Arraste o regador até a planta e segure para regar.';
       else if (!feito('adubar')) dica.textContent = 'Agora arraste o saco de adubo até a planta.';
       else if (!feito('carinho')) dica.textContent = 'Esfregue o dedo na planta para fazer carinho.';
-      else dica.textContent = 'Planta cuidada hoje. Pode continuar mimando à vontade.';
+      else dica.textContent = 'Planta cuidada ' + QUANDO + '. Pode continuar mimando à vontade.';
     };
     window.atualizarDicaCuidar();
 

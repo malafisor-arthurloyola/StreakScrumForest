@@ -373,15 +373,93 @@ class TestAvisarQueNaoVai(MinijogosBase):
         with appmod.app.test_request_context():
             return appmod._contexto_sementes(appmod.get_db(), self.ana, None)["detalhe"]["extrato"]["linhas"]
 
-    def test_aviso_nao_revela_figurinha(self):
+    def test_aviso_conta_para_o_album(self):
         reg = {d: {"justificada": True} for d in ("d1", "d2", "d3")}
         a = game.premios_minijogos([(d, "fala_avisada") for d in reg], [["d1", "d2", "d3"]], reg)
-        self.assertNotIn(game.SEED_FIGURINHA, [x["valor"] for x in a])
+        self.assertIn(game.SEED_FIGURINHA, [x["valor"] for x in a])
+
+    def test_meu_jardim_mostra_a_data_do_dia(self):
+        h = self.cel.get("/eu").get_data(as_text=True)
+        self.assertIn("Terça, 20 de outubro", h)
 
     def test_pagina_mostra_a_opcao_de_avisar(self):
         h = self.cel.get("/eu").get_data(as_text=True)
         self.assertIn("Não vou hoje", h)
         self.assertIn('data-minijogo="avisar"', h)
+
+
+class _SextaFixa(date):
+    @classmethod
+    def today(cls):
+        return date(2026, 10, 23)
+
+
+class TestVespera(MinijogosBase):
+    """O dia seguinte abre na vespera (so o dia seguinte do calendario, e so se for letivo)."""
+    AMANHA = "2026-10-21"
+
+    def jogadas_em(self, data):
+        con = sqlite3.connect(DB)
+        try:
+            return {r[0] for r in con.execute("SELECT jogo FROM minijogos WHERE member_id = ? AND data = ?",
+                                              (self.ana, data))}
+        finally:
+            con.close()
+
+    def test_da_para_deixar_a_fala_de_amanha_pronta(self):
+        self.assertEqual(self.fala("feito", "#101 terminei", data=self.AMANHA).status_code, 200)
+        self.fala("planejado", "#102 seguir", data=self.AMANHA)
+        r = self.jogo("fala-pronta", data=self.AMANHA)
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("fala_pronta", self.jogadas_em(self.AMANHA))
+        self.assertNotIn("fala_pronta", self.jogadas())                  # hoje continua aberto
+        self.assertTrue(r.get_json()["estado"]["fala_pronta"])
+
+    def test_fala_de_amanha_so_paga_com_presenca_no_dia(self):
+        self.fala("feito", "a", data=self.AMANHA)
+        self.fala("planejado", "b", data=self.AMANHA)
+        antes = self.stats()["sementes_ganhas"]
+        self.jogo("fala-pronta", data=self.AMANHA)
+        self.assertEqual(self.stats()["sementes_ganhas"], antes)
+        self.presente(self.ana, data=self.AMANHA)
+        self.assertGreater(self.stats()["sementes_ganhas"], antes)
+
+    def test_cuidar_e_avisar_de_amanha(self):
+        for acao in game.CUIDADOS:
+            r = self.jogo("cuidar", acao=acao, data=self.AMANHA)
+        self.assertEqual(r.get_json()["ganhou"], game.SEED_CUIDAR)
+        self.assertIn("cuidar", self.jogadas_em(self.AMANHA))
+        r = self.jogo("avisar", data=self.AMANHA)
+        self.assertEqual(r.get_json()["ganhou"], game.SEED_FALA_AVISADA)
+
+    def test_depois_de_amanha_nao_abre(self):
+        depois = "2026-10-22"
+        self.assertEqual(self.jogo("cuidar", acao="regar", data=depois).status_code, 400)
+        self.assertEqual(self.jogo("avisar", data=depois).status_code, 400)
+        self.assertEqual(self.fala("feito", "cedo demais", data=depois).status_code, 400)
+        self.assertEqual(self.jogadas_em(depois), set())
+
+    def test_o_dia_so_fecha_no_proprio_dia(self):
+        self.fala("feito", "a", tipo="fechamento", data=self.AMANHA)
+        self.fala("planejado", "b", tipo="fechamento", data=self.AMANHA)
+        self.assertEqual(self.jogo("fechamento", data=self.AMANHA).status_code, 400)
+
+    def test_sexta_nao_abre_a_segunda(self):
+        with mock.patch.object(appmod, "date", _SextaFixa):
+            self.assertEqual(self.jogo("cuidar", acao="regar", data="2026-10-26").status_code, 400)
+            h = self.cel.get("/eu?dia=amanha").get_data(as_text=True)
+        self.assertNotIn("ritual-dias", h)
+        self.assertIn("Sexta, 23 de outubro", h)
+
+    def test_meu_jardim_tem_hoje_e_amanha(self):
+        h = self.cel.get("/eu").get_data(as_text=True)
+        self.assertIn("ritual-dias", h)
+        self.assertIn('data-dia="2026-10-20"', h)
+        h = self.cel.get("/eu?dia=amanha").get_data(as_text=True)
+        self.assertIn('data-dia="2026-10-21"', h)
+        self.assertIn("Quarta, 21 de outubro", h)
+        self.assertIn("Minha fala de amanhã", h)
+        self.assertIn("Não vou amanhã", h)
 
 
 if __name__ == "__main__":
