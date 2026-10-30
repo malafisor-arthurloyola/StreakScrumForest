@@ -1,16 +1,11 @@
-{% extends "base.html" %}
 {% from "_planta.html" import conjunto %}
 {% from "_chama.html" import chama %}
-{% block title %}Mapa do jardim · Jardim da Equipe{% endblock %}
-
 {#
-  Prototipo: o jardim visto de cima, inclinado. O chao, os caminhos, os canteiros e a fonte sao um
-  SVG (viewBox 1600 x 1000); as plantas sao as mesmas do canteiro (macro conjunto), posicionadas
-  por cima em porcentagem, entao especies, vasos, extras e o crescimento ao vivo continuam valendo.
+  Mapa do jardim (aba Painel): o jardim visto de cima, inclinado. O chao, os caminhos, os canteiros,
+  a fonte, o cenario e os bichinhos sao um SVG (viewBox 1600 x 1000); as plantas sao as mesmas do
+  canteiro (macro conjunto), posicionadas por cima em porcentagem, entao especies, vasos, extras e o
+  crescimento ao vivo continuam valendo. A tela do dia continua com o canteiro em fileira.
 #}
-{# Canteiro elevado em losango: laterais de tabua, grama na borda, terra com sulcos, cerca com
-   mourao e dois trilhos. "mudas" desenha mudinhas nos sulcos (uma por presenca na semana, mais
-   duas de enfeite): nunca diminui por falta, so cresce com presenca. #}
 {% macro canteiro(x, y, w=150, h=82, t=20, mudas=0, semente=0) %}
 <g class="lote-chao">
   <ellipse class="lote-sombra" cx="{{ x + 10 }}" cy="{{ y + t + 12 }}" rx="{{ w + 14 }}" ry="{{ h * 0.7 }}"/>
@@ -103,18 +98,8 @@
 </g>
 {% endmacro %}
 
-{% block content %}
+{% macro mapa(lotes, convidados, marcos, centro, raios_praca) %}
 <link rel="stylesheet" href="{{ url_for('static', filename='mapa.css') }}">
-<header class="pagina-cab">
-  <div>
-    <h1>Mapa do jardim</h1>
-    <p class="sub">Protótipo: o mesmo jardim visto de cima, com um canteiro para cada pessoa ao redor da fonte.</p>
-  </div>
-  <div class="pagina-cab-acoes">
-    <a class="btn btn-ghost" href="{{ url_for('home') }}">Voltar para Hoje</a>
-  </div>
-</header>
-
 {% set cx, cy = centro %}
 {% set fy = cy + 50 %}{# a fonte desce um pouco para nao ficar atras da placa do canteiro de cima #}
 {% set fonte = 'fonte' in marcos %}
@@ -295,19 +280,6 @@
 </section>
 </div>
 <p class="mapa-dica">Arraste para o lado para ver o mapa todo.</p>
-
-<section class="card mapa-legenda">
-  <h2>Upgrades do jardim coletivo</h2>
-  <ul>
-    {% for mc in marcos_info %}
-    <li class="{{ 'liberado' if mc.liberado }}"><b>{{ mc.pct }}%</b> {{ mc.nome }}{% if not mc.liberado %} <span>(ainda não)</span>{% endif %}</li>
-    {% endfor %}
-  </ul>
-  <p class="ata-dica">Estufa, casinha e lago são cenário por enquanto e podem virar upgrades. As mudinhas de cada canteiro são as presenças da semana. Nada aqui compara pessoas: cada canteiro só mostra a própria planta.</p>
-</section>
-{% endblock %}
-
-{% block scripts %}
 <script>
   // No celular o mapa e mais largo que a tela: comeca centrado na fonte.
   (function () {
@@ -315,4 +287,4 @@
     if (r && r.scrollWidth > r.clientWidth) r.scrollLeft = (r.scrollWidth - r.clientWidth) / 2;
   })();
 </script>
-{% endblock %}
+{% endmacro %}

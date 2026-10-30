@@ -1611,10 +1611,11 @@ def dashboard():
         equipe=[m for m in ctx["ativos"]],
         seed_meta_max=game.SEED_META_MAX,
         **_painel_coletivo(db, ctx),
+        **_contexto_mapa(ctx),
     )
 
 
-# Mapa do jardim (prototipo): canteiros em perspectiva ao redor da fonte. Coordenadas no
+# Mapa do jardim (aba Painel): canteiros em perspectiva ao redor da fonte. Coordenadas no
 # viewBox 1600 x 1000 do mapa. Os canteiros ficam numa elipse e sempre sobra um vao embaixo,
 # onde entram o caminho de entrada e o canteiro dos convidados.
 MAPA_CENTRO = (800, 470)
@@ -1635,27 +1636,21 @@ def _posicoes_mapa(n):
     return pos
 
 
-@app.route("/mapa")
-def mapa_page():
-    db = get_db()
-    ctx = _base_coletivo(db)
-    _enriquecer_jardim(db, ctx["ativos"], ctx["hoje"], ctx["dias_set"])
-    _enriquecer_jardim(db, ctx["convidados"], ctx["hoje"], ctx["dias_set"])
+def _contexto_mapa(ctx):
+    """Canteiros do mapa do Painel. Espera ctx["ativos"] ja enriquecido (semana, chama)."""
     lotes = []
     topo, base = MAPA_CENTRO[1] - MAPA_RAIO[1], MAPA_CENTRO[1] + MAPA_RAIO[1]
     for m, (x, y) in zip(ctx["ativos"], _posicoes_mapa(len(ctx["ativos"]))):
         # quem esta mais ao fundo fica um pouco menor (perspectiva)
         escala = round(0.84 + 0.16 * (y - topo) / max(base - topo, 1), 3)
         lotes.append({"m": m, "x": x, "y": y, "escala": escala})
-    return render_template(
-        "mapa.html",
-        lotes=sorted(lotes, key=lambda l: l["y"]),
-        convidados=ctx["convidados"],
-        centro=MAPA_CENTRO,
-        raios_praca=[(round(math.cos(k * math.pi / 12), 4), round(math.sin(k * math.pi / 12), 4)) for k in range(24)],
-        marcos=_marcos_liberados(ctx["membros"], ctx["meta"]),
-        marcos_info=game.marcos_coletivos(_progresso_coletivo(ctx["ativos"], ctx["meta"])),
-    )
+    return {
+        "mapa_lotes": sorted(lotes, key=lambda l: l["y"]),
+        "mapa_centro": MAPA_CENTRO,
+        "mapa_raios_praca": [
+            (round(math.cos(k * math.pi / 12), 4), round(math.sin(k * math.pi / 12), 4)) for k in range(24)
+        ],
+    }
 
 
 def _int_ou_none(valor):
