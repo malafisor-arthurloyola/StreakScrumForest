@@ -24,7 +24,7 @@
       <div class="item-vitrine">{{ conjunto(it.preview, 92) }}</div>
       {% if it.possui %}
         <h3>{{ it.nome }}</h3>
-        <span class="raridade r-{{ it.raridade }}">{{ it.raridade }}</span>
+        <span class="raridade r-{{ it.raridade }}">{{ it.raridade_nome }}</span>
       {% else %}
         <h3>???</h3>
         <span class="preco"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#p-semente" class="sem-corpo"/><use href="#p-semente-brilho" class="sem-brilho"/></svg>{{ it.preco }}</span>

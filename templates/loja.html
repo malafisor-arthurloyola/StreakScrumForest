@@ -61,22 +61,32 @@
   </div>
 </section>
 
+<div class="loja-barra">
 <nav class="loja-abas" aria-label="Seções da loja">
-  {% for tipo, titulo in grupos %}<a href="#g-{{ tipo }}">{{ titulo }}</a>{% endfor %}
+  {% for tipo, titulo in grupos %}<a href="#g-{{ tipo }}" data-grupo="{{ tipo }}">{{ titulo }}</a>{% endfor %}
   <a href="#minhas-compras">Minhas compras</a>
 </nav>
+<div class="loja-filtro" role="group" aria-label="Filtrar por raridade">
+  <span class="loja-filtro-rotulo">Raridade:</span>
+  <button type="button" class="filtro-rar ativo" data-rar="" aria-pressed="true">Todas</button>
+  {% for r, nome in raridades %}
+  {% set n = itens | selectattr('raridade', 'equalto', r) | list | length %}
+  {% if n %}<button type="button" class="filtro-rar r-{{ r }}" data-rar="{{ r }}" aria-pressed="false">{{ nome }} <span class="filtro-n">{{ n }}</span></button>{% endif %}
+  {% endfor %}
+</div>
+</div>
 
 {% for tipo, titulo in grupos %}
-<section class="loja-grupo" id="g-{{ tipo }}">
+<section class="loja-grupo" id="g-{{ tipo }}" data-grupo="{{ tipo }}">
   <h2 class="secao-titulo">{{ titulo }}</h2>
   <div class="itens">
     {% for it in itens if it.tipo == tipo %}
-    <article class="item{{ ' item-meu' if it.possui }}" data-item="{{ it.id }}">
+    <article class="item{{ ' item-meu' if it.possui }}" data-item="{{ it.id }}" data-raridade="{{ it.raridade }}">
       <div class="item-vitrine">{{ conjunto(it.preview, 104) }}</div>
       <div class="item-corpo">
         <div class="item-topo">
           <h3>{{ it.nome }}</h3>
-          <span class="raridade r-{{ it.raridade }}">{{ it.raridade }}</span>
+          <span class="raridade r-{{ it.raridade }}">{{ it.raridade_nome }}</span>
         </div>
         <p class="item-desc">{{ it.desc }}</p>
 
@@ -163,6 +173,35 @@
   }
   barra.addEventListener('input', previa);
   previa();
+
+  // Filtro por raridade: so esconde cartoes; grupo sem nenhum item visivel some junto
+  // com o atalho dele. A escolha fica guardada neste navegador.
+  var filtros = document.querySelectorAll('.filtro-rar');
+  function filtrar(rar) {
+    filtros.forEach(function (b) {
+      var on = b.dataset.rar === rar;
+      b.classList.toggle('ativo', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    document.querySelectorAll('section[data-grupo]').forEach(function (sec) {
+      var visiveis = 0;
+      sec.querySelectorAll('.item[data-raridade]').forEach(function (it) {
+        var mostra = !rar || it.dataset.raridade === rar;
+        it.hidden = !mostra;
+        if (mostra) visiveis++;
+      });
+      sec.hidden = visiveis === 0;
+      var atalho = document.querySelector('.loja-abas a[data-grupo="' + sec.dataset.grupo + '"]');
+      if (atalho) atalho.hidden = visiveis === 0;
+    });
+    try { localStorage.setItem('jardim.loja.raridade', rar); } catch (e) {}
+  }
+  filtros.forEach(function (b) {
+    b.addEventListener('click', function () { filtrar(b.dataset.rar); });
+  });
+  var salvo = '';
+  try { salvo = localStorage.getItem('jardim.loja.raridade') || ''; } catch (e) {}
+  if (salvo && document.querySelector('.filtro-rar[data-rar="' + salvo + '"]')) filtrar(salvo);
   if (!PODE_AGIR) {
     document.querySelectorAll('[data-acao]').forEach(function (b) { b.hidden = true; });
   }
