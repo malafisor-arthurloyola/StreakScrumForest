@@ -40,17 +40,17 @@ SEED_RELATOR_MAX_POR_ATA = 3   # limite do bonus do relator por ata (Daily ou Da
 # letivo com presenca. O servidor so grava a jogada quando a regra foi cumprida (ex.: fala pronta
 # antes da vez da pessoa na rodada); aqui so se conta o que foi gravado.
 SEED_FALA_PRONTA = 5          # fala da daily pronta antes da sua vez na rodada
-SEED_FALA_AVISADA = 3         # nao vai a daily: avisou e deixou a fala escrita para a ata
+SEED_FALA_AVISADA = 3         # avisou pelo celular que nao vai a daily (antes, nao depois)
 SEED_FECHAMENTO_PRONTO = 3    # Day Closing preenchido no proprio dia
 SEED_CUIDAR = 3               # regar, adubar e carinho, a qualquer hora do dia
 SEED_FIGURINHA = 10           # semana do Album da estacao revelada
 SEED_ESTACAO_COMPLETA = 10    # todas as semanas de uma sprint reveladas (figurinha dourada)
 FIGURINHA_MIN_FALAS = 3       # falas prontas na semana para revelar a figurinha
 CUIDADOS = ("regar", "adubar", "carinho")
-FALAS_DO_ALBUM = ("fala_pronta", "fala_avisada")    # avisar nao tira a semana do album
+FALAS_DO_ALBUM = ("fala_pronta",)    # o album e de quem preparou a fala
 MINIJOGOS = {
     "fala_pronta": (SEED_FALA_PRONTA, "Fala pronta"),
-    "fala_avisada": (SEED_FALA_AVISADA, "Avisou e deixou a fala"),
+    "fala_avisada": (SEED_FALA_AVISADA, "Avisou que não ia à daily"),
     "fechamento_pronto": (SEED_FECHAMENTO_PRONTO, "Fechamento pronto"),
     "cuidar": (SEED_CUIDAR, "Cuidou da planta"),
 }
@@ -730,14 +730,14 @@ def premios_minijogos(jogadas, semanas_projeto, registros_por_data, sprint_seman
     letivos = {d for sem in semanas_projeto for d in sem}
     def vale(d, j):
         reg = registros_por_data.get(d, {})
-        if j == "fala_avisada":              # so quando a pessoa de fato nao foi (avisou e nao ficou presente)
-            return reg.get("justificada", False) and not reg.get("presente", False)
+        if j == "fala_avisada":              # avisou que nao vai a daily: vale mesmo que apareca depois no dia
+            return True
         return reg.get("presente", False)
 
     validas = sorted({(d, j) for d, j in jogadas if j in MINIJOGOS and d in letivos and vale(d, j)})
     premios = []
     detalhes = {"fala_pronta": "a fala da daily estava pronta antes da sua vez",
-                "fala_avisada": "avisou que não ia e deixou a fala para a ata",
+                "fala_avisada": "avisou pelo celular que não ia à daily",
                 "fechamento_pronto": "o Day Closing ficou preenchido", "cuidar": "regou, adubou e fez carinho"}
     for d, j in validas:
         valor, rotulo = MINIJOGOS[j]

@@ -31,7 +31,7 @@
     <li class="passo" data-passo="fala" data-estado="{{ 'feito' if (mj.fala_pronta or mj.fala_avisada) else ('perdido' if mj.vez_passou else 'aberto') }}">
       <a href="#fala-daily">
         <span class="passo-n" aria-hidden="true">1</span>
-        <span class="passo-txt"><b>Fala pronta</b><small>{% if mj.fala_pronta %}pronta antes da daily{% elif mj.fala_avisada %}avisou e deixou a fala{% elif mj.vez_passou %}sua vez já passou hoje{% else %}antes da sua vez na daily{% endif %}</small></span>
+        <span class="passo-txt"><b>Fala pronta</b><small>{% if mj.fala_pronta %}pronta antes da daily{% elif mj.fala_avisada %}avisou que não vai{% elif mj.vez_passou %}sua vez já passou hoje{% else %}antes da sua vez na daily{% endif %}</small></span>
         <span class="passo-sem">+{{ seeds_mj.fala_avisada if mj.fala_avisada else seeds_mj.fala_pronta }}</span>
       </a>
     </li>
@@ -115,7 +115,7 @@
         {% if mj.fala_pronta %}
         <p class="selo-pronto">Fala pronta antes da daily <b>+{{ seeds_mj.fala_pronta }}</b></p>
         {% elif mj.fala_avisada %}
-        <p class="selo-pronto selo-aviso">Você avisou que não vai. O relator lê sua parte na daily. <b>+{{ seeds_mj.fala_avisada }}</b></p>
+        <p class="selo-pronto selo-aviso">Você avisou que não vai à daily. <b>+{{ seeds_mj.fala_avisada }}</b></p>
         <button type="button" class="link-acao" data-minijogo-simples="desavisar">Vou à daily, desfazer o aviso</button>
         {% elif mj.vez_passou %}
         <p class="fala-acao-nota">Sua vez na daily já passou hoje: a fala continua valendo na ata. Amanhã, deixe pronta antes.</p>
@@ -124,10 +124,10 @@
         {% if mj.status_daily != 'presente' and mj.status_daily != 'faltou' %}
         <button type="button" class="btn btn-ghost btn-avisar" aria-expanded="false" aria-controls="aviso-daily">Não vou hoje <span class="btn-sem">+{{ seeds_mj.fala_avisada }}</span></button>
         <div class="aviso-painel" id="aviso-daily" hidden>
-          <p>A daily fica como <b>Avisou</b> (não conta como falta) e o relator lê a sua parte por você.</p>
+          <p>A daily fica como <b>Avisou</b> (não conta como falta). Se aparecer depois no dia, os +3 continuam valendo. Se der, escreva sua parte acima: o relator lê por você.</p>
           <label class="aviso-dia-todo"><input type="checkbox" id="aviso-dia-todo"> Também não vou no resto do dia</label>
           <div class="aviso-botoes">
-            <button type="button" class="btn btn-primary btn-minijogo" data-minijogo="avisar">Avisar e enviar a fala <span class="btn-sem">+{{ seeds_mj.fala_avisada }}</span></button>
+            <button type="button" class="btn btn-primary btn-minijogo" data-minijogo="avisar">Avisar <span class="btn-sem">+{{ seeds_mj.fala_avisada }}</span></button>
             <button type="button" class="btn btn-ghost aviso-cancelar">Cancelar</button>
           </div>
         </div>
@@ -434,7 +434,7 @@
           return pedirMinijogo(jogo, dados).then(function (j) {
             if (!j) { btn.disabled = false; return; }
             comemorar(bloco, j.ganhou);
-            var SELO = { fechamento: ['Dia fechado', 'Dia fechado'], avisar: ['Você avisou que não vai. O relator lê sua parte na daily.', 'Avisou que não vai'],
+            var SELO = { fechamento: ['Dia fechado', 'Dia fechado'], avisar: ['Você avisou que não vai à daily.', 'Avisou que não vai'],
                          'fala-pronta': ['Fala pronta antes da daily', 'Pronta'] }[jogo];
             var p = document.createElement('p');
             p.className = 'selo-pronto' + (jogo === 'avisar' ? ' selo-aviso' : '');
@@ -600,7 +600,7 @@
       if (small && texto) small.textContent = texto;
     }
     if (e.fala_pronta) passo('fala', 'feito', 'pronta antes da daily');
-    else if (e.fala_avisada) passo('fala', 'feito', 'avisou e deixou a fala');
+    else if (e.fala_avisada) passo('fala', 'feito', 'avisou que não vai');
     if (e.fechamento_pronto) passo('fechamento', 'feito', 'Day Closing preenchido');
     if (e.cuidar) passo('cuidar', 'feito', 'cuidada hoje');
     var sec = document.getElementById('cuidar');
