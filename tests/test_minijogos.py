@@ -317,9 +317,10 @@ class TestAvisarQueNaoVai(MinijogosBase):
         self.fala("feito", "#101 terminei")
         self.fala("planejado", "#102 seguir")
 
-    def test_avisar_pede_a_fala_preenchida(self):
-        self.assertEqual(self.jogo("avisar").status_code, 400)
-        self.assertIsNone(self.status())
+    def test_so_avisar_ja_vale_sem_a_fala(self):
+        r = self.jogo("avisar")
+        self.assertEqual(r.get_json()["ganhou"], game.SEED_FALA_AVISADA)
+        self.assertEqual(self.status(), "justificada")
 
     def test_avisar_marca_avisou_e_paga_tres(self):
         self.preencher()
@@ -337,7 +338,6 @@ class TestAvisarQueNaoVai(MinijogosBase):
         self.assertEqual(self.status("encerramento"), "justificada")
 
     def test_nao_avisa_por_cima_de_presenca_ou_falta(self):
-        self.preencher()
         self.presente(self.ana, eventos=("daily",))
         self.assertEqual(self.jogo("avisar").status_code, 400)
         self.assertEqual(self.status(), "presente")
@@ -355,15 +355,28 @@ class TestAvisarQueNaoVai(MinijogosBase):
         self.jogo("avisar")
         self.assertEqual(self.jogo("fala-pronta").status_code, 400)
 
-    def test_avisada_com_presenca_depois_nao_paga_em_dobro(self):
-        reg = {"d1": {"presente": True, "justificada": True}}
-        p = game.premios_minijogos([("d1", "fala_avisada")], [["d1"]], reg)
-        self.assertEqual(p, [])
+    def test_avisou_e_apareceu_depois_no_dia_continua_valendo(self):
+        self.jogo("avisar")
+        antes = self.stats()["sementes_ganhas"]
+        self.presente(self.ana, eventos=("dev", "encerramento"))             # chegou depois da daily
+        mj = [x for x in self._extrato() if x["fonte"] == "minijogo"]
+        self.assertIn(game.SEED_FALA_AVISADA, [x["valor"] for x in mj])
+        self.assertGreater(self.stats()["sementes_ganhas"], antes)
 
-    def test_aviso_conta_para_o_album(self):
+    def test_se_o_scrum_marca_presenca_na_daily_o_aviso_nao_paga(self):
+        self.jogo("avisar")
+        self.presente(self.ana, eventos=("daily",))
+        mj = [x for x in self._extrato() if x["fonte"] == "minijogo"]
+        self.assertNotIn(game.SEED_FALA_AVISADA, [x["valor"] for x in mj])
+
+    def _extrato(self):
+        with appmod.app.test_request_context():
+            return appmod._contexto_sementes(appmod.get_db(), self.ana, None)["detalhe"]["extrato"]["linhas"]
+
+    def test_aviso_nao_revela_figurinha(self):
         reg = {d: {"justificada": True} for d in ("d1", "d2", "d3")}
         a = game.premios_minijogos([(d, "fala_avisada") for d in reg], [["d1", "d2", "d3"]], reg)
-        self.assertIn(game.SEED_FIGURINHA, [x["valor"] for x in a])
+        self.assertNotIn(game.SEED_FIGURINHA, [x["valor"] for x in a])
 
     def test_pagina_mostra_a_opcao_de_avisar(self):
         h = self.cel.get("/eu").get_data(as_text=True)

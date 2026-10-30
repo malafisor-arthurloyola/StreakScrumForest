@@ -935,9 +935,16 @@ def _falas_do_membro(db, member_id, dias_letivos_lista):
 
 
 def _jogadas_por_membro(db):
-    """{member_id: [(data, jogo)]} de todas as jogadas de minigame gravadas."""
+    """{member_id: [(data, jogo)]} de todas as jogadas de minigame gravadas.
+
+    O aviso de que nao vai a daily ("fala_avisada") so entra enquanto a daily daquele dia continuar
+    como Avisou: se o Scrum marcar presenca na daily, vale a regra de quem foi."""
     jogadas = {}
-    for r in db.execute("SELECT member_id, data, jogo FROM minijogos").fetchall():
+    for r in db.execute(
+        "SELECT j.member_id, j.data, j.jogo FROM minijogos j "
+        "LEFT JOIN attendance a ON a.member_id = j.member_id AND a.event_date = j.data AND a.event_type = 'daily' "
+        "WHERE j.jogo <> 'fala_avisada' OR a.status = 'justificada'"
+    ).fetchall():
         jogadas.setdefault(r["member_id"], []).append((r["data"], r["jogo"]))
     return jogadas
 
@@ -2586,7 +2593,7 @@ def _contexto_sementes(db, member_id, compare_id=None):
     regs_dedicado = {
         d: {"presente": True, "eventos": set(game.SEED_POR_EVENTO)} for d in dias
     }
-    jog_ded = [(d, j) for d in dias for j in game.MINIJOGOS]
+    jog_ded = [(d, j) for d in dias for j in game.MINIJOGOS if j != "fala_avisada"]    # o dedicado vai a todas
     ded = game.calcular_sementes(dias, semanas, regs_dedicado, True, dias_cheios=set(dias),
                                  atas_com_fala=2 * len(dias),
                                  minijogos=game.premios_minijogos(jog_ded, semanas, regs_dedicado, _sprint_semanas(db)))
@@ -3459,7 +3466,7 @@ def _album_do_membro(db, member_id):
     reg = _registros_membro(db, member_id)
     falas = [d for d, j in _jogadas_por_membro(db).get(member_id, [])
              if (j == "fala_pronta" and reg.get(d, {}).get("presente", False))
-             or (j == "fala_avisada" and reg.get(d, {}).get("justificada", False) and not reg.get(d, {}).get("presente", False))]
+             or j == "fala_avisada"]
     album = game.album_estacao(falas, semanas, _sprint_semanas(db))
     especies = [i["id"] for i in catalog.ITENS if i["tipo"] == "especie" and not i.get("padrao")] or ["muda"]
     hoje = date.today().isoformat()
@@ -3518,8 +3525,6 @@ def api_minijogo(jogo):
             return _erro("Você já está presente na daily de hoje.")
         if st == "faltou":
             return _erro("O Scrum já registrou falta na daily de hoje. Fale com ele para trocar por Avisou.")
-        if not _fala_preenchida(db, mid, hoje, "daily"):
-            return _erro("Preencha O que fiz e O que vou fazer: é o que o relator vai ler por você.")
         eventos = EVENT_KEYS if p.get("dia_todo") else ["daily"]
         for ev in eventos:
             if _status_do_evento(db, hoje, ev).get(mid) in (None, "justificada"):
@@ -3528,7 +3533,7 @@ def api_minijogo(jogo):
         gravar("fala_avisada")
         db.commit()
         return _minijogo_resposta(db, mid, 0 if ja else game.SEED_FALA_AVISADA,
-                                  "Aviso registrado. Sua parte vai para a ata da daily.")
+                                  "Aviso registrado. Obrigado por avisar!")
 
     if jogo == "desavisar":
         # Mudou de ideia e vai: tira o Avisou que ainda estiver la (nao mexe em presenca ou falta).
