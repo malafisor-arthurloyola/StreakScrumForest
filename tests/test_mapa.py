@@ -36,6 +36,18 @@ class TestMapaNoPainel(ColetivoBase):
         self.assertIn("Bia", html)
 
 
+class TestCanteiroComCompras(ColetivoBase):
+    def test_especie_comprada_aparece_solta_no_canteiro(self):
+        con = sqlite3.connect(DB)
+        mid = con.execute("SELECT id FROM members WHERE active = 1 AND COALESCE(tipo, 'equipe') <> 'convidado'").fetchone()[0]
+        con.execute("INSERT INTO compras (member_id, item_id, custo) VALUES (?, 'lavanda', 0)", (mid,))
+        con.commit()
+        con.close()
+        html = self.get("/dashboard").get_data(as_text=True)
+        self.assertIn('class="lote-vaga solta"', html)
+        self.assertIn('data-especie="lavanda"', html)
+
+
 class TestDiaSemMapa(ColetivoBase):
     def test_tela_do_dia_continua_com_a_fileira(self):
         html = self.get("/dia/2026-10-19").get_data(as_text=True)

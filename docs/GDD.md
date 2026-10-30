@@ -376,7 +376,9 @@ nunca vão para o repositório.
 - **Navegação:** barra inferior no celular (Hoje, Painel, Loja, Sementes, Histórico, Membros) e menu no topo
   no computador; selo de administrador no topo.
 - **Plantas extras:** ficam agrupadas ao vaso principal para que todos os cartões do canteiro tenham a mesma
-  largura (ter uma planta a mais não afasta a pessoa do time).
+  largura (ter uma planta a mais não afasta a pessoa do time). No mapa do Painel o vaso principal fica no
+  meio do canteiro, as extras em vasos ao lado, e cada outra espécie comprada (que não está em uso) nasce
+  solta na terra do canteiro, até 4: comprar uma planta nova sempre aparece no jardim.
 
 ---
 

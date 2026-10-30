@@ -4,14 +4,14 @@
   O JS (aplicarEstagio em app.js) so troca os atributos data-* e a classe "on",
   entao a planta cresce ao vivo sem recarregar a pagina.
 #}
-{% macro planta(membro, tamanho=160, extra_de=None) %}
+{% macro planta(membro, tamanho=160, extra_de=None, sem_vaso=False) %}
 {% set s = membro.estagio %}
 {% set fr = membro.frutos or 0 %}
 {% set v = membro.visual or {} %}
 {% set esp = v.especie or 'muda' %}
 {% set F = '#' ~ (v.folha or 'p-folha') %}
-{% set pend = esp in ['samambaia', 'jarro'] %}
-<svg class="planta" viewBox="0 0 120 150" width="{{ tamanho }}" height="{{ (tamanho * 1.25) | round | int }}"
+{% set pend = esp in ['samambaia', 'jarro'] and not sem_vaso %}
+<svg class="planta{{ ' sem-vaso' if sem_vaso }}" viewBox="0 0 120 150" width="{{ tamanho }}" height="{{ (tamanho * 1.25) | round | int }}"
      role="img" aria-label="Planta de {{ membro.name }}: {{ membro.estagio_nome }}"
      {% if extra_de %}data-extra-de="{{ extra_de }}"{% else %}data-member-id="{{ membro.id }}"{% endif %}
      data-especie="{{ v.especie or 'muda' }}" data-vaso="{{ v.vaso or 'terracota' }}" data-stage="{{ s }}" data-vigor="{{ membro.vigor }}"
@@ -153,34 +153,51 @@
     <g transform="translate(36 24) scale(.7)"><use href="#p-brilho" class="brilho" style="--b:1s"/></g>
     <g transform="translate(86 26) scale(.85)"><use href="#p-brilho" class="brilho" style="--b:1.5s"/></g>
   </g>
+  {# Companheiros: cada um tem um ciclo proprio (anda e vira, pousa, pisca, cisca, cochila).
+     O atraso --d de cada planta desencontra os bichinhos de canteiros vizinhos. #}
   {% if v.companheiro == 'joaninha' %}
-  <g class="comp" transform="translate(82 113)"><g class="mov-joaninha">
-    <ellipse rx="5.2" ry="4.2" fill="#e8443a"/><path d="M0-4.2V4.2" stroke="#2a1410" stroke-width="1"/>
-    <circle cx="-2" cy="-1" r="1" fill="#2a1410"/><circle cx="2" cy="1.2" r="1" fill="#2a1410"/>
-    <circle cx="0" cy="-5" r="2.1" fill="#2a1410"/>
-  </g></g>
+  <g class="comp" transform="translate(74 113.5)"><g class="mov-joaninha"><g class="joaninha-vira"><g class="joaninha-passo">
+    <path class="pernas" d="M-3 2.6L-4.6 5M0 3.2V5.8M3 2.6L4.6 5" stroke="#2a1410" stroke-width=".8" stroke-linecap="round" fill="none"/>
+    <circle cx="5.4" cy="-.6" r="2.3" fill="#2a1410"/><path d="M6.6-2.6L8.4-4.8M5.4-2.8L6.2-5.2" stroke="#2a1410" stroke-width=".55" stroke-linecap="round"/>
+    <g class="elitro e1"><path d="M0-4.2A5.2 4.2 0 0 0 0 4.2Z" fill="#e8443a"/><circle cx="-2.2" cy="-1" r=".95" fill="#2a1410"/><circle cx="-1.6" cy="2" r=".8" fill="#2a1410"/></g>
+    <g class="elitro e2"><path d="M0-4.2A5.2 4.2 0 0 1 0 4.2Z" fill="#e8443a"/><circle cx="2.2" cy="1.2" r=".95" fill="#2a1410"/></g>
+    <ellipse cx="-1.4" cy="-2.2" rx="1.6" ry=".8" fill="#fff" opacity=".45"/>
+  </g></g></g></g>
   {% elif v.companheiro == 'borboleta' %}
-  <g class="comp" transform="translate(98 48)"><g class="mov-borboleta">
-    <ellipse class="asa" cx="-4" cy="-2" rx="5" ry="3.6" fill="#ff9ec4"/><ellipse class="asa" cx="4" cy="-2" rx="5" ry="3.6" fill="#ff9ec4"/>
-    <ellipse class="asa" cx="-3" cy="2.5" rx="3.4" ry="2.6" fill="#6db9ff"/><ellipse class="asa" cx="3" cy="2.5" rx="3.4" ry="2.6" fill="#6db9ff"/>
-    <rect x="-.6" y="-4" width="1.2" height="9" rx=".6" fill="#2a2030"/>
-  </g></g>
+  <g class="comp" transform="translate(96 46)"><g class="mov-borboleta"><g class="borboleta-corpo">
+    <g class="asa asa-e"><ellipse cx="-4.4" cy="-2.2" rx="5" ry="3.8" fill="#ff9ec4"/><ellipse cx="-3.2" cy="2.6" rx="3.4" ry="2.6" fill="#6db9ff"/><circle cx="-5" cy="-2.6" r="1.2" fill="#fff" opacity=".7"/></g>
+    <g class="asa asa-d"><ellipse cx="4.4" cy="-2.2" rx="5" ry="3.8" fill="#ff9ec4"/><ellipse cx="3.2" cy="2.6" rx="3.4" ry="2.6" fill="#6db9ff"/><circle cx="5" cy="-2.6" r="1.2" fill="#fff" opacity=".7"/></g>
+    <rect x="-.7" y="-4.4" width="1.4" height="9.4" rx=".7" fill="#2a2030"/>
+    <path d="M-.3-4.2Q-2-7.4-3.2-7.8M.3-4.2Q2-7.4 3.2-7.8" stroke="#2a2030" stroke-width=".55" fill="none" stroke-linecap="round"/>
+  </g></g></g>
   {% elif v.companheiro == 'vagalume' %}
-  <g class="comp" transform="translate(60 78)"><g class="mov-orbita"><circle cx="38" cy="0" r="2.6" fill="#c6f24e"/></g></g>
+  <g class="comp" transform="translate(60 74)"><g class="mov-orbita">
+    <circle class="vagalume-halo" r="6" fill="#e8ff8a"/>
+    <ellipse class="vagalume-asa" cx="-1.2" cy="-3" rx="2.2" ry="1.4" fill="#ffffff" opacity=".7"/>
+    <circle class="vagalume-luz" r="2.6" fill="#c6f24e"/>
+  </g></g>
   {% elif v.companheiro == 'passarinho' %}
   <g class="comp" transform="translate(18 137)"><g class="mov-passaro">
-    <ellipse rx="8" ry="6.2" fill="#6db9ff"/><path d="M-8 1L-15 5L-7 5Z" fill="#4a97e0"/>
-    <circle cx="5" cy="-4" r="4.4" fill="#6db9ff"/><path d="M9-4.4L13.5-3L9-2Z" fill="#ffb347"/>
-    <circle cx="6.2" cy="-4.8" r="1.1" fill="#12200a"/>
+    <path class="passaro-cauda" d="M-7 0L-15 3.6L-13.6 6.4L-6 3Z" fill="#4a97e0"/>
+    <ellipse rx="8" ry="6.2" fill="#6db9ff"/><ellipse cx="1" cy="2" rx="4.6" ry="3.4" fill="#cfe9ff"/>
+    <path class="passaro-asa" d="M-5-1Q0-4 4 0Q0 3-5 1Z" fill="#4a97e0"/>
+    <g class="passaro-cabeca">
+      <circle cx="5" cy="-4" r="4.4" fill="#6db9ff"/><path d="M9-4.4L13.5-3L9-2Z" fill="#ffb347"/>
+      <ellipse class="olho-pisca" cx="6.2" cy="-4.8" rx="1.1" ry="1.1" fill="#12200a"/>
+    </g>
     <path d="M-1 6V9.5M2.5 6V9.5" stroke="#ffb347" stroke-width="1.2" stroke-linecap="round"/>
   </g></g>
   {% elif v.companheiro == 'gato' %}
   <g class="comp" transform="translate(17 140)"><g class="mov-gato">
-    <path d="M-12 3Q-19 -2-13-8" stroke="#e08b3c" stroke-width="3.2" fill="none" stroke-linecap="round"/>
-    <ellipse rx="13" ry="8" fill="#f0a35a"/><circle cx="9" cy="-3" r="6.2" fill="#f0a35a"/>
-    <path d="M5-8L6.5-13.5L10-9Z" fill="#f0a35a"/><path d="M11-9L14.5-13.5L15.5-7Z" fill="#f0a35a"/>
-    <path d="M6 -3Q7.6 -1.6 9.2 -3M10.8 -3Q12.4 -1.6 14 -3" stroke="#3b2414" fill="none" stroke-width=".9" stroke-linecap="round"/>
-    <circle cx="10.4" cy="-1" r=".9" fill="#ff8aa5"/>
+    <path class="gato-rabo" d="M-12 3Q-19 -2-13-8" stroke="#e08b3c" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+    <g class="gato-corpo">
+      <ellipse rx="13" ry="8" fill="#f0a35a"/><path d="M-6-6Q-2-8 2-6.6M-8-2Q-4-4.4 0-3" stroke="#e08b3c" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+      <circle cx="9" cy="-3" r="6.2" fill="#f0a35a"/>
+      <path class="gato-orelha" d="M5-8L6.5-13.5L10-9Z" fill="#f0a35a"/><path d="M11-9L14.5-13.5L15.5-7Z" fill="#f0a35a"/>
+      <path d="M6 -3Q7.6 -1.6 9.2 -3M10.8 -3Q12.4 -1.6 14 -3" stroke="#3b2414" fill="none" stroke-width=".9" stroke-linecap="round"/>
+      <circle cx="10.4" cy="-1" r=".9" fill="#ff8aa5"/>
+    </g>
+    <g class="gato-zz" fill="#e9f3ff" font-weight="800" font-family="system-ui, sans-serif"><text class="z z1" x="14" y="-12" font-size="5">z</text><text class="z z2" x="17" y="-16" font-size="6.5">z</text></g>
   </g></g>
   {% endif %}
 
@@ -196,16 +213,21 @@
 </svg>
 {% endmacro %}
 
+{# Plantinha extra (comprada na loja): cresce junto da principal, um pouco atras no estagio #}
+{% macro extra(m, e, tamanho, sem_vaso=False) %}
+{% set em = {'id': m.id, 'name': m.name, 'estagio': (m.estagio * 8) // 10, 'estagio_nome': '', 'vigor': m.vigor,
+             'floresceu': False, 'frutos': 0, 'progresso': 0, 'dia_status': 'folga',
+             'visual': {'especie': e.especie, 'folha': e.folha, 'vaso': m.visual.vaso, 'companheiro': None, 'acessorio': None, 'extras': []}} %}
+{{ planta(em, tamanho, extra_de=m.id, sem_vaso=sem_vaso) }}
+{% endmacro %}
+
 {# Planta principal + plantinhas extras (compradas na loja), lado a lado no canteiro #}
 {% macro conjunto(m, tamanho=160) %}
 {% set extras = (m.visual.extras if m.visual else []) %}
 <div class="vasos">
   <div class="vaso-principal">{{ planta(m, tamanho) }}</div>
   {% for e in extras %}
-  {% set em = {'id': m.id, 'name': m.name, 'estagio': (m.estagio * 8) // 10, 'estagio_nome': '', 'vigor': m.vigor,
-               'floresceu': False, 'frutos': 0, 'progresso': 0, 'dia_status': 'folga',
-               'visual': {'especie': e.especie, 'folha': e.folha, 'vaso': m.visual.vaso, 'companheiro': None, 'acessorio': None, 'extras': []}} %}
-  <div class="vaso-extra">{{ planta(em, tamanho * 0.8, extra_de=m.id) }}</div>
+  <div class="vaso-extra">{{ extra(m, e, tamanho * 0.8) }}</div>
   {% endfor %}
 </div>
 {% endmacro %}

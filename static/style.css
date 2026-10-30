@@ -51,7 +51,9 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
-html { -webkit-text-size-adjust: 100%; }
+/* Letra base maior (18 px no PC, 17 px no celular): todo o site usa rem, entao tudo cresce junto. */
+html { -webkit-text-size-adjust: 100%; font-size: 112.5%; }
+@media (max-width: 760px) { html { font-size: 106.25%; } }
 
 body {
   margin: 0;
@@ -624,7 +626,7 @@ input.input-nome:hover, input.input-nome:focus { background: var(--s2); }
     padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
     background: var(--s2);
   }
-  .nav-link { flex-direction: column; gap: 2px; padding: 0.4rem 0; border-radius: 14px; font-size: 0.66rem; }
+  .nav-link { flex-direction: column; gap: 2px; padding: 0.4rem 0; border-radius: 14px; font-size: 0.72rem; }
   .nav-link svg { width: 18px; height: 18px; }
   #toast-container { bottom: 92px; }
   .feriado-form { grid-template-columns: 1fr; }
@@ -831,25 +833,96 @@ input.input-nome:hover, input.input-nome:focus { background: var(--s2); }
 .vaso-extra:nth-child(3) { left: 4%; }
 .vasos .planta { width: 100%; }
 
-.mov-joaninha { animation: anda 6s ease-in-out infinite alternate; }
-@keyframes anda { from { transform: translateX(-7px); } to { transform: translateX(8px); } }
-.mov-borboleta { animation: voa 8s ease-in-out infinite; }
-@keyframes voa {
-  0%, 100% { transform: translate(0, 0) rotate(0); }
-  25% { transform: translate(-9px, -6px) rotate(-8deg); }
-  50% { transform: translate(-3px, 5px) rotate(5deg); }
-  75% { transform: translate(8px, -3px) rotate(-3deg); }
+/* Companheiros. Todos usam --d (atraso por planta) para nao andarem em sincronia. */
+.comp * { transform-box: fill-box; }
+/* joaninha: anda pela borda do vaso, para, vira e volta; as patinhas batem e as asas abrem de vez em quando */
+.mov-joaninha { animation: joaninha-anda 9s ease-in-out var(--d, 0s) infinite; }
+@keyframes joaninha-anda {
+  0%, 6% { transform: translateX(-9px); } 44%, 56% { transform: translateX(10px); } 94%, 100% { transform: translateX(-9px); }
 }
-.mov-borboleta .asa { transform-box: fill-box; transform-origin: center; animation: bate 0.45s ease-in-out infinite alternate; }
-@keyframes bate { from { transform: scaleX(1); } to { transform: scaleX(0.45); } }
-.mov-orbita { transform-origin: 0 0; animation: gira 9s linear infinite; }
-@keyframes gira { to { transform: rotate(360deg); } }
-.mov-orbita circle { animation: pisca 2.4s ease-in-out infinite; }
-@keyframes pisca { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
-.mov-passaro { animation: pula 4s ease-in-out infinite; }
-@keyframes pula { 0%, 86%, 100% { transform: translateY(0); } 90% { transform: translateY(-4px); } 95% { transform: translateY(0); } }
-.mov-gato { transform-box: fill-box; transform-origin: center bottom; animation: respira 4.2s ease-in-out infinite; }
-@keyframes respira { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.04, 1.07); } }
+.joaninha-vira { transform-origin: center; animation: joaninha-vira 9s steps(1) var(--d, 0s) infinite; }
+@keyframes joaninha-vira { 0%, 50% { transform: scaleX(1); } 50.01%, 100% { transform: scaleX(-1); } }
+.joaninha-passo { animation: passinho 0.32s ease-in-out infinite alternate; }
+@keyframes passinho { from { transform: translateY(0) rotate(-3deg); } to { transform: translateY(-0.6px) rotate(3deg); } }
+.joaninha-passo .elitro { transform-origin: 50% 50%; animation: elitro 9s ease-in-out var(--d, 0s) infinite; }
+.joaninha-passo .e1 { transform-origin: 100% 50%; } .joaninha-passo .e2 { transform-origin: 0% 50%; }
+@keyframes elitro { 0%, 46%, 54%, 100% { transform: rotate(0); } 49%, 51% { transform: rotate(-24deg) translateY(-1px); } }
+.joaninha-passo .e2 { animation-name: elitro-d; }
+@keyframes elitro-d { 0%, 46%, 54%, 100% { transform: rotate(0); } 49%, 51% { transform: rotate(24deg) translateY(-1px); } }
+
+/* borboleta: voa em oito em volta da planta, para no ar um pouco e volta */
+.mov-borboleta { animation: borboleta-voo 12s ease-in-out var(--d, 0s) infinite; }
+@keyframes borboleta-voo {
+  0% { transform: translate(0, 0) rotate(0); }
+  12% { transform: translate(-16px, -10px) rotate(-12deg); }
+  24% { transform: translate(-34px, 2px) rotate(-4deg); }
+  36% { transform: translate(-20px, 14px) rotate(10deg); }
+  48% { transform: translate(-36px, 26px) rotate(6deg); }
+  56%, 74% { transform: translate(-44px, 32px) rotate(0); }
+  86% { transform: translate(-14px, 12px) rotate(8deg); }
+  100% { transform: translate(0, 0) rotate(0); }
+}
+.borboleta-corpo { animation: plana 1.6s ease-in-out infinite alternate; }
+@keyframes plana { from { transform: translateY(-1px); } to { transform: translateY(1.4px); } }
+.mov-borboleta .asa-e { transform-origin: 100% 50%; animation: bate 0.22s ease-in-out infinite alternate; }
+.mov-borboleta .asa-d { transform-origin: 0% 50%; animation: bate 0.22s ease-in-out infinite alternate; }
+@keyframes bate { from { transform: scaleX(1); } to { transform: scaleX(0.25); } }
+
+/* vagalume: da a volta na planta numa elipse (menor quando passa por tras), pisca com halo e bate as asinhas */
+.mov-orbita { transform-box: view-box; transform-origin: 0 0; animation: vagalume-orbita 10s linear var(--d, 0s) infinite; }
+@keyframes vagalume-orbita {
+  0% { transform: translate(36.0px, 0.0px) scale(1.00); }
+  8.33% { transform: translate(31.2px, 4.5px) scale(1.09); }
+  16.67% { transform: translate(18.0px, 10.4px) scale(1.16); }
+  25% { transform: translate(0.0px, 16.0px) scale(1.18); }
+  33.33% { transform: translate(-18.0px, 17.3px) scale(1.16); }
+  41.67% { transform: translate(-31.2px, 11.5px) scale(1.09); }
+  50% { transform: translate(-36.0px, 0.0px) scale(1.00); }
+  58.33% { transform: translate(-31.2px, -11.5px) scale(0.91); }
+  66.67% { transform: translate(-18.0px, -17.3px) scale(0.84); }
+  75% { transform: translate(-0.0px, -16.0px) scale(0.82); }
+  83.33% { transform: translate(18.0px, -10.4px) scale(0.84); }
+  91.67% { transform: translate(31.2px, -4.5px) scale(0.91); }
+  100% { transform: translate(36.0px, -0.0px) scale(1.00); }
+}
+.vagalume-luz { animation: pisca 1.8s ease-in-out var(--d, 0s) infinite; }
+.vagalume-halo { animation: halo 1.8s ease-in-out var(--d, 0s) infinite; transform-origin: center; }
+@keyframes pisca { 0%, 100% { opacity: 0.4; } 45%, 60% { opacity: 1; } }
+@keyframes halo { 0%, 100% { opacity: 0; transform: scale(0.5); } 50% { opacity: 0.32; transform: scale(1.1); } }
+.vagalume-asa { transform-origin: 100% 100%; animation: bate 0.12s linear infinite alternate; }
+
+/* passarinho: da pulinhos, cisca o chao, pisca e balanca o rabo */
+.mov-passaro { animation: pula 6s ease-in-out var(--d, 0s) infinite; }
+@keyframes pula {
+  0%, 10%, 100% { transform: translate(0, 0); }
+  4% { transform: translate(2px, -5px); } 8% { transform: translate(4px, 0); }
+  50%, 60% { transform: translate(4px, 0); }
+  54% { transform: translate(1px, -5px); } 58% { transform: translate(0, 0); }
+}
+.passaro-cabeca { transform-origin: 30% 90%; animation: cisca 6s ease-in-out var(--d, 0s) infinite; }
+@keyframes cisca {
+  0%, 18%, 30%, 70%, 82%, 100% { transform: rotate(0); }
+  21%, 27% { transform: rotate(38deg) translate(1px, 1px); } 24% { transform: rotate(28deg); }
+  74% { transform: rotate(-10deg); } 78% { transform: rotate(-4deg); }
+}
+.passaro-cauda { transform-origin: 100% 30%; animation: rabo 6s ease-in-out var(--d, 0s) infinite; }
+@keyframes rabo { 0%, 12%, 16%, 62%, 66%, 100% { transform: rotate(0); } 14%, 64% { transform: rotate(-22deg); } }
+.passaro-asa { transform-origin: 0% 50%; animation: asinha 6s ease-in-out var(--d, 0s) infinite; }
+@keyframes asinha { 0%, 2%, 9%, 52%, 59%, 100% { transform: rotate(0); } 4%, 7%, 54%, 57% { transform: rotate(-30deg); } }
+.olho-pisca { transform-origin: center; animation: piscar 4.5s steps(1) var(--d, 0s) infinite; }
+@keyframes piscar { 0%, 94%, 100% { transform: scaleY(1); } 95%, 98% { transform: scaleY(0.15); } }
+
+/* gato dorminhoco: respira devagar, mexe a orelha e o rabo, e solta zzz */
+.mov-gato { transform-origin: center bottom; }
+.gato-corpo { transform-origin: 50% 100%; animation: respira 4.2s ease-in-out var(--d, 0s) infinite; }
+@keyframes respira { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.04, 1.08); } }
+.gato-rabo { transform-origin: 100% 100%; animation: rabo-gato 5s ease-in-out var(--d, 0s) infinite; }
+@keyframes rabo-gato { 0%, 60%, 100% { transform: rotate(0); } 70% { transform: rotate(-18deg); } 80% { transform: rotate(8deg); } 90% { transform: rotate(-6deg); } }
+.gato-orelha { transform-origin: 50% 100%; animation: orelha-gato 7s ease-in-out var(--d, 0s) infinite; }
+@keyframes orelha-gato { 0%, 80%, 86%, 100% { transform: rotate(0); } 82% { transform: rotate(-20deg); } 84% { transform: rotate(6deg); } }
+.gato-zz .z { opacity: 0; animation: zz 4.2s ease-out var(--d, 0s) infinite; }
+.gato-zz .z2 { animation-delay: calc(var(--d, 0s) + 1.4s); }
+@keyframes zz { 0% { opacity: 0; transform: translate(0, 0); } 20% { opacity: 0.9; } 100% { opacity: 0; transform: translate(4px, -9px); } }
 
 /* ===== Sementes ===== */
 .sem-corpo { fill: #e8c46a; }
@@ -1428,7 +1501,7 @@ a.gh-dia:hover { filter: brightness(1.25); }
 .tufo-e { left: 4px; }
 .tufo-d { right: 4px; transform: scaleX(-1); }
 .cena-convidados .tufo { display: none; }
-.cena-dica { top: auto; bottom: 5px; left: 50%; transform: translateX(-50%); font-size: 0.7rem; padding: 2px 10px; white-space: nowrap; z-index: 3; animation: dica-some 1s ease 5s forwards; pointer-events: none; }
+.cena-dica { top: auto; bottom: 5px; left: 50%; transform: translateX(-50%); font-size: 0.76rem; padding: 2px 10px; white-space: nowrap; z-index: 3; animation: dica-some 1s ease 5s forwards; pointer-events: none; }
 @keyframes dica-some { to { opacity: 0; } }
 
 /* ===== Canteiro: terra com textura, borda de madeira, placas, cerca e terraco dos convidados ===== */
@@ -1495,7 +1568,7 @@ a.gh-dia:hover { filter: brightness(1.25); }
 .conv-nome {
   position: absolute; left: 50%; bottom: -14px; transform: translateX(-50%); z-index: 2; max-width: 64px; overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap; padding: 1px 6px; border-radius: 5px; border: 1px solid #4e3015;
-  background: linear-gradient(180deg, #b98350, #9c6837); color: #fff4dc; font-size: 0.62rem; font-weight: 800; line-height: 1.25;
+  background: linear-gradient(180deg, #b98350, #9c6837); color: #fff4dc; font-size: 0.68rem; font-weight: 800; line-height: 1.25;
   text-shadow: 0 1px 0 #4e3015; box-shadow: 0 2px 3px rgba(0, 0, 0, 0.35); pointer-events: none;
 }
 

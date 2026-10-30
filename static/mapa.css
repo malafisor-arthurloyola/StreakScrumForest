@@ -40,10 +40,19 @@
 
 /* Cada canteiro: o vaso apoiado no centro do lote e a placa na ponta da frente */
 .lote { position: absolute; left: var(--x); top: var(--y); width: 0; height: 0; }
-.lote-planta {
-  position: absolute; left: 0; bottom: -2.2cqw; width: calc(13cqw * var(--k)); transform: translateX(-50%);
+/* Cada planta do canteiro fica apoiada num ponto da terra: --dx/--dy em unidades do viewBox (1/16 cqw),
+   medidos do centro do lote. A base do vaso (ou da muda solta) encosta nesse ponto. */
+.lote-vaga {
+  position: absolute; left: calc(var(--dx) / 16 * 1cqw * var(--k)); top: calc(var(--dy) / 16 * 1cqw * var(--k));
+  width: calc(var(--w, 13cqw) * var(--k)); transform: translate(-50%, -100%);
   filter: drop-shadow(0 6px 4px rgba(0, 0, 0, 0.35));
 }
+.lote-vaga .planta { display: block; width: 100%; height: auto; }
+.lote-vaga.lado { --w: 7.6cqw; }
+/* sem vaso a terra do desenho fica em y = 116 de 150: desce o desenho para a raiz tocar o chao */
+.lote-vaga.solta { --w: 6.6cqw; transform: translate(-50%, -77.5%); filter: none; }
+.planta.sem-vaso .vaso, .planta.sem-vaso .semente, .planta.sem-vaso .balao,
+.planta.sem-vaso .gotas, .planta.sem-vaso .brilhos { display: none; }
 .mapa { container-type: inline-size; }
 .lote-placa {
   position: absolute; left: 0; top: 4.6cqw; transform: translateX(-50%);
@@ -58,7 +67,7 @@
 
 .lote-convidados { z-index: 2000; }
 .convidados-vasos { position: absolute; left: 0; bottom: -1.2cqw; transform: translateX(-50%); display: flex; gap: 0.6cqw; align-items: flex-end; }
-.convidado-vaso { display: grid; justify-items: center; width: 4.6cqw; color: #e9d7c1; font-size: 0.7rem; text-decoration: none; }
+.convidado-vaso { display: grid; justify-items: center; width: 4.6cqw; color: #e9d7c1; font-size: 0.76rem; text-decoration: none; }
 .convidado-vaso span { margin-top: 1px; padding: 0 5px; border-radius: 5px; background: rgba(61, 39, 22, 0.85); }
 
 .mapa-legenda { margin-top: 16px; }

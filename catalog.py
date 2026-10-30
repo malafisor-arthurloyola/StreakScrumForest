@@ -228,7 +228,16 @@ def montar_visual(possui, equipados, fundador=False):
             e = padrao("especie")["id"]
         extras.append({"slot": n, "especie": e, "folha": _folha(e)})
 
+    # Especies compradas que nao estao no vaso principal nem nas extras: crescem soltas na terra do
+    # canteiro do mapa, entao cada planta nova comprada aparece ali, mesmo sem slot.
+    em_uso = {esp} | {e["especie"] for e in extras}
+    colecao = [
+        {"especie": i["id"], "folha": _folha(i["id"])}
+        for i in ITENS
+        if i["tipo"] == "especie" and i["id"] in possui and i["id"] not in em_uso and not _e_padrao(i["id"])
+    ]
+
     return {
         "especie": esp, "folha": _folha(esp), "vaso": vaso,
-        "companheiro": comp, "acessorio": acess, "extras": extras,
+        "companheiro": comp, "acessorio": acess, "extras": extras, "colecao": colecao,
     }
