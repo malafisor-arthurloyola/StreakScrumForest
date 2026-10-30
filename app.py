@@ -2625,8 +2625,9 @@ def _contexto_sementes(db, member_id, compare_id=None):
     semanas_proj = _semanas_projeto(db)
     dias_set = set(dias_letivos_lista)
     glob = _registros_globais(db)
-    ativos_ids = [r["id"] for r in membros]
-    cheios = game.dia_cheio(ativos_ids, {d: v for d, v in glob.items() if d in dias_set})
+    # Dia cheio olha so a equipe (igual a get_member_stats): com convidados na conta, a aba
+    # Sementes perdia o +1 dos dias cheios e o extrato nao batia com o saldo do painel e da loja.
+    cheios = game.dia_cheio(_ids_equipe(db), {d: v for d, v in glob.items() if d in dias_set})
     com_fala_todos, relatadas_todos = _contagem_atas(db, dias_letivos_lista)
     gastos_todos = _gastos_por_membro(db)
 
