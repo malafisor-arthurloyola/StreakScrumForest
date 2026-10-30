@@ -832,6 +832,24 @@ input.input-nome:hover, input.input-nome:focus { background: var(--s2); }
 .planta[data-vaso="pixel"] { --vaso: #8a5cf5; --vaso-2: #6f46d6; --borda: #a883ff; }
 .planta[data-vaso="dourado"] { --vaso: #e8b94a; --vaso-2: #c99a2e; --borda: #f5d27a; }
 
+/* Detalhes de cada vaso (o formato esta em _planta.html) */
+.vaso-brilho { fill: #ffffff; opacity: 0.22; stroke: #ffffff; stroke-width: 2.2; stroke-linecap: round; stroke-opacity: 0.22; }
+path.vaso-brilho { fill: none; }
+.vaso-friso { fill: none; stroke: var(--vaso-2); stroke-width: 1.2; }
+.vaso-rotulo { fill: #d9534f; }
+.vaso-folhinha { fill: #f6efe2; }
+.vaso-onda { fill: none; stroke: #e8f1ff; stroke-width: 1.8; stroke-linecap: round; }
+.vaso-pinta circle { fill: #e8f1ff; opacity: 0.85; }
+.vaso-pires { fill: var(--borda); }
+.vaso-pires-sombra { fill: var(--vaso-2); }
+.vaso-alca { fill: none; stroke: var(--vaso-2); stroke-width: 3.2; stroke-linecap: round; }
+.vaso-friso-ouro { fill: none; stroke: #e3b453; stroke-width: 1.3; }
+.vaso-florzinha circle { fill: #f28fb0; }
+.vaso-florzinha circle:first-child { fill: #f5c542; }
+.vaso-pixel-luz rect { fill: #ffffff; opacity: 0.3; }
+.vaso-ornato { fill: none; stroke: #fff2c2; stroke-width: 1.3; stroke-linejoin: round; }
+.vaso-joia { fill: #e0565b; stroke: #fff2c2; stroke-width: 0.9; }
+
 /* A principal ocupa sempre a largura toda: comprar uma extra nunca a encolhe. As extras sao
    vasinhos menores sobrepostos na frente do vaso, a 1a no canto direito e a 2a no esquerdo, um pouco
    mais baixos que a principal (a principal continua apoiada no chao, como as outras). */
