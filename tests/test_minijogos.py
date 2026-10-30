@@ -302,5 +302,74 @@ class TestCaminhoAteOJardim(MinijogosBase):
             self.assertIn("painel-abas", r.get_data(as_text=True), url)
 
 
+
+class TestAvisarQueNaoVai(MinijogosBase):
+    def status(self, evento="daily"):
+        con = sqlite3.connect(DB)
+        try:
+            r = con.execute("SELECT status FROM attendance WHERE member_id = ? AND event_date = ? AND event_type = ?",
+                            (self.ana, HOJE, evento)).fetchone()
+            return r[0] if r else None
+        finally:
+            con.close()
+
+    def preencher(self):
+        self.fala("feito", "#101 terminei")
+        self.fala("planejado", "#102 seguir")
+
+    def test_avisar_pede_a_fala_preenchida(self):
+        self.assertEqual(self.jogo("avisar").status_code, 400)
+        self.assertIsNone(self.status())
+
+    def test_avisar_marca_avisou_e_paga_tres(self):
+        self.preencher()
+        antes = self.stats()["sementes_ganhas"]
+        r = self.jogo("avisar")
+        self.assertEqual(r.get_json()["ganhou"], game.SEED_FALA_AVISADA)
+        self.assertEqual(self.status(), "justificada")
+        self.assertIsNone(self.status("encerramento"))                    # so a daily, se nao marcar o dia todo
+        self.assertEqual(self.stats()["sementes_ganhas"] - antes, game.SEED_FALA_AVISADA)
+        self.assertTrue(r.get_json()["estado"]["fala_avisada"])
+
+    def test_dia_todo_marca_os_outros_eventos(self):
+        self.preencher()
+        self.jogo("avisar", dia_todo=True)
+        self.assertEqual(self.status("encerramento"), "justificada")
+
+    def test_nao_avisa_por_cima_de_presenca_ou_falta(self):
+        self.preencher()
+        self.presente(self.ana, eventos=("daily",))
+        self.assertEqual(self.jogo("avisar").status_code, 400)
+        self.assertEqual(self.status(), "presente")
+
+    def test_se_acabou_indo_vale_a_fala_pronta_e_nao_soma_as_duas(self):
+        self.preencher()
+        self.jogo("avisar")
+        self.jogo("desavisar")
+        self.assertIsNone(self.status())
+        self.assertNotIn("fala_avisada", self.jogadas())
+        self.assertEqual(self.jogo("fala-pronta").get_json()["ganhou"], game.SEED_FALA_PRONTA)
+
+    def test_fala_pronta_recusa_quem_avisou(self):
+        self.preencher()
+        self.jogo("avisar")
+        self.assertEqual(self.jogo("fala-pronta").status_code, 400)
+
+    def test_avisada_com_presenca_depois_nao_paga_em_dobro(self):
+        reg = {"d1": {"presente": True, "justificada": True}}
+        p = game.premios_minijogos([("d1", "fala_avisada")], [["d1"]], reg)
+        self.assertEqual(p, [])
+
+    def test_aviso_conta_para_o_album(self):
+        reg = {d: {"justificada": True} for d in ("d1", "d2", "d3")}
+        a = game.premios_minijogos([(d, "fala_avisada") for d in reg], [["d1", "d2", "d3"]], reg)
+        self.assertIn(game.SEED_FIGURINHA, [x["valor"] for x in a])
+
+    def test_pagina_mostra_a_opcao_de_avisar(self):
+        h = self.cel.get("/eu").get_data(as_text=True)
+        self.assertIn("Não vou hoje", h)
+        self.assertIn('data-minijogo="avisar"', h)
+
+
 if __name__ == "__main__":
     unittest.main()

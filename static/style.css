@@ -2167,3 +2167,49 @@ body.holofote-escuro .cena.holofote-ativo { position: relative; z-index: 901; }
 .eu-sementes-topo .eu-kpi-valor svg { width: 20px; height: 20px; }
 .eu-numeros .eu-kpis { grid-template-columns: repeat(3, 1fr); }
 .eu-fala-bloco, .ritual, .cuidar, .album-estacao { scroll-margin-top: 16px; }
+
+/* ===== Minha fala: cabecalho com estado, salvo discreto, buscas recolhidas, acao fixa, aviso ===== */
+.fala-cab { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.fala-cab h3 { margin: 0; font-size: 1.05rem; }
+.fala-estado { padding: 3px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; background: var(--s3); color: var(--ink2); }
+.fala-estado[data-estado="pronta"] { background: rgba(79, 219, 155, 0.16); color: var(--ok); }
+.fala-estado[data-estado="avisou"] { background: rgba(109, 185, 255, 0.16); color: var(--aviso); }
+.fala-salvo { margin-left: auto; color: var(--ink2); font-size: 0.75rem; }
+.fala-salvo.pisca { animation: salvo-pisca 1.2s ease-out; }
+@keyframes salvo-pisca { from { color: var(--ok); } to { color: var(--ink2); } }
+.eu-fala-bloco label { display: flex; align-items: center; gap: 0; font-weight: 600; color: var(--ink); font-size: 0.9rem; margin-top: 12px; }
+.eu-fala-bloco label .gl-ajuda { margin-left: 6px; }
+.gl-mais {
+  margin: 6px 0 2px; padding: 4px 2px; border: 0; background: none; color: var(--acc); font: inherit;
+  font-size: 0.82rem; font-weight: 600; cursor: pointer;
+}
+.gl-mais::before { content: "+ "; }
+
+#fala-daily .fala-acao, #fala-fechamento .fala-acao {
+  position: sticky; bottom: 12px; z-index: 8; margin: 16px -6px -4px; padding: 10px; border-radius: 16px;
+  background: var(--s2); box-shadow: 0 -2px 0 var(--s1), 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+@media (max-width: 760px) {
+  #fala-daily .fala-acao, #fala-fechamento .fala-acao { bottom: calc(84px + env(safe-area-inset-bottom)); }
+}
+#fala-daily .fala-acao { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
+#fala-daily .fala-acao > :not(.btn-minijogo):not(.btn-avisar) { grid-column: 1 / -1; }
+.fala-acao .btn-minijogo { width: 100%; }
+.fala-acao .btn-avisar { min-height: 52px; padding-inline: 14px; justify-content: center; gap: 6px; font-weight: 700; }
+.fala-acao .btn-avisar[aria-expanded="true"] { box-shadow: inset 0 0 0 2px var(--aviso); }
+.aviso-painel[hidden] { display: none; }
+.eu-rot-fraco { margin-left: 6px; }
+@media (max-width: 760px) { #fala-daily .fala-acao .fala-acao-nota { display: none; } }
+.fala-acao .btn-avisar .btn-sem { background: rgba(255, 255, 255, 0.08); }
+.aviso-painel { display: grid; gap: 10px; padding: 12px; border-radius: 12px; background: var(--s1); box-shadow: inset 0 0 0 1px var(--aviso); }
+.aviso-painel p { margin: 0; font-size: 0.9rem; color: var(--ink2); }
+.aviso-painel b { color: var(--aviso); }
+.aviso-dia-todo { display: flex !important; align-items: center; gap: 8px !important; margin: 0 !important; font-weight: 500 !important; }
+.aviso-dia-todo input { width: 20px; height: 20px; accent-color: var(--acc); }
+.aviso-botoes { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.aviso-botoes .btn-minijogo { min-height: 48px; font-size: 0.95rem; }
+.selo-aviso { background: rgba(109, 185, 255, 0.12); color: var(--aviso); gap: 10px; }
+.link-acao { border: 0; background: none; padding: 6px 2px; color: var(--ink2); font: inherit; font-size: 0.85rem; text-decoration: underline; cursor: pointer; justify-self: start; }
+#fala-daily .fala-acao .btn-minijogo, #fala-daily .fala-acao .btn-avisar { white-space: nowrap; font-size: 0.92rem; padding-inline: 12px; gap: 6px; min-height: 50px; }
+#fala-daily .fala-acao .btn-sem { padding: 1px 7px; }
+#fala-daily .aviso-painel .btn-minijogo { white-space: normal; }
