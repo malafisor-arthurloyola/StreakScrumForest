@@ -141,6 +141,23 @@ class TestExtratoNoApp(unittest.TestCase):
         self.assertIn("ata", fontes)
         self.assertIn("relator", fontes)
 
+    def test_convidado_ausente_nao_tira_o_dia_cheio_do_extrato(self):
+        # Dia cheio e da equipe; um convidado que nao veio nao pode sumir com o +1 so na aba Sementes.
+        con = sqlite3.connect(DB)
+        con.execute("INSERT INTO members (name, active, tipo) VALUES ('Convidada', 1, 'convidado')")
+        con.commit()
+        equipe = [r[0] for r in con.execute(
+            "SELECT id FROM members WHERE active = 1 AND COALESCE(tipo, 'equipe') = 'equipe'")]
+        con.close()
+        for mid in equipe:
+            self._presente(mid, DIAS[0])
+        with appmod.app.test_request_context():
+            stats = next(s for s in appmod.get_member_stats(appmod.get_db()) if s["id"] == self.a)
+        det = self._ctx(self.a)["detalhe"]
+        self.assertIn("dia_cheio", {x["fonte"] for x in det["extrato"]["linhas"]})
+        self.assertEqual(det["extrato"]["saldo"], stats["sementes"])
+        self.assertEqual(det["saldo"], stats["sementes"])
+
     def test_compras_aparecem_como_gasto_e_descontam_do_saldo(self):
         for d in DIAS[:6]:
             self._presente(self.a, d)
