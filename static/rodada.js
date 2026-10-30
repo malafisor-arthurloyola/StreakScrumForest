@@ -85,6 +85,7 @@
   function encerrar(aviso) {
     estado = null; gravar(); mostrar();
     postar('/api/holofote', { member_id: null }).then(function () { document.dispatchEvent(new Event('holofote:refresh')); });
+    if (aviso && window.Som) Som.tocar('rodadaFim');
     if (aviso && window.mostrarToast) mostrarToast('Rodada concluída. Quem ainda não preencheu pode usar o QR ou o Meu jardim.', 'info');
   }
 
@@ -102,6 +103,7 @@
       });
       if (!ids.length) { if (window.mostrarToast) mostrarToast('Todos já estão marcados como avisou ou faltou.', 'info'); return; }
       estado = { ordem: embaralhar(ids), i: 0, modo: 'celular' };
+      if (window.Som) Som.tocar('sorteio');
       // quem conduz vira o relator da ata (se ainda nao ha um): assim o bonus de relator vale
       postar('/api/ata/assumir', { data: DATA, tipo: TIPO });
       mostrar();
@@ -125,6 +127,7 @@
       if (!estado) return;
       var mid = estado.ordem[estado.i];
       var novo = b.getAttribute('aria-pressed') === 'true' ? '' : b.dataset.rst;
+      if (window.Som && novo !== 'presente') Som.tocar('neutro');
       postar('/api/ata/salvar', { data: DATA, tipo: TIPO, campo: 'status', member_id: mid, valor: novo }).then(function (res) {
         if (!res.ok) { if (window.mostrarToast) mostrarToast((res.j && res.j.erro) || 'Não salvou.', 'info'); return; }
         if (res.j.jogo_resposta && window.aplicarJogoNaTela) aplicarJogoNaTela(res.j.jogo_resposta, nomes[mid]);

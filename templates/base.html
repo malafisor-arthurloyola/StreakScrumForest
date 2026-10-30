@@ -8,6 +8,7 @@
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
   <link rel="preload" href="{{ url_for('static', filename='fonts/bricolage-latin.woff2') }}" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='som.css') }}">
 </head>
 <body data-admin="{{ '1' if admin else '0' }}">
   <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
@@ -104,6 +105,7 @@
     </div>
   </div>
   <div id="toast-container" aria-live="polite"></div>
+  <script src="{{ url_for('static', filename='som.js') }}"></script>
   <script src="{{ url_for('static', filename='app.js') }}"></script>
   <script src="{{ url_for('static', filename='holofote.js') }}" defer></script>
   {% block scripts %}{% endblock %}

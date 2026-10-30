@@ -316,6 +316,7 @@
       .then(function (res) {
         if (!res.ok || !res.j.ok) { mostrarToast(res.j.erro || 'Não deu certo.', 'info'); return; }
         mostrarToast(mensagem, 'sucesso');
+        if (window.Som) Som.tocar(url.indexOf('comprar') >= 0 ? 'compra' : 'equipar');
         setTimeout(function () { window.location.reload(); }, 500);
       })
       .catch(function () { mostrarToast('Sem conexão com o servidor.', 'info'); });
@@ -396,6 +397,7 @@
         pedirMinijogo(b.dataset.minijogoSimples, {}).then(function (j) {
           if (!j) { b.disabled = false; return; }
           if (j.mensagem) mostrarToast(j.mensagem, 'sucesso');
+          if (window.Som) Som.tocar('minijogo');
           setTimeout(function () { window.location.reload(); }, 600);
         });
       });
@@ -421,6 +423,7 @@
     // Minigames: Fala pronta e Fechar o dia salvam os campos do bloco antes de pedir o premio.
     function comemorar(alvo, valor) {
       if (!valor) return;
+      if (window.Som) Som.tocar('minijogo');
       var b = document.createElement('span');
       b.className = 'mj-mais';
       b.textContent = '+' + valor;
@@ -678,6 +681,7 @@
       var c = cena.getBoundingClientRect();
       var i = document.createElement('i');
       i.className = 'fx ' + classe;
+      if (window.Som) Som.tocar({ 'fx-gota': 'gotinha', 'fx-grao': 'grao', 'fx-coracao': 'carinho' }[classe]);
       i.style.left = (x - c.left) + 'px';
       i.style.top = (y - c.top) + 'px';
       var chao = planta.getBoundingClientRect().bottom - c.top - 8;
@@ -713,6 +717,7 @@
       });
     }
     function comemorarCuidado(valor) {
+      if (window.Som) Som.tocar('minijogo');
       var m = document.createElement('span');
       m.className = 'mj-mais';
       m.textContent = '+' + valor;

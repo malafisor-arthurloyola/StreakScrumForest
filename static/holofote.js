@@ -171,6 +171,7 @@
       b.setAttribute('aria-pressed', j.status === b.dataset.hst ? 'true' : 'false');
       b.addEventListener('click', function () {
         var novo = b.getAttribute('aria-pressed') === 'true' ? '' : b.dataset.hst;
+        if (window.Som && novo !== 'presente') Som.tocar('neutro');
         // marca na hora (sem esperar o servidor) para o toque ser visivel
         pop.querySelectorAll('[data-hst]').forEach(function (x) { x.setAttribute('aria-pressed', x.dataset.hst === novo ? 'true' : 'false'); });
         postar('/api/ata/salvar', { data: j.data, tipo: j.tipo, campo: 'status', member_id: j.member_id, valor: novo }).then(function (res) {
@@ -217,7 +218,23 @@
     return txt + ' · A seguir: ' + nomes + (mais > 0 ? ' e mais ' + mais : '');
   }
 
+  // Som da vez: so toca em dois lugares, para a sala nao virar um coro de celulares:
+  // na tela de quem conduz a rodada (holofote acendendo) e no celular de quem vai falar (sua vez).
+  var ultimaVez;                            // undefined ate a primeira consulta
+  function somDaVez(j) {
+    if (!window.Som) return;
+    Som.abafar(!!(j && j.member_id));
+    var vez = j && j.member_id ? j.member_id + '|' + j.tipo + '|' + j.data : null;
+    if (vez === ultimaVez) return;
+    var primeira = ultimaVez === undefined;
+    ultimaVez = vez;
+    if (!vez || primeira) return;             // abrir a pagina no meio da rodada nao toca nada
+    if (document.getElementById('rodada')) Som.tocar('holofote');
+    else if (j.eu && j.eu === j.member_id) Som.tocar('suaVez');
+  }
+
   function aplicar(j) {
+    somDaVez(j);
     if (!j || !j.ok || !j.member_id) { escondido = null; destacarPlantas(null); fechar(); return; }
     var tipoEdicao = quemEdita(j);
     var nova = [j.member_id, j.tipo, j.modo, tipoEdicao, j.data].join('|');
@@ -228,7 +245,12 @@
     ultimoStatus[j.member_id] = j.status;
     if (antes !== undefined && antes !== j.status && window.aplicarJogoNaTela) {
       fetch('/api/holofote?comjogo=1').then(function (r) { return r.json(); })
-        .then(function (x) { if (x && x.jogo_resposta) aplicarJogoNaTela(x.jogo_resposta, x.nome); }).catch(function () {});
+        .then(function (x) {
+          if (!x || !x.jogo_resposta) return;
+          // veio de outro aparelho: atualiza em silencio (senao todos os celulares da sala tocariam juntos)
+          if (window.Som) Som.semSom(function () { aplicarJogoNaTela(x.jogo_resposta, x.nome); });
+          else aplicarJogoNaTela(x.jogo_resposta, x.nome);
+        }).catch(function () {});
     }
     if (nova !== chave || !pop) { montar(j, tipoEdicao); chave = nova; }
     var seguir = pop.querySelector('.hf-seguir');

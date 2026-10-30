@@ -72,6 +72,7 @@ function celebrarDiaCheio() {
   var data = dataVista();
   if (jaCelebrou(data)) return;
   marcarCelebrado(data);
+  if (window.Som) Som.tocar('diaCheio');
 
   if (prefereSemMovimento()) {
     // Sem movimento: so um aviso fixo e discreto, sem tela cheia nem peatalas.
@@ -226,6 +227,7 @@ function atualizarSementes(jogo) {
     var antes = parseInt(b.textContent, 10) || 0;
     b.textContent = jogo.sementes;
     if (jogo.sementes > antes) {
+      if (window.Som) Som.tocar('semente');
       var mais = document.createElement('span');
       mais.className = 'sementes-mais';
       mais.textContent = '+' + (jogo.sementes - antes);
@@ -244,6 +246,7 @@ function atualizarSementesTodos(lista) {
 }
 
 function regar(memberId) {
+  if (window.Som) Som.tocar('gota');
   document.querySelectorAll('.planta[data-member-id="' + memberId + '"]').forEach(function (svg) {
     svg.classList.remove('regando');
     void svg.getBoundingClientRect();
@@ -316,11 +319,13 @@ function aplicarJogoNaTela(data, nome) {
     }
 
     if (j.estagio > antes.estagio) {
+      if (window.Som) Som.tocar(j.floresceu ? 'floresceu' : 'estagio');
       confete(j.id);
       mostrarToast((nome ? nome + ' chegou ao estágio ' : 'Chegou ao estágio ') + j.estagio + ': ' + j.estagio_nome, 'sucesso');
     }
 
     if (j.streak > streakAntes && MARCOS_SEQUENCIA.indexOf(j.streak) !== -1) {
+      if (window.Som) Som.tocar('chama');
       confete(j.id, CORES_CHAMA);
       mostrarToast((nome ? nome + ': ' : '') + j.streak + ' dias seguidos!', 'sucesso');
     }
@@ -334,6 +339,7 @@ document.querySelectorAll('.status-toggle').forEach(function (wrapper) {
       if (!EH_ADMIN) { mostrarToast('Só o Scrum do dia ou quem está no computador marca presença de todos.', 'info'); return; }
       var jaAtivo = btn.classList.contains('active');
       var novoStatus = jaAtivo ? null : btn.dataset.status;
+      if (window.Som && novoStatus !== 'presente') Som.tocar('neutro');
 
       fetch('/api/attendance', {
         method: 'POST',
