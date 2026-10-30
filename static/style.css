@@ -712,9 +712,8 @@ input.input-nome:hover, input.input-nome:focus { background: var(--s2); }
 
 /* centraliza quando cabe; quando rola, comeca na primeira planta (sem cortar a esquerda) */
 .cena-plantas { justify-content: flex-start; }
-/* div: a fonte e os cartoes do time (os convidados no fundo sao botoes posicionados por cima) */
-.cena-plantas > div:first-of-type { margin-left: auto; }
-.cena-plantas > div:last-of-type { margin-right: auto; }
+.canteiro-item:first-child { margin-left: auto; }
+.canteiro-item:last-child { margin-right: auto; }
 
 /* ===== Planta: crescimento diario, sede e rega ===== */
 .cresce {
@@ -1039,9 +1038,10 @@ a.gh-dia:hover { filter: brightness(1.25); }
 .placa-nome { color: var(--ink); text-decoration: none; }
 .placa-nome:hover { text-decoration: underline; }
 
-/* Na fileira das plantas, apoiada no chao como um vaso (a placa tem a altura do chao) */
-.fonte { flex: none; align-self: flex-end; margin-bottom: calc(var(--chao-h) - 2px); width: 84px; pointer-events: none; }
-.cena-grande .fonte { width: 104px; }
+/* No fundo, na colina, acima das plantas: longe (menor e mais apagada), nunca escondida atras de um vaso */
+.fonte { position: absolute; left: 64%; bottom: calc(var(--chao-h) + 104px); width: 72px; transform: translateX(-50%); z-index: -1; opacity: 0.9; filter: brightness(0.85); pointer-events: none; }
+.cena-grande .fonte { width: 84px; bottom: calc(var(--chao-h) + 132px); }
+@media (max-width: 600px) { .cena .fonte { width: 52px; bottom: calc(var(--chao-h) + 78px); } }
 .fonte svg { display: block; width: 100%; height: auto; }
 .jato { opacity: 0; animation: jorra 1.7s ease-in infinite; }
 .jato.j1 { animation-name: jorra1; }
