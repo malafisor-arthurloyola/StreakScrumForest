@@ -38,6 +38,39 @@
   <a class="eu-link-sementes" href="{{ url_for('sementes_page', m=eu.id) }}">Ver de onde vêm as sementes →</a>
 </section>
 
+{# Ritual do dia: os 3 minigames em ordem. Cada passo leva ao lugar onde se joga. #}
+{% set tem_fechamento = minhas_falas | selectattr('tipo', 'equalto', 'fechamento') | list | length > 0 %}
+<section class="ritual" id="ritual" aria-label="Seu dia no jardim">
+  <h2 class="secao-titulo">Seu dia no jardim</h2>
+  {% if mj.letivo %}
+  <ol class="ritual-passos">
+    <li class="passo" data-passo="fala" data-estado="{{ 'feito' if mj.fala_pronta else ('perdido' if mj.vez_passou else 'aberto') }}">
+      <a href="#fala-daily">
+        <span class="passo-n" aria-hidden="true">1</span>
+        <span class="passo-txt"><b>Fala pronta</b><small>{% if mj.fala_pronta %}pronta antes da daily{% elif mj.vez_passou %}sua vez já passou hoje{% else %}antes da sua vez na daily{% endif %}</small></span>
+        <span class="passo-sem">+{{ seeds_mj.fala_pronta }}</span>
+      </a>
+    </li>
+    <li class="passo" data-passo="fechamento" data-estado="{{ 'feito' if mj.fechamento_pronto else ('aberto' if tem_fechamento else 'depois') }}">
+      <a href="{{ '#fala-fechamento' if tem_fechamento else '#ritual' }}">
+        <span class="passo-n" aria-hidden="true">2</span>
+        <span class="passo-txt"><b>Fechar o dia</b><small>{% if mj.fechamento_pronto %}Day Closing preenchido{% elif tem_fechamento %}preencha o Day Closing{% else %}abre no Day Closing{% endif %}</small></span>
+        <span class="passo-sem">+{{ seeds_mj.fechamento }}</span>
+      </a>
+    </li>
+    <li class="passo" data-passo="cuidar" data-estado="{{ 'feito' if mj.cuidar else ('aberto' if mj.fechamento_pronto else 'depois') }}">
+      <a href="#cuidar">
+        <span class="passo-n" aria-hidden="true">3</span>
+        <span class="passo-txt"><b>Cuidar da planta</b><small>{% if mj.cuidar %}cuidada hoje{% elif mj.fechamento_pronto %}regar, adubar e carinho{% else %}depois de fechar o dia{% endif %}</small></span>
+        <span class="passo-sem">+{{ seeds_mj.cuidar }}</span>
+      </a>
+    </li>
+  </ol>
+  {% else %}
+  <p class="sub sub-secao">Hoje não tem aula. O ritual volta no próximo dia letivo; enquanto isso, dá uma olhada no álbum.</p>
+  {% endif %}
+</section>
+
 {% if minhas_falas %}
 <section class="eu-fala" aria-label="Minha fala de hoje" data-hoje="{{ hoje }}" data-member-id="{{ eu_member_id }}">
   <h2 class="secao-titulo">Minha fala de hoje</h2>
@@ -47,9 +80,9 @@
     <span id="gl-sync-texto">GitLab: verificando…</span>
   </div>
   {% for f in minhas_falas %}
-  <article class="eu-fala-bloco" data-tipo="{{ f.tipo }}">
+  <article class="eu-fala-bloco" data-tipo="{{ f.tipo }}" id="fala-{{ f.tipo }}">
     <h3>{{ f.rotulo }}</h3>
-    <label>{{ f.rot_feito }}
+    <label><span class="vasinho{{ ' cheio' if f.feito.strip() }}" data-vaso="feito" aria-hidden="true"></span>{{ f.rot_feito }}
       <button type="button" class="gl-ajuda" aria-label="O que é este campo" data-ajuda="{{ 'O que você concluiu ou avançou desde a última daily. Sugerimos seus cards que foram para Waiting review, Review ou foram fechados nos últimos dias.' if f.tipo == 'daily' else 'O que você concluiu hoje. Sugerimos seus cards em Doing, em revisão ou fechados; use a busca para achar outro.' }}">i</button>
     </label>
     <textarea class="eu-fala-texto" data-campo="feito" rows="2" placeholder="pode citar cards como #101">{{ f.feito }}</textarea>
@@ -58,17 +91,18 @@
           <input type="search" class="gl-sprint-busca" data-para="feito" placeholder="buscar card concluído ou em revisão (número ou título)" aria-label="Buscar card">
           <div class="gl-sprint-res" hidden></div>
         </div>
-    <label>{{ f.rot_planejado }}
+    <label><span class="vasinho{{ ' cheio' if (f.planejado or f.sugestao).strip() }}" data-vaso="planejado" aria-hidden="true"></span>{{ f.rot_planejado }}
       <button type="button" class="gl-ajuda" aria-label="O que é este campo" data-ajuda="{{ 'No que você vai trabalhar hoje. Sugerimos seus cards em Doing; use a busca para puxar um card do Backlog.' if f.tipo == 'daily' else 'O que ficou pendente para o próximo dia. Sugerimos seus cards em Doing; use a busca para puxar um card do Backlog.' }}">i</button>
     </label>
-    <textarea class="eu-fala-texto" data-campo="planejado" rows="2">{{ f.planejado }}</textarea>
+    <textarea class="eu-fala-texto" data-campo="planejado" rows="2"{% if f.sugestao and not f.planejado %} data-sugerido="1"{% endif %}>{{ f.planejado or f.sugestao }}</textarea>
+    {% if f.sugestao and not f.planejado %}<p class="fala-sugestao">Veio do seu Day Closing de ontem. Edite se mudou algo; ele é salvo quando você confirmar.</p>{% endif %}
     <div class="gl-chips" data-chips-para="planejado" hidden></div>
     <div class="gl-backlog">
       <input type="search" class="gl-backlog-busca" placeholder="buscar no Backlog (número ou título)" aria-label="Buscar card no Backlog">
       <div class="gl-backlog-res" hidden></div>
     </div>
     {% if f.tipo == 'daily' %}
-    <label>Vou revisar <span class="eu-rot-fraco">não conta semente</span>
+    <label><span class="vasinho{{ ' cheio' if f.review.strip() }}" data-vaso="review" aria-hidden="true"></span>Vou revisar <span class="eu-rot-fraco">opcional</span>
       <button type="button" class="gl-ajuda" aria-label="O que é este campo" data-ajuda="Cards aguardando revisão no quadro. Toque nos que você vai revisar — não precisa ser a pessoa responsável pelo card.">i</button>
     </label>
     <textarea class="eu-fala-texto" data-campo="review" rows="2" placeholder="cards que você vai revisar">{{ f.review }}</textarea>
@@ -78,10 +112,112 @@
           <div class="gl-sprint-res" hidden></div>
         </div>
     {% endif %}
+    <div class="fala-acao">
+      {% if f.tipo == 'daily' %}
+        {% if mj.fala_pronta %}
+        <p class="selo-pronto">Fala pronta antes da daily <b>+{{ seeds_mj.fala_pronta }}</b></p>
+        {% elif mj.vez_passou %}
+        <p class="fala-acao-nota">Sua vez na daily já passou hoje: a fala continua valendo na ata. Amanhã, deixe pronta antes.</p>
+        {% elif mj.letivo %}
+        <button type="button" class="btn btn-primary btn-minijogo" data-minijogo="fala-pronta">Minha fala está pronta <span class="btn-sem">+{{ seeds_mj.fala_pronta }}</span></button>
+        <p class="fala-acao-nota">Preencha O que fiz e O que vou fazer antes da sua vez na rodada. Vale no dia em que você marcar presença.</p>
+        {% endif %}
+      {% else %}
+        {% if mj.fechamento_pronto %}
+        <p class="selo-pronto">Dia fechado <b>+{{ seeds_mj.fechamento }}</b></p>
+        {% elif mj.letivo %}
+        <button type="button" class="btn btn-primary btn-minijogo" data-minijogo="fechamento">Fechar o dia <span class="btn-sem">+{{ seeds_mj.fechamento }}</span></button>
+        <p class="fala-acao-nota">O que fica para amanhã já aparece na sua daily seguinte.</p>
+        {% endif %}
+      {% endif %}
+    </div>
   </article>
   {% endfor %}
 </section>
 {% endif %}
+
+{% if mj.letivo %}
+<section class="cuidar" id="cuidar" aria-label="Cuidar da planta" data-aberto="{{ '1' if mj.fechamento_pronto else '0' }}" data-feito="{{ '1' if mj.cuidar else '0' }}">
+  <h2 class="secao-titulo">Cuidar da planta</h2>
+  <p class="sub sub-secao">Seu canteiro. Arraste o regador e o adubo até a planta e faça carinho esfregando o dedo nela.</p>
+  <div class="cuidar-cena{{ ' molhado' if 'regar' in mj.cuidados }}{{ ' adubado' if 'adubar' in mj.cuidados }}" id="cuidar-cena">
+    <svg class="canteiro-fundo" viewBox="0 0 360 300" aria-hidden="true">
+      <defs>
+        <linearGradient id="cena-ceu" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1d4a3a"/><stop offset="1" stop-color="#2c6b4c"/></linearGradient>
+        <radialGradient id="cena-mancha"><stop offset="0" stop-color="#2e1e14"/><stop offset="1" stop-color="#2e1e14" stop-opacity="0"/></radialGradient>
+      </defs>
+      <rect width="360" height="160" fill="url(#cena-ceu)"/>
+      <path class="cena-sebe" d="M0 150V108c18-20 40-20 54-6 12-18 38-22 54-4 14-16 40-16 52 2 14-18 40-18 54 0 14-16 40-16 52 2 14-14 34-12 44 2V150z"/>
+      <g class="cena-cerca">
+        <path class="trilho" d="M0 126H360M0 142H360"/>
+        <path d="M14 118v38M58 118v38M102 118v38M146 118v38M190 118v38M234 118v38M278 118v38M322 118v38"/>
+      </g>
+      <rect class="cena-grama" y="150" width="360" height="150"/>
+      <g class="cena-tufos"><path d="M28 182l4-10 4 10M330 190l4-10 4 10M52 280l4-10 4 10M310 276l4-10 4 10M18 238l3-8 3 8M342 246l3-8 3 8"/></g>
+      <g class="cena-flores"><circle cx="40" cy="168" r="4" fill="#ff9ec4"/><circle cx="48" cy="172" r="3" fill="#ffd35c"/><circle cx="322" cy="170" r="4" fill="#b9a6ff"/><circle cx="312" cy="176" r="3" fill="#ff9ec4"/></g>
+      <ellipse class="cena-sombra" cx="180" cy="270" rx="118" ry="10"/>
+      <path class="cena-terra" d="M95 200H265L287 236H73Z"/>
+      <ellipse class="cena-molhado" cx="180" cy="220" rx="80" ry="14" fill="url(#cena-mancha)"/>
+      <path class="cena-sulco" d="M110 208H250M96 218H264M86 228H274"/>
+      <g class="cena-adubo"><circle cx="128" cy="214" r="2"/><circle cx="150" cy="226" r="2.2"/><circle cx="214" cy="212" r="2"/><circle cx="236" cy="226" r="2.2"/><circle cx="196" cy="230" r="1.8"/><circle cx="120" cy="228" r="1.8"/><circle cx="246" cy="216" r="1.8"/></g>
+      <path class="cena-frente" d="M73 236H287V266H73Z"/>
+      <path class="cena-tabua" d="M73 251H287M126 236v15M180 251v15M234 236v15"/>
+    </svg>
+    <div class="cuidar-medidores" aria-label="Cuidados de hoje">
+      {% for acao, rotulo in [('regar', 'Água'), ('adubar', 'Adubo'), ('carinho', 'Carinho')] %}
+      <span class="medidor" data-acao="{{ acao }}"{% if acao in mj.cuidados %} data-feito="1"{% endif %} style="--p: {{ 100 if acao in mj.cuidados else 0 }}"><b>{{ rotulo }}</b><i aria-hidden="true"></i></span>
+      {% endfor %}
+    </div>
+    <div class="cuidar-planta" id="cuidar-planta" role="button" tabindex="0" aria-label="Fazer carinho na planta">{{ conjunto(eu, 130) }}</div>
+    <button type="button" class="ferramenta" data-acao="regar" aria-label="Regador: arraste até a planta"{% if not mj.fechamento_pronto %} disabled{% endif %}>
+      <svg viewBox="0 0 100 80" aria-hidden="true">
+        <path class="reg-alca" d="M44 30C44 6 80 6 80 30"/>
+        <path class="reg-bico" d="M36 56L8 30l5-5 27 23z"/>
+        <ellipse class="reg-crivo" cx="9" cy="27" rx="7" ry="4.5" transform="rotate(-42 9 27)"/>
+        <rect class="reg-corpo" x="34" y="28" width="52" height="44" rx="9"/>
+        <rect class="reg-faixa" x="34" y="40" width="52" height="7"/>
+        <path class="reg-brilho" d="M42 52v12"/>
+      </svg>
+      <span class="ponta" aria-hidden="true"></span>
+    </button>
+    <button type="button" class="ferramenta" data-acao="adubar" aria-label="Adubo: arraste até a planta"{% if not mj.fechamento_pronto %} disabled{% endif %}>
+      <svg viewBox="0 0 80 90" aria-hidden="true">
+        <path class="saco" d="M14 30Q8 80 20 86H60Q72 80 66 30Z"/>
+        <path class="saco-boca" d="M14 30Q40 16 66 30Q40 40 14 30Z"/>
+        <circle class="saco-grao" cx="34" cy="27" r="2.4"/><circle class="saco-grao" cx="44" cy="25" r="2.4"/><circle class="saco-grao" cx="39" cy="30" r="2"/>
+        <rect class="saco-rotulo" x="24" y="50" width="32" height="22" rx="4"/>
+        <path class="saco-folha" d="M40 68c-7-2-9-9-7-14 6 0 10 5 7 14zm0 0c4-4 9-6 11-4-1 4-6 6-11 4z"/>
+      </svg>
+      <span class="ponta" aria-hidden="true"></span>
+    </button>
+    <div class="cuidar-fx" aria-hidden="true"></div>
+    <p class="cuidar-fechado">Abre depois de fechar o dia</p>
+  </div>
+  <p class="cuidar-dica" id="cuidar-dica" aria-live="polite"></p>
+  <p class="cuidar-fim" {% if not mj.cuidar %}hidden{% endif %}>Planta cuidada hoje <b>+{{ seeds_mj.cuidar }}</b></p>
+</section>
+{% endif %}
+
+{% set semana_atual = album | selectattr('atual') | first %}
+<section class="album-estacao" id="album" aria-label="Álbum da estação">
+  <h2 class="secao-titulo">Álbum da estação</h2>
+  <p class="sub sub-secao">Uma figurinha por semana: deixe a fala pronta em {{ seeds_mj.min_falas }} dias da semana para revelar (+{{ seeds_mj.figurinha }}). Sprint completa vira dourada (+{{ seeds_mj.dourada }}). Perder uma semana não apaga nada.</p>
+  {% if semana_atual and not semana_atual.folga %}
+  <div class="album-progresso" aria-label="Esta semana">
+    <span>Esta semana</span>
+    <span class="album-pontos">{% for i in range(semana_atual.minimo) %}<i class="{{ 'on' if i < semana_atual.falas }}"></i>{% endfor %}</span>
+    <b>{{ [semana_atual.falas, semana_atual.minimo] | min }} de {{ semana_atual.minimo }}</b>
+  </div>
+  {% endif %}
+  <div class="album-grade">
+    {% for f in album %}
+    <figure class="figurinha{{ ' revelada' if f.revelada }}{{ ' dourada' if f.dourada }}{{ ' atual' if f.atual }}{{ ' folga' if f.folga }}">
+      <div class="figurinha-arte">{{ conjunto(f.preview, 64) }}</div>
+      <figcaption><b>Semana {{ f.n }}</b><span>{% if f.folga %}sem aula{% elif f.revelada %}{{ f.nome }}{% else %}{{ f.falas }}/{{ f.minimo }}{% endif %}</span></figcaption>
+    </figure>
+    {% endfor %}
+  </div>
+</section>
 
 <section class="eu-loja" aria-label="Loja">
   <h2 class="secao-titulo">Loja</h2>
@@ -184,14 +320,63 @@
     var textos = secFala.querySelectorAll('.eu-fala-texto');
     function salvarSeMudou(ta, opcoes) {
       clearTimeout(ta._espera);
-      if (ta.value === ta.dataset.salvo) return;
+      if (ta.value === ta.dataset.salvo) return Promise.resolve(true);
       var valor = ta.value;
-      salvarFala(ta.closest('.eu-fala-bloco').dataset.tipo, ta.dataset.campo, valor, function () {
+      return salvarFala(ta.closest('.eu-fala-bloco').dataset.tipo, ta.dataset.campo, valor, function () {
         ta.dataset.salvo = valor;
       }, opcoes);
     }
+    // vasinho de cada campo brota quando o campo tem texto
+    function atualizarVaso(ta) {
+      var bloco = ta.closest('.eu-fala-bloco');
+      var vaso = bloco && bloco.querySelector('.vasinho[data-vaso="' + ta.dataset.campo + '"]');
+      if (vaso) vaso.classList.toggle('cheio', !!ta.value.trim());
+    }
+    textos.forEach(function (ta) { ta.addEventListener('input', function () { atualizarVaso(ta); }); });
+
+    // Minigames: Fala pronta e Fechar o dia salvam os campos do bloco antes de pedir o premio.
+    function comemorar(alvo, valor) {
+      if (!valor) return;
+      var b = document.createElement('span');
+      b.className = 'mj-mais';
+      b.textContent = '+' + valor;
+      alvo.appendChild(b);
+      setTimeout(function () { b.remove(); }, 1600);
+      var kpi = document.querySelector('.eu-kpi-destaque .eu-kpi-valor');
+      if (kpi) kpi.classList.add('pulsa-sem');
+    }
+    function atualizarSaldo(n) {
+      var kpi = document.querySelector('.eu-kpi-destaque .eu-kpi-valor');
+      if (!kpi || n === null || n === undefined) return;
+      var ultimo = kpi.lastChild;
+      if (ultimo && ultimo.nodeType === 3) ultimo.nodeValue = n;
+    }
+    secFala.querySelectorAll('.btn-minijogo').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var bloco = btn.closest('.eu-fala-bloco');
+        btn.disabled = true;
+        var salvos = Array.prototype.map.call(bloco.querySelectorAll('.eu-fala-texto'), function (ta) { return salvarSeMudou(ta, { quieto: true }); });
+        Promise.all(salvos).then(function (oks) {
+          if (oks.indexOf(false) >= 0) { btn.disabled = false; return; }
+          return pedirMinijogo(btn.dataset.minijogo, {}).then(function (j) {
+            if (!j) { btn.disabled = false; return; }
+            comemorar(bloco, j.ganhou);
+            var p = document.createElement('p');
+            p.className = 'selo-pronto';
+            p.innerHTML = (btn.dataset.minijogo === 'fechamento' ? 'Dia fechado' : 'Fala pronta antes da daily') + ' <b>+' + (j.ganhou || 0) + '</b>';
+            var acao = btn.closest('.fala-acao');
+            acao.innerHTML = '';
+            acao.appendChild(p);
+            aplicarEstado(j.estado);
+            if (j.mensagem) mostrarToast(j.mensagem, 'sucesso');
+          });
+        });
+      });
+    });
+
     textos.forEach(function (ta) {
-      ta.dataset.salvo = ta.value;
+      // texto sugerido (do Day Closing de ontem) ainda nao foi salvo: salva quando a pessoa confirmar
+      ta.dataset.salvo = ta.dataset.sugerido ? '' : ta.value;
       ta.addEventListener('input', function () {
         clearTimeout(ta._espera);
         ta._espera = setTimeout(function () { salvarSeMudou(ta, { quieto: true }); }, ESPERA_FALA);
@@ -294,6 +479,237 @@
     }
     }
     secFala.querySelectorAll('.eu-fala-bloco').forEach(iniciarGitlab);
+  }
+
+  function pedirMinijogo(jogo, dados) {
+    return fetch('/api/minijogo/' + jogo, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dados || {}),
+    })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }, function () { return { ok: false, j: {} }; }); })
+      .then(function (res) {
+        if (!res.ok || !res.j.ok) { mostrarToast(res.j.erro || 'Não deu certo. Recarregue e tente de novo.', 'info'); return null; }
+        var kpi = document.querySelector('.eu-kpi-destaque .eu-kpi-valor');
+        if (kpi && res.j.sementes !== null && res.j.sementes !== undefined) {
+          var ultimo = kpi.lastChild;
+          if (ultimo && ultimo.nodeType === 3) ultimo.nodeValue = res.j.sementes;
+        }
+        return res.j;
+      })
+      .catch(function () { mostrarToast('Sem conexão com o servidor.', 'info'); return null; });
+  }
+
+  // Estado do ritual (passos 1-2-3) e do cuidado, sem recarregar a pagina.
+  function aplicarEstado(e) {
+    if (!e) return;
+    function passo(nome, estado, texto) {
+      var li = document.querySelector('.passo[data-passo="' + nome + '"]');
+      if (!li) return;
+      li.dataset.estado = estado;
+      var small = li.querySelector('small');
+      if (small && texto) small.textContent = texto;
+    }
+    if (e.fala_pronta) passo('fala', 'feito', 'pronta antes da daily');
+    if (e.fechamento_pronto) passo('fechamento', 'feito', 'Day Closing preenchido');
+    if (e.cuidar) passo('cuidar', 'feito', 'cuidada hoje');
+    else if (e.fechamento_pronto) passo('cuidar', 'aberto', 'regar, adubar e carinho');
+    var sec = document.getElementById('cuidar');
+    if (sec) {
+      sec.dataset.aberto = e.fechamento_pronto ? '1' : '0';
+      sec.dataset.feito = e.cuidar ? '1' : '0';
+      sec.querySelectorAll('.ferramenta').forEach(function (b) { b.disabled = !e.fechamento_pronto; });
+      sec.querySelectorAll('.medidor').forEach(function (m) {
+        if (e.cuidados.indexOf(m.dataset.acao) >= 0) { m.dataset.feito = '1'; m.style.setProperty('--p', 100); }
+      });
+      if (window.atualizarDicaCuidar) window.atualizarDicaCuidar();
+      var fim = sec.querySelector('.cuidar-fim');
+      if (fim) fim.hidden = !e.cuidar;
+    }
+  }
+
+  // Cuidar da planta: o canteiro da pessoa. Regador e adubo se arrastam ate a planta (inclinam e
+  // derramam enquanto estao sobre ela); o carinho e esfregar o dedo na planta. Cada cuidado enche
+  // um medidor; cheio, conta no servidor uma vez. Depois disso da para continuar brincando.
+  var sec = document.getElementById('cuidar');
+  var cena = document.getElementById('cuidar-cena');
+  if (sec && cena) {
+    var planta = document.getElementById('cuidar-planta');
+    var fx = cena.querySelector('.cuidar-fx');
+    var dica = document.getElementById('cuidar-dica');
+    var progresso = { regar: 0, adubar: 0, carinho: 0 };
+    var pedindo = {};
+    var DURACAO = { regar: 1600, adubar: 1400 };
+    var ESFREGAR = 900;                                   // pixels de esfregada para encher o carinho
+
+    function medidor(acao) { return cena.querySelector('.medidor[data-acao="' + acao + '"]'); }
+    function feito(acao) { var m = medidor(acao); return !!(m && m.dataset.feito); }
+    function aberto() { return sec.dataset.aberto === '1'; }
+    sec.querySelectorAll('.medidor').forEach(function (m) { if (m.dataset.feito) progresso[m.dataset.acao] = 100; });
+
+    window.atualizarDicaCuidar = function () {
+      if (!dica) return;
+      if (!aberto()) { dica.textContent = 'Feche o dia no Day Closing para abrir o canteiro.'; return; }
+      if (!feito('regar')) dica.textContent = 'Arraste o regador até a planta e segure para regar.';
+      else if (!feito('adubar')) dica.textContent = 'Agora arraste o saco de adubo até a planta.';
+      else if (!feito('carinho')) dica.textContent = 'Esfregue o dedo na planta para fazer carinho.';
+      else dica.textContent = 'Planta cuidada hoje. Pode continuar mimando à vontade.';
+    };
+    window.atualizarDicaCuidar();
+
+    function ponto(el) { var r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }
+    function noAlvo(p) {
+      var r = planta.getBoundingClientRect();
+      return p.x > r.left - 24 && p.x < r.right + 24 && p.y > r.top - 90 && p.y < r.top + r.height * 0.75;
+    }
+    function particula(classe, x, y, extra) {
+      var c = cena.getBoundingClientRect();
+      var i = document.createElement('i');
+      i.className = 'fx ' + classe;
+      i.style.left = (x - c.left) + 'px';
+      i.style.top = (y - c.top) + 'px';
+      var chao = planta.getBoundingClientRect().bottom - c.top - 8;
+      i.style.setProperty('--queda', Math.max(chao - (y - c.top), 20) + 'px');
+      i.style.setProperty('--desvio', (extra || 0) + 'px');
+      i.addEventListener('animationend', function () { i.remove(); });
+      fx.appendChild(i);
+      setTimeout(function () { i.remove(); }, 2000);
+    }
+    function encher(acao, quanto) {
+      if (progresso[acao] >= 100) return;
+      progresso[acao] = Math.min(100, progresso[acao] + quanto);
+      var m = medidor(acao);
+      if (m) m.style.setProperty('--p', Math.round(progresso[acao]));
+      if (progresso[acao] >= 100) concluir(acao);
+    }
+    function reagir(classe) {
+      planta.classList.remove(classe); void planta.offsetWidth; planta.classList.add(classe);
+    }
+    function concluir(acao) {
+      if (acao === 'regar') cena.classList.add('molhado');
+      if (acao === 'adubar') cena.classList.add('adubado');
+      reagir('feliz');
+      if (navigator.vibrate) { try { navigator.vibrate(15); } catch (e) { /* sem vibracao */ } }
+      if (feito(acao) || pedindo[acao]) { window.atualizarDicaCuidar(); return; }
+      pedindo[acao] = true;
+      pedirMinijogo('cuidar', { acao: acao }).then(function (j) {
+        pedindo[acao] = false;
+        if (!j) { progresso[acao] = 0; var m = medidor(acao); if (m) m.style.setProperty('--p', 0); return; }
+        var m2 = medidor(acao); if (m2) m2.dataset.feito = '1';
+        if (j.ganhou) comemorarCuidado(j.ganhou);
+        aplicarEstado(j.estado);
+      });
+    }
+    function comemorarCuidado(valor) {
+      var m = document.createElement('span');
+      m.className = 'mj-mais';
+      m.textContent = '+' + valor;
+      cena.appendChild(m);
+      setTimeout(function () { m.remove(); }, 1600);
+      mostrarToast('Planta cuidada! +' + valor + ' sementes', 'sucesso');
+    }
+
+    // Regador e adubo: pegar, arrastar, inclinar sobre a planta.
+    cena.querySelectorAll('.ferramenta').forEach(function (tool) {
+      var acao = tool.dataset.acao;
+      var ponta = tool.querySelector('.ponta');
+      var inicio = null, ultimo = 0, ultimaGota = 0, andou = 0, quadro = null;
+
+      function mover(dx, dy) { tool.style.setProperty('--dx', dx + 'px'); tool.style.setProperty('--dy', dy + 'px'); }
+      function passo(t) {
+        if (!inicio) return;
+        var dt = ultimo ? t - ultimo : 16;
+        ultimo = t;
+        var p = ponto(ponta);
+        var sobre = noAlvo(p);
+        tool.classList.toggle('derramando', sobre);
+        planta.classList.toggle('bebendo', sobre);
+        if (sobre) {
+          if (t - ultimaGota > (acao === 'regar' ? 55 : 80)) {
+            ultimaGota = t;
+            particula(acao === 'regar' ? 'fx-gota' : 'fx-grao', p.x + (Math.random() * 16 - 8), p.y, Math.random() * 20 - 10);
+          }
+          encher(acao, dt / DURACAO[acao] * 100);
+        }
+        quadro = requestAnimationFrame(passo);
+      }
+      function soltar() {
+        if (!inicio) return;
+        if (andou < 8) {                                  // so tocou: mostra o que fazer
+          tool.classList.remove('balanca'); void tool.offsetWidth; tool.classList.add('balanca');
+          if (dica) dica.textContent = acao === 'regar' ? 'Segure o regador e arraste até a planta.' : 'Segure o saco de adubo e arraste até a planta.';
+        }
+        inicio = null; ultimo = 0;
+        cancelAnimationFrame(quadro);
+        tool.classList.remove('pegando', 'derramando');
+        planta.classList.remove('bebendo');
+        mover(0, 0);
+      }
+      tool.addEventListener('pointerdown', function (ev) {
+        if (tool.disabled || !aberto()) return;
+        ev.preventDefault();
+        try { tool.setPointerCapture(ev.pointerId); } catch (e) { /* ok */ }
+        inicio = { x: ev.clientX, y: ev.clientY };
+        andou = 0;
+        tool.classList.add('pegando');
+        quadro = requestAnimationFrame(passo);
+      });
+      tool.addEventListener('pointermove', function (ev) {
+        if (!inicio) return;
+        var dx = ev.clientX - inicio.x, dy = ev.clientY - inicio.y;
+        andou = Math.max(andou, Math.abs(dx) + Math.abs(dy));
+        mover(dx, dy - 24);                               // um pouco acima do dedo, para o dedo nao cobrir
+      });
+      tool.addEventListener('pointerup', soltar);
+      tool.addEventListener('pointercancel', soltar);
+      // Teclado: Enter leva a ferramenta sozinha ate a planta.
+      tool.addEventListener('keydown', function (ev) {
+        if ((ev.key !== 'Enter' && ev.key !== ' ') || tool.disabled || !aberto()) return;
+        ev.preventDefault();
+        var a = ponto(tool), b = planta.getBoundingClientRect();
+        inicio = { x: a.x, y: a.y }; andou = 99;
+        tool.classList.add('pegando');
+        mover(b.left + b.width / 2 - a.x + (acao === 'regar' ? 40 : -40), b.top - a.y - 10);
+        quadro = requestAnimationFrame(passo);
+        setTimeout(soltar, DURACAO[acao] + 500);
+      });
+    });
+
+    // Carinho: esfregar o dedo na planta. Ela inclina para o lado do dedo e solta coracoes.
+    var esfrega = null, desdeCoracao = 0;
+    planta.addEventListener('pointerdown', function (ev) {
+      if (!aberto()) return;
+      ev.preventDefault();
+      try { planta.setPointerCapture(ev.pointerId); } catch (e) { /* ok */ }
+      esfrega = { x: ev.clientX, y: ev.clientY };
+      planta.classList.add('acariciando');
+    });
+    planta.addEventListener('pointermove', function (ev) {
+      if (!esfrega) return;
+      var dx = ev.clientX - esfrega.x, dy = ev.clientY - esfrega.y;
+      var d = Math.sqrt(dx * dx + dy * dy);
+      esfrega = { x: ev.clientX, y: ev.clientY };
+      var r = planta.getBoundingClientRect();
+      var lado = (ev.clientX - (r.left + r.width / 2)) / (r.width / 2);
+      planta.style.setProperty('--inclina', Math.max(-1, Math.min(1, lado)) * 7 + 'deg');
+      desdeCoracao += d;
+      if (desdeCoracao > 38) { desdeCoracao = 0; particula('fx-coracao', ev.clientX, ev.clientY, Math.random() * 30 - 15); }
+      encher('carinho', d / ESFREGAR * 100);
+    });
+    function pararCarinho() {
+      if (!esfrega) return;
+      esfrega = null;
+      planta.classList.remove('acariciando');
+      planta.style.setProperty('--inclina', '0deg');
+    }
+    planta.addEventListener('pointerup', pararCarinho);
+    planta.addEventListener('pointercancel', pararCarinho);
+    planta.addEventListener('keydown', function (ev) {
+      if ((ev.key !== 'Enter' && ev.key !== ' ') || !aberto()) return;
+      ev.preventDefault();
+      var r = planta.getBoundingClientRect();
+      for (var k = 0; k < 6; k++) particula('fx-coracao', r.left + r.width * (0.25 + k * 0.1), r.top + r.height * 0.4, 0);
+      reagir('feliz');
+      encher('carinho', 34);
+    });
   }
 })();
 </script>

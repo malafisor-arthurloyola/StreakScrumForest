@@ -74,6 +74,7 @@ CORES_FONTE = {
     "ata": "#b59bff",
     "relator": "#5fd6ff",
     "meta": "#ffb457",
+    "minijogo": "#7ee0c3",
 }
 
 app = Flask(__name__)
@@ -611,6 +612,17 @@ def init_db():
             atualizada_em TEXT NOT NULL DEFAULT (datetime('now')),
             PRIMARY KEY (data, tipo, member_id)
         );
+
+        -- minigames da aba Meu jardim: uma linha por pessoa, dia e jogada. O servidor so grava
+        -- quando a regra foi cumprida; as sementes sao derivadas daqui (game.premios_minijogos).
+        -- 'vez_daily' marca que a pessoa ja teve a vez na rodada da daily (fala pronta depois nao vale).
+        CREATE TABLE IF NOT EXISTS minijogos (
+            member_id INTEGER NOT NULL REFERENCES members(id),
+            data TEXT NOT NULL,
+            jogo TEXT NOT NULL,
+            criado_em TEXT NOT NULL DEFAULT (datetime('now')),
+            PRIMARY KEY (member_id, data, jogo)
+        );
     """)
     db.commit()
 
@@ -922,6 +934,27 @@ def _falas_do_membro(db, member_id, dias_letivos_lista):
     ]
 
 
+def _jogadas_por_membro(db):
+    """{member_id: [(data, jogo)]} de todas as jogadas de minigame gravadas."""
+    jogadas = {}
+    for r in db.execute("SELECT member_id, data, jogo FROM minijogos").fetchall():
+        jogadas.setdefault(r["member_id"], []).append((r["data"], r["jogo"]))
+    return jogadas
+
+
+def _sprint_semanas(db):
+    try:
+        return max(int(_get_config(db).get("sprint_semanas", "2")), 1)
+    except ValueError:
+        return 2
+
+
+def _premios_minijogos_do_membro(db, member_id, semanas, reg, jogadas=None):
+    if jogadas is None:
+        jogadas = _jogadas_por_membro(db)
+    return game.premios_minijogos(jogadas.get(member_id, []), semanas, reg, _sprint_semanas(db))
+
+
 def _extrato_do_membro(db, member_id, dias_letivos_lista, semanas, glob, cheios, meta):
     """Extrato (ganhos e gastos) de um membro, para a aba Sementes."""
     reg = _reg_membro(glob, member_id)
@@ -930,6 +963,7 @@ def _extrato_do_membro(db, member_id, dias_letivos_lista, semanas, glob, cheios,
         falas=_falas_do_membro(db, member_id, dias_letivos_lista),
         relatadas=_relatadas_por_ata(db, dias_letivos_lista).get(member_id, {}),
         metas=_premios_de_metas_do_membro(db, member_id),
+        minijogos=_premios_minijogos_do_membro(db, member_id, semanas, reg),
     )
     gastos = []
     for r in db.execute(
@@ -978,6 +1012,7 @@ def get_member_stats(db, dias_letivos_lista=None):
     fundador_ate = _get_config(db).get("fundador_ate", "2026-10-23")
     atas_com_fala, falas_relatadas = _contagem_atas(db, dias_letivos_lista)
     metas_premio, equipe_ids = _metas_premio(db), _ids_equipe(db)
+    jogadas = _jogadas_por_membro(db)
 
     resultado = []
     for m in membros:
@@ -992,6 +1027,7 @@ def get_member_stats(db, dias_letivos_lista=None):
             atas_com_fala=atas_com_fala.get(m["id"], 0),
             falas_relatadas=falas_relatadas.get(m["id"], 0),
             bonus_metas=sum(x["valor"] for x in game.premios_de_metas(metas_premio, m["id"], equipe_ids)),
+            minijogos=_premios_minijogos_do_membro(db, m["id"], semanas, reg, jogadas),
         )
         gasto = gastos.get(m["id"], 0)
         resultado.append({
@@ -1776,6 +1812,9 @@ def api_holofote():
     for chave, valor in valores:
         db.execute("INSERT INTO config (chave, valor) VALUES (?, ?) ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor",
                    (chave, valor))
+    if mid is not None and tipo == "daily":
+        # a vez desta pessoa na daily chegou: daqui em diante a fala dela ja nao conta como "pronta"
+        db.execute("INSERT OR IGNORE INTO minijogos (member_id, data, jogo) VALUES (?, ?, 'vez_daily')", (mid, dia))
     db.execute("INSERT INTO config (chave, valor) VALUES ('holofote_em', datetime('now')) "
                "ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor")
     db.commit()
@@ -2530,6 +2569,12 @@ def _contexto_sementes(db, member_id, compare_id=None):
         "ata": game.SEED_ATA,
         "relator": game.SEED_RELATOR,
         "relator_max": game.SEED_RELATOR_MAX_POR_ATA,
+        "fala_pronta": game.SEED_FALA_PRONTA,
+        "fechamento_pronto": game.SEED_FECHAMENTO_PRONTO,
+        "cuidar": game.SEED_CUIDAR,
+        "figurinha": game.SEED_FIGURINHA,
+        "estacao_completa": game.SEED_ESTACAO_COMPLETA,
+        "figurinha_min": game.FIGURINHA_MIN_FALAS,
     }
 
     # Composicao do perfil "dedicado" (3 eventos, 45 dias, time perfeito), derivada das
@@ -2539,8 +2584,10 @@ def _contexto_sementes(db, member_id, compare_id=None):
     regs_dedicado = {
         d: {"presente": True, "eventos": set(game.SEED_POR_EVENTO)} for d in dias
     }
+    jog_ded = [(d, j) for d in dias for j in game.MINIJOGOS]
     ded = game.calcular_sementes(dias, semanas, regs_dedicado, True, dias_cheios=set(dias),
-                                 atas_com_fala=2 * len(dias))
+                                 atas_com_fala=2 * len(dias),
+                                 minijogos=game.premios_minijogos(jog_ded, semanas, regs_dedicado, _sprint_semanas(db)))
     composicao = [
         {"id": "eventos", "rotulo": "Presença nos eventos", "valor": ded["por_presenca"]},
         {"id": "semanas", "rotulo": "Semanas fechadas", "valor": ded["por_semanas_fechadas"]},
@@ -2549,6 +2596,7 @@ def _contexto_sementes(db, member_id, compare_id=None):
         {"id": "floresceu", "rotulo": "Floresceu", "valor": ded["por_floresceu"]},
         {"id": "boas_vindas", "rotulo": "Boas-vindas", "valor": ded["por_boas_vindas"]},
         {"id": "ata", "rotulo": "Atas preenchidas", "valor": ded["por_ata"]},
+        {"id": "minijogo", "rotulo": "Minigames", "valor": ded["por_minijogos"]},
     ]
     total_ded = ded["total"]
     acumulado = 0
@@ -2587,6 +2635,7 @@ def _contexto_sementes(db, member_id, compare_id=None):
             dias_letivos_lista, semanas_proj, reg, estado["floresceu"], dias_cheios=cheios,
             atas_com_fala=com_fala_todos.get(mid, 0), falas_relatadas=relatadas_todos.get(mid, 0),
             bonus_metas=sum(x["valor"] for x in _premios_de_metas_do_membro(db, mid)),
+            minijogos=_premios_minijogos_do_membro(db, mid, semanas_proj, reg),
         )
         pessoa = {"id": m["id"], "name": m["name"]}
         gasto = gastos_todos.get(mid, 0)
@@ -2616,7 +2665,7 @@ def _contexto_sementes(db, member_id, compare_id=None):
             ("por_marcos", "Marcos de sequência"), ("por_dia_cheio", "Dia cheio do time"),
             ("por_floresceu", "Floresceu"), ("por_boas_vindas", "Boas-vindas"),
             ("por_ata", "Atas preenchidas"), ("por_relator", "Scrum: falas de colegas preenchidas"),
-            ("por_metas", "Metas personalizadas cumpridas"),
+            ("por_metas", "Metas personalizadas cumpridas"), ("por_minijogos", "Minigames"),
         ):
             va, vb = detalhe["ganho"].get(chave, 0), detalhe_b["ganho"].get(chave, 0)
             if va != vb:
@@ -2700,8 +2749,11 @@ def eu_page():
         "SELECT 1 FROM attendance WHERE member_id = ? AND event_date = ? AND event_type = 'encerramento' "
         "AND status = 'presente' LIMIT 1", (membro["id"], hoje),
     ).fetchone() is not None
+    # A Daily aparece em todo dia letivo, mesmo antes da presenca: e assim que da para deixar a
+    # fala pronta antes da daily (minigame Fala pronta).
+    letivo_hoje = _e_dia_letivo(hoje, db)
     minhas_falas = []
-    if tem_presenca_hoje:
+    if tem_presenca_hoje or letivo_hoje:
         for tipo, rotulo, rot_feito, rot_planejado in (
             ("daily", "Daily", "O que fiz", "O que vou fazer"),
             ("fechamento", "Day Closing", "Concluí hoje", "Ficou para depois"),
@@ -2715,17 +2767,38 @@ def eu_page():
                 tem_texto = bool(f and ((f["feito"] or "").strip() or (f["planejado"] or "").strip()))
                 if not (tem_encerramento or tem_texto):
                     continue
+            sugestao = ""
+            if tipo == "daily" and not (f and (f["planejado"] or "").strip()):
+                sugestao = _fica_para_amanha(db, membro["id"], hoje)
             minhas_falas.append({
                 "tipo": tipo, "rotulo": rotulo,
                 "rot_feito": rot_feito, "rot_planejado": rot_planejado,
                 "feito": f["feito"] if f else "", "planejado": f["planejado"] if f else "",
                 "review": (_coluna(f, "review") or "") if f else "",
+                "sugestao": sugestao,
             })
 
     return render_template(
         "eu.html", eu=stats, hoje=hoje, minhas_falas=minhas_falas,
-        eu_member_id=membro["id"], **ctx
+        eu_member_id=membro["id"], mj=_estado_minijogos(db, membro["id"], hoje),
+        album=_album_do_membro(db, membro["id"]), seeds_mj={
+            "fala_pronta": game.SEED_FALA_PRONTA, "fechamento": game.SEED_FECHAMENTO_PRONTO,
+            "cuidar": game.SEED_CUIDAR, "figurinha": game.SEED_FIGURINHA,
+            "dourada": game.SEED_ESTACAO_COMPLETA, "min_falas": game.FIGURINHA_MIN_FALAS},
+        **ctx
     )
+
+
+def _fica_para_amanha(db, member_id, hoje):
+    """O "O que fica para amanha" do Day Closing do dia letivo anterior: vira sugestao (nao salva)
+    para o "O que vou fazer" da daily. So e gravado quando a pessoa confirma."""
+    anteriores = [d for d in _dias_letivos(db) if d < hoje]
+    if not anteriores:
+        return ""
+    r = db.execute(
+        "SELECT planejado FROM ata_falas WHERE member_id = ? AND tipo = 'fechamento' AND data = ?",
+        (member_id, anteriores[-1])).fetchone()
+    return (r["planejado"] or "").strip() if r else ""
 
 
 @app.route("/eu/criar", methods=["POST"])
@@ -3325,6 +3398,113 @@ def api_ata_minha_fala():
                 _definir_status(db, membro["id"], data_str, evento, "presente")
     db.commit()
     return jsonify(resposta)
+
+
+# ------------------------------------------------------------ minigames (aba Meu jardim)
+def _jogadas_do_dia(db, member_id, data_str):
+    return {r["jogo"] for r in db.execute(
+        "SELECT jogo FROM minijogos WHERE member_id = ? AND data = ?", (member_id, data_str)).fetchall()}
+
+
+def _fala_preenchida(db, member_id, data_str, tipo):
+    f = db.execute("SELECT feito, planejado FROM ata_falas WHERE data = ? AND tipo = ? AND member_id = ?",
+                   (data_str, tipo, member_id)).fetchone()
+    return bool(f and (f["feito"] or "").strip() and (f["planejado"] or "").strip())
+
+
+def _estado_minijogos(db, member_id, hoje=None):
+    """O que o cartao "Seu dia no jardim" mostra: o que ja foi feito hoje e o que pode ser feito."""
+    hoje = hoje or date.today().isoformat()
+    feitas = _jogadas_do_dia(db, member_id, hoje)
+    letivo = _e_dia_letivo(hoje, db)
+    return {
+        "letivo": letivo,
+        "fala_pronta": "fala_pronta" in feitas,
+        "vez_passou": "vez_daily" in feitas,
+        "fechamento_pronto": "fechamento_pronto" in feitas,
+        "cuidados": [c for c in game.CUIDADOS if f"cuidar_{c}" in feitas],
+        "cuidar": "cuidar" in feitas,
+    }
+
+
+def _album_do_membro(db, member_id):
+    semanas = _semanas_projeto(db)
+    reg = _registros_membro(db, member_id)
+    falas = [d for d, j in _jogadas_por_membro(db).get(member_id, [])
+             if j == "fala_pronta" and reg.get(d, {}).get("presente", False)]
+    album = game.album_estacao(falas, semanas, _sprint_semanas(db))
+    especies = [i["id"] for i in catalog.ITENS if i["tipo"] == "especie" and not i.get("padrao")] or ["muda"]
+    hoje = date.today().isoformat()
+    for f in album:
+        # a figurinha de cada semana e uma especie da loja, em ordem (o mesmo album para todo mundo)
+        f["especie"] = especies[(f["n"] - 1) % len(especies)]
+        f["nome"] = (catalog.item(f["especie"]) or {}).get("nome", "")
+        dias = semanas[f["n"] - 1]
+        f["atual"] = bool(dias) and dias[0] <= hoje <= dias[-1]
+        f["preview"] = {**PREVIEW_BASE, "visual": {**catalog.montar_visual(set(), {}), "especie": f["especie"],
+                                                    "folha": (catalog.item(f["especie"]) or {}).get("folha", "p-folha")}}
+    return album
+
+
+def _minijogo_resposta(db, member_id, ganhou, mensagem):
+    stats = _stats_membro(db, member_id)
+    return jsonify({"ok": True, "ganhou": ganhou, "mensagem": mensagem,
+                    "sementes": stats["sementes"] if stats else None,
+                    "estado": _estado_minijogos(db, member_id)})
+
+
+@app.route("/api/minijogo/<jogo>", methods=["POST"])
+def api_minijogo(jogo):
+    """Fala pronta, Fechamento pronto e Cuidar da planta. A propria pessoa, logada no /eu, hoje."""
+    db = get_db()
+    membro = _eu_membro(db)
+    if membro is None:
+        return _erro("Entre no seu jardim primeiro.", 401)
+    mid = membro["id"]
+    hoje = date.today().isoformat()
+    if not _e_dia_letivo(hoje, db):
+        return _erro("Hoje não tem daily: os minigames voltam no próximo dia de aula.")
+    feitas = _jogadas_do_dia(db, mid, hoje)
+    p = request.get_json(force=True, silent=True) or {}
+
+    def gravar(nome):
+        db.execute("INSERT OR IGNORE INTO minijogos (member_id, data, jogo) VALUES (?, ?, ?)", (mid, hoje, nome))
+
+    if jogo == "fala-pronta":
+        if "fala_pronta" in feitas:
+            return _minijogo_resposta(db, mid, 0, "Sua fala já estava pronta.")
+        if not _fala_preenchida(db, mid, hoje, "daily"):
+            return _erro("Preencha O que fiz e O que vou fazer para a fala ficar pronta.")
+        if "vez_daily" in feitas:
+            return _erro("Sua vez na daily já passou hoje. A fala continua valendo na ata; amanhã dá para deixar pronta antes.")
+        gravar("fala_pronta")
+        db.commit()
+        return _minijogo_resposta(db, mid, game.SEED_FALA_PRONTA, "Fala pronta! Ela vale no dia em que você marcar presença.")
+
+    if jogo == "fechamento":
+        if "fechamento_pronto" in feitas:
+            return _minijogo_resposta(db, mid, 0, "O dia já estava fechado.")
+        if not _fala_preenchida(db, mid, hoje, "fechamento"):
+            return _erro("Preencha O que concluí hoje e O que fica para amanhã para fechar o dia.")
+        gravar("fechamento_pronto")
+        db.commit()
+        return _minijogo_resposta(db, mid, game.SEED_FECHAMENTO_PRONTO, "Dia fechado! O cuidado da planta abriu.")
+
+    if jogo == "cuidar":
+        acao = p.get("acao")
+        if acao not in game.CUIDADOS:
+            return _erro("Cuidado inválido.")
+        if "fechamento_pronto" not in feitas:
+            return _erro("O cuidado abre depois do Fechamento pronto.")
+        gravar(f"cuidar_{acao}")
+        ganhou = 0
+        if "cuidar" not in feitas and all(f"cuidar_{c}" in (feitas | {f"cuidar_{acao}"}) for c in game.CUIDADOS):
+            gravar("cuidar")
+            ganhou = game.SEED_CUIDAR
+        db.commit()
+        return _minijogo_resposta(db, mid, ganhou, "Planta cuidada!" if ganhou else "")
+
+    abort(404)
 
 
 # ------------------------------------------------------------ Fase 6: GitLab (so leitura)
