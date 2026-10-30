@@ -63,11 +63,18 @@
 .lote-info { display: flex; align-items: center; gap: 6px; color: #e9d7c1; font-size: 0.78rem; }
 .lote-info .chama { font-size: 0.78rem; }
 
+.lote-vaga { pointer-events: none; }
 .lote-convidados { z-index: 2000; }
-.convidados-vasos { position: absolute; left: 0; bottom: -1.2cqw; transform: translateX(-50%); display: flex; gap: 0.6cqw; align-items: flex-end; }
-.convidado-vaso { display: grid; justify-items: center; width: 4.6cqw; color: #e9d7c1; font-size: 0.76rem; text-decoration: none; }
-.convidado-vaso span { margin-top: 1px; padding: 0 5px; border-radius: 5px; background: rgba(61, 39, 22, 0.85); }
-.convidado-vaso .planta { width: 100%; height: auto; margin-bottom: -22%; }
+.lote-vaga.convidado-vaso { display: block; pointer-events: auto; text-decoration: none; filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.3)); }
+.convidado-vaso span {
+  position: absolute; left: 50%; top: 82%; transform: translateX(-50%); padding: 0 6px; border-radius: 6px;
+  background: rgba(61, 39, 22, 0.9); color: #f3e4cf; font-size: 0.72rem; font-weight: 700; white-space: nowrap;
+}
+.convidado-vaso.apertado span { font-size: 0.62rem; padding: 0 4px; max-width: 5.6cqw; overflow: hidden; text-overflow: ellipsis; }
+.convidado-vaso:hover, .convidado-vaso:focus-visible { z-index: 300 !important; }
+.convidado-vaso:hover span, .convidado-vaso:focus-visible span { background: #7a4f2d; }
+.lote-placa-visitantes { top: calc(var(--gh, 74) / 16 * 1cqw - 0.4cqw); pointer-events: none; }
+.lote-placa-visitantes .lote-info { font-size: 0.72rem; }
 
 .mapa-legenda { margin-top: 16px; }
 .mapa-legenda h2 { margin: 0 0 8px; font-size: 1.05rem; }
@@ -164,4 +171,27 @@
 .ourico .rosto { fill: #d9b48a; }
 .ourico .anda { animation: fareja 4s ease-in-out var(--d, 0s) infinite; }
 @keyframes fareja { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-6px); } }
+/* Bichinhos tocaveis: um toque faz cada um brincar (dois truques que se alternam) e solta um coracao */
+.bicho { cursor: pointer; }
+.bicho-toque { fill: transparent; }
+.bicho .reage { transform-box: fill-box; transform-origin: 50% 100%; }
+.bicho-coracao { fill: #ff7aa8; opacity: 0; pointer-events: none; transform-box: fill-box; transform-origin: 50% 100%; }
+.bicho.brinca-a .bicho-coracao, .bicho.brinca-b .bicho-coracao { animation: coracao 1.3s ease-out; }
+@keyframes coracao { 0% { opacity: 0; transform: translateY(6px) scale(0.4); } 25% { opacity: 1; transform: translateY(0) scale(1.15); } 100% { opacity: 0; transform: translateY(-22px) scale(0.9); } }
+.coelho.brinca-a .reage { animation: coelho-salto 0.9s ease-in-out; }
+@keyframes coelho-salto { 0% { transform: translateY(0); } 15% { transform: translateY(2px) scale(1.1, 0.85); } 55% { transform: translateY(-46px) rotate(-360deg); } 85% { transform: translateY(0) rotate(-360deg) scale(1.1, 0.9); } 100% { transform: rotate(-360deg); } }
+.coelho.brinca-b .reage { animation: coelho-pulinhos 1s ease-in-out; }
+.coelho.brinca-b .orelhas { animation: orelha-sacode 0.18s ease-in-out 5 alternate; }
+@keyframes coelho-pulinhos { 0%, 100% { transform: translate(0, 0); } 20% { transform: translate(-8px, -16px); } 40% { transform: translate(-16px, 0); } 60% { transform: translate(-8px, -16px); } 80% { transform: translate(0, 0); } }
+@keyframes orelha-sacode { from { transform: rotate(-18deg); } to { transform: rotate(14deg); } }
+.esquilo.brinca-a .reage { animation: esquilo-giro 0.9s ease-in-out; }
+@keyframes esquilo-giro { 0% { transform: none; } 50% { transform: translateY(-30px) rotate(180deg); } 100% { transform: rotate(360deg); } }
+.esquilo.brinca-b .reage { animation: esquilo-roe 1.1s ease-in-out; }
+.esquilo.brinca-b .cauda { animation: cauda-fofa 0.14s ease-in-out 7 alternate; }
+@keyframes esquilo-roe { 0%, 100% { transform: none; } 10%, 90% { transform: translateY(-4px) scaleY(1.06); } 30%, 50%, 70% { transform: translateY(-4px) rotate(-6deg); } 40%, 60%, 80% { transform: translateY(-4px) rotate(4deg); } }
+@keyframes cauda-fofa { from { transform: rotate(-14deg) scale(1.08); } to { transform: rotate(10deg); } }
+.ourico.brinca-a .reage { animation: ourico-rola 1.2s ease-in-out; }
+@keyframes ourico-rola { 0% { transform: none; } 15% { transform: scale(0.85); } 50% { transform: translateX(-40px) rotate(-360deg) scale(0.85); } 85% { transform: translateX(0) rotate(-720deg) scale(0.85); } 100% { transform: rotate(-720deg); } }
+.ourico.brinca-b .espinhos { transform-box: fill-box; transform-origin: 50% 100%; animation: arrepia 0.9s ease-in-out; }
+@keyframes arrepia { 0%, 100% { transform: scale(1); } 20%, 70% { transform: scale(1.3, 1.25); } 45% { transform: scale(1.2, 1.35); } }
 @media (prefers-reduced-motion: reduce) { .bicho *, .mapa-fonte .jatos path, .mapa-vagalume { animation: none !important; } }
