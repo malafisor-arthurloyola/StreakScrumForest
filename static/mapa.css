@@ -56,33 +56,33 @@
   position: absolute; left: 0; top: 4.6cqw; transform: translateX(-50%);
   display: grid; justify-items: center; gap: 1px; min-width: 7.5em; padding: 4px 10px 5px;
   border-radius: 8px; background: #6b4426; box-shadow: inset 0 0 0 2px #8a5a35, 0 3px 0 #3d2716;
-  color: #fff3e2; text-decoration: none; font-size: 0.82rem; line-height: 1.15; white-space: nowrap;
+  color: #fff3e2; text-decoration: none; font-size: var(--t-sm); line-height: 1.15; white-space: nowrap;
 }
 .lote-placa:hover { background: #7a4f2d; }
-.lote-placa b { font-size: 0.95rem; }
-.lote-info { display: flex; align-items: center; gap: 6px; color: #e9d7c1; font-size: 0.78rem; }
-.lote-info .chama { font-size: 0.78rem; }
+.lote-placa b { font-size: var(--t-sm); }
+.lote-info { display: flex; align-items: center; gap: 6px; color: #e9d7c1; font-size: var(--t-xs); }
+.lote-info .chama { font-size: var(--t-xs); }
 
 .lote-vaga { pointer-events: none; }
 .lote-convidados { z-index: 2000; }
 .lote-vaga.convidado-vaso { display: block; pointer-events: auto; text-decoration: none; filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.3)); }
 .convidado-vaso span {
   position: absolute; left: 50%; top: 82%; transform: translateX(-50%); padding: 0 6px; border-radius: 6px;
-  background: rgba(61, 39, 22, 0.9); color: #f3e4cf; font-size: 0.72rem; font-weight: 700; white-space: nowrap;
+  background: rgba(61, 39, 22, 0.9); color: #f3e4cf; font-size: var(--t-xs); font-weight: 700; white-space: nowrap;
 }
-.convidado-vaso.apertado span { font-size: 0.62rem; padding: 0 4px; max-width: 5.6cqw; overflow: hidden; text-overflow: ellipsis; }
+.convidado-vaso.apertado span { font-size: var(--t-xs); padding: 0 4px; max-width: 5.6cqw; overflow: hidden; text-overflow: ellipsis; }
 .convidado-vaso:hover, .convidado-vaso:focus-visible { z-index: 300 !important; }
 .convidado-vaso:hover span, .convidado-vaso:focus-visible span { background: #7a4f2d; }
 .lote-placa-visitantes { top: calc(var(--gh, 74) / 16 * 1cqw - 0.4cqw); pointer-events: none; }
-.lote-placa-visitantes .lote-info { font-size: 0.72rem; }
+.lote-placa-visitantes .lote-info { font-size: var(--t-xs); }
 
 .mapa-legenda { margin-top: 16px; }
-.mapa-legenda h2 { margin: 0 0 8px; font-size: 1.05rem; }
+.mapa-legenda h2 { margin: 0 0 8px; font-size: var(--t-md); }
 .mapa-legenda ul { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .mapa-legenda li { padding: 4px 10px; border-radius: 999px; background: var(--s2); color: var(--ink2); }
 .mapa-legenda li.liberado { color: var(--ink); box-shadow: inset 0 0 0 1px var(--acc); }
 .mapa-legenda li b { color: var(--acc); }
-.mapa-dica { display: none; margin: 6px 0 0; color: var(--ink2); font-size: 0.85rem; text-align: center; }
+.mapa-dica { display: none; margin: 6px 0 0; color: var(--ink2); font-size: var(--t-sm); text-align: center; }
 @media (max-width: 900px) { .mapa-dica { display: block; } }
 
 /* ===== Mapa mais vivo: cenario, praca, bichinhos ===== */

@@ -28,10 +28,51 @@
   {% if sem_vaso %}{# plantada direto na terra: so uma covinha de terra fofa em volta do caule #}
   <g class="cova"><ellipse cx="60" cy="117" rx="17" ry="4.6" fill="#3e281b"/><ellipse cx="60" cy="116" rx="11" ry="2.6" fill="#6b4630"/></g>
   {% endif %}
+  {# Cada vaso tem formato proprio (a cor vem do CSS por data-vaso). Todos cabem entre y = 114 e 148
+     com a terra em y = 116, entao planta, acessorios e companheiros ficam no mesmo lugar em qualquer vaso. #}
+  {% set vs = v.vaso or 'terracota' %}
   <g class="vaso">
+    {% if vs == 'lata' %}
+    <rect class="vaso-corpo" x="36" y="120" width="48" height="27.5" rx="2.5"/>
+    <rect class="vaso-rotulo" x="36" y="127" width="48" height="11"/>
+    <path class="vaso-folhinha" d="M56 135.5C56 131 60 129.5 64 129.5C64 134 60 135.5 56 135.5Z"/>
+    <path class="vaso-friso" d="M36 124.5H84M36 141.5H84M36 145H84"/>
+    <rect class="vaso-brilho" x="40" y="121" width="3.4" height="25" rx="1.7"/>
+    <rect class="vaso-borda" x="34" y="115" width="52" height="6.5" rx="2"/>
+    {% elif vs == 'azul' %}
+    <path class="vaso-corpo" d="M33 120Q33 148 60 148Q87 148 87 120Z"/>
+    <path class="vaso-sombra" d="M33 120H87Q87 124 86.4 126H33.6Q33 124 33 120Z"/>
+    <path class="vaso-onda" d="M37 133q3.8-4 7.6 0t7.6 0t7.6 0t7.6 0t7.6 0t7.6 0"/>
+    <g class="vaso-pinta"><circle cx="45" cy="140.5" r="1.3"/><circle cx="53" cy="142.5" r="1.3"/><circle cx="60" cy="143" r="1.3"/><circle cx="67" cy="142.5" r="1.3"/><circle cx="75" cy="140.5" r="1.3"/></g>
+    <path class="vaso-brilho" d="M38 126Q38 138 45 143" />
+    <rect class="vaso-borda" x="30" y="114.5" width="60" height="8" rx="4"/>
+    {% elif vs == 'xicara' %}
+    <ellipse class="vaso-pires-sombra" cx="60" cy="147.4" rx="34" ry="2.6"/>
+    <ellipse class="vaso-pires" cx="60" cy="145.6" rx="34" ry="3.4"/>
+    <path class="vaso-alca" d="M84.5 123.5C94 122.5 95 132.5 82.5 135.5"/>
+    <path class="vaso-corpo" d="M34 119H86Q85.4 140.5 60 143.5Q34.6 140.5 34 119Z"/>
+    <path class="vaso-friso-ouro" d="M35 123.5H85"/>
+    <g class="vaso-florzinha" transform="translate(60 132)"><circle r="1.6"/><circle cx="-2.6" cy="-1" r="1.4"/><circle cx="2.6" cy="-1" r="1.4"/><circle cx="-1.6" cy="2" r="1.4"/><circle cx="1.6" cy="2" r="1.4"/></g>
+    <rect class="vaso-borda" x="32" y="115" width="56" height="5.5" rx="2.75"/>
+    {% elif vs == 'pixel' %}
+    <path class="vaso-corpo" d="M34 121H86V133H82V141H78V148H42V141H38V133H34Z"/>
+    <path class="vaso-sombra" d="M74 121H86V133H82V141H78V148H74Z"/>
+    <g class="vaso-pixel-luz"><rect x="38" y="124" width="4" height="4"/><rect x="42" y="124" width="4" height="4"/><rect x="38" y="128" width="4" height="4"/><rect x="46" y="137" width="4" height="4"/></g>
+    <rect class="vaso-borda" x="32" y="114" width="56" height="8"/>
+    <rect class="vaso-sombra" x="80" y="114" width="8" height="8"/>
+    {% elif vs == 'dourado' %}
+    <path class="vaso-sombra" d="M50 148H70L67.5 142.5H52.5Z"/>
+    <path class="vaso-corpo" d="M35 120Q31 135 51 143.5H69Q89 135 85 120Z"/>
+    <path class="vaso-ornato" d="M38 129L42 125.5L46 129L50 125.5L54 129L58 125.5L62 129L66 125.5L70 129L74 125.5L78 129L82 125.5"/>
+    <circle class="vaso-joia" cx="60" cy="135.5" r="2.4"/>
+    <path class="vaso-brilho" d="M40 124Q40 135 49 140"/>
+    <rect class="vaso-borda" x="31" y="114.5" width="58" height="7.5" rx="3.75"/>
+    {% else %}
     <path class="vaso-corpo" d="M36 124H84L80.5 145.5Q80 148 77.4 148H42.6Q40 148 39.5 145.5Z"/>
     <path class="vaso-sombra" d="M36 124H84L83 130H37Z"/>
+    <path class="vaso-brilho" d="M41.5 132L43.5 145"/>
     <rect class="vaso-borda" x="31" y="115" width="58" height="11" rx="5"/>
+    {% endif %}
     <ellipse class="terra" cx="60" cy="116" rx="25" ry="3.6"/>
   </g>
 
@@ -161,8 +202,11 @@
   {% if v.companheiro == 'joaninha' %}
   <g class="comp" transform="translate(74 113.5)"><g class="mov-joaninha"><g class="joaninha-vira"><g class="joaninha-passo">
     <path class="pernas" d="M-3 2.6L-4.6 5M0 3.2V5.8M3 2.6L4.6 5" stroke="#2a1410" stroke-width=".8" stroke-linecap="round" fill="none"/>
-    <g class="joaninha-asas"><ellipse class="asa-voo" cx="-3" cy="-4.4" rx="5.4" ry="2.4" transform="rotate(-25 -3 -4.4)"/>
-      <ellipse class="asa-voo" cx="1" cy="-4.8" rx="5.4" ry="2.4" transform="rotate(20 1 -4.8)"/></g>
+    {# asas de voo: duas laminas finas presas no ombro, que batem para cima e para baixo atras da casca #}
+    <g class="joaninha-asas" transform="translate(1 -2.6)">
+      <path class="asa-voo a1" d="M0 0C-2.5-1.6-7.5-2.4-10.2-1.2C-8.4 .6-3.4 .9 0 0Z"/>
+      <path class="asa-voo a2" d="M0 0C-2.5-1.6-7.5-2.4-10.2-1.2C-8.4 .6-3.4 .9 0 0Z"/>
+    </g>
     <circle cx="5.4" cy="-.6" r="2.3" fill="#2a1410"/><path d="M6.6-2.6L8.4-4.8M5.4-2.8L6.2-5.2" stroke="#2a1410" stroke-width=".55" stroke-linecap="round"/>
     <ellipse rx="5.2" ry="4.2" fill="#e8443a"/><path d="M0-4.2V4.2" stroke="#2a1410" stroke-width=".8"/>
     <circle cx="-2.2" cy="-1" r=".95" fill="#2a1410"/><circle cx="-1.6" cy="2" r=".8" fill="#2a1410"/><circle cx="2.2" cy="1.2" r=".95" fill="#2a1410"/>
