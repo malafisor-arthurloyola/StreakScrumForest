@@ -47,7 +47,7 @@ SEED_FIGURINHA = 10           # semana do Album da estacao revelada
 SEED_ESTACAO_COMPLETA = 10    # todas as semanas de uma sprint reveladas (figurinha dourada)
 FIGURINHA_MIN_FALAS = 3       # falas prontas na semana para revelar a figurinha
 CUIDADOS = ("regar", "adubar", "carinho")
-FALAS_DO_ALBUM = ("fala_pronta",)    # o album e de quem preparou a fala
+FALAS_DO_ALBUM = ("fala_pronta", "fala_avisada")    # avisar tambem conta: melhor avisar do que sumir
 MINIJOGOS = {
     "fala_pronta": (SEED_FALA_PRONTA, "Fala pronta"),
     "fala_avisada": (SEED_FALA_AVISADA, "Avisou que não ia à daily"),

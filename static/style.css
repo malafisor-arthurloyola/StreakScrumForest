@@ -2213,3 +2213,10 @@ body.holofote-escuro .cena.holofote-ativo { position: relative; z-index: 901; }
 #fala-daily .fala-acao .btn-minijogo, #fala-daily .fala-acao .btn-avisar { white-space: nowrap; font-size: 0.92rem; padding-inline: 12px; gap: 6px; min-height: 50px; }
 #fala-daily .fala-acao .btn-sem { padding: 1px 7px; }
 #fala-daily .aviso-painel .btn-minijogo { white-space: normal; }
+.ritual .secao-titulo { margin-bottom: 2px; }
+.ritual-data { margin: 0 0 12px; color: var(--acc); font-weight: 700; }
+
+/* Meu jardim: Hoje / Amanha (a vespera abre o dia seguinte, nunca mais cedo) */
+.ritual-dias { display: inline-flex; gap: 4px; margin: 6px 0 8px; padding: 3px; border-radius: 999px; background: var(--s2); border: 1px solid var(--s4); }
+.ritual-dias a { padding: 6px 14px; border-radius: 999px; font-weight: 700; text-decoration: none; color: inherit; opacity: .75; }
+.ritual-dias a[aria-current="page"] { background: var(--acc); color: var(--acc-ink); opacity: 1; }
