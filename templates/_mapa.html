@@ -269,6 +269,13 @@
     <div class="lote-vaga lado" style="--dx: {{ 92 if loop.first else -92 }}; --dy: 8; z-index: 2">{{ extra(m, e, 70) }}</div>
     {% endfor %}
     <div class="lote-vaga lote-planta" style="--dx: 0; --dy: 14; z-index: 3">{{ planta(m, 120) }}</div>
+  </div>
+  {% endfor %}
+
+  {# as placas vem depois de todos os canteiros: planta crescida do canteiro de baixo nunca cobre o nome #}
+  {% for l in lotes %}
+  {% set m = l.m %}
+  <div class="lote lote-rotulo" style="--x: {{ l.x / 16 }}%; --y: {{ l.y / 10 }}%; --k: {{ l.escala }}; z-index: {{ 1000 + l.y }}">
     <a class="lote-placa" href="{{ url_for('membro_page', member_id=m.id) }}">
       <b>{{ m.name }}</b>
       <span class="lote-info">{{ chama(m.streak, m.chama, m.aceso, m.id) }}<span data-estagio-for="{{ m.id }}">{{ m.estagio_nome }}</span></span>
