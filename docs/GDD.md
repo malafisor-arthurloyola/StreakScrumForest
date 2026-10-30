@@ -235,7 +235,11 @@ Tudo na loja é **cosmético**: nada aqui muda o quanto a planta cresce.
 | Acessórios | Laço (16), Óculos (20), Chapéu de palha (24); Selo Fundador (exclusivo, fora da venda) |
 | Plantas extras | Segunda plantinha (60), Terceira plantinha (110, exige a segunda) |
 
-Raridades: comum, rara, épica e lendária. A planta extra cresce junto da principal, sempre um pouco menor
+Raridades: comum, rara, épica e lendária. A raridade sai do preço (`catalog.FAIXAS_RARIDADE`): dentro de cada
+tipo, item mais caro nunca tem raridade menor e itens de mesmo preço têm a mesma. Espécies: até 50 comum, 70 e 80
+rara, 90 a 110 épica, 120 lendária. Vasos: até 16 comum, 20 e 24 rara, 30 épica. Companheiros: até 24 comum, 30 e 40
+rara, 50 épica. Acessórios: até 20 comum, 24 rara. Plantas extras: 60 rara, 110 épica. O Selo Fundador é lendário por
+ser exclusivo. A loja mostra os itens do mais barato ao mais caro e tem filtro por raridade. A planta extra cresce junto da principal, sempre um pouco menor
 (estágio visual a 80% do principal), e **nunca altera o crescimento real**.
 
 ![Loja do jardim: plantas à venda com raridade, preço e botões para usar na planta 1 ou 2](img/loja.png)

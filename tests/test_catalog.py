@@ -41,6 +41,29 @@ class TestCatalogo(unittest.TestCase):
         total = sum(i["preco"] for i in catalog.ITENS)
         self.assertGreater(total, 800)
 
+    def test_raridade_sobe_com_o_preco(self):
+        ordem = {r: n for n, r in enumerate(catalog.RARIDADES)}
+        for tipo in catalog.FAIXAS_RARIDADE:
+            venda = [i for i in catalog.itens_por_tipo(tipo) if not i.get("exclusivo")]
+            for a in venda:
+                for b in venda:
+                    if a["preco"] > b["preco"]:
+                        self.assertGreaterEqual(ordem[a["raridade"]], ordem[b["raridade"]], (a["id"], b["id"]))
+                    if a["preco"] == b["preco"]:
+                        self.assertEqual(a["raridade"], b["raridade"], (a["id"], b["id"]))
+
+    def test_mais_caras_de_cada_tipo(self):
+        self.assertEqual(catalog.item("ipe")["raridade"], "lendaria")
+        self.assertEqual(catalog.item("baoba")["raridade"], "lendaria")
+        self.assertEqual(catalog.item("bonsai")["raridade"], "epica")
+        self.assertEqual(catalog.item("dourado")["raridade"], "epica")
+        self.assertEqual(catalog.item("muda")["raridade"], "comum")
+        self.assertEqual(catalog.item("selo_fundador")["raridade"], "lendaria")
+
+    def test_nome_da_raridade_com_acento(self):
+        self.assertEqual(catalog.item("ipe")["raridade_nome"], "Lendária")
+        self.assertEqual(catalog.item("carnivora")["raridade_nome"], "Épica")
+
     def test_item_inexistente(self):
         self.assertIsNone(catalog.item("nao-existe"))
 

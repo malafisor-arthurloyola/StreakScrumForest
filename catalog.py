@@ -7,6 +7,27 @@ templates/_planta.html, ligado pelo id do item.
 
 TIPOS = ("especie", "vaso", "companheiro", "acessorio", "slot")
 RARIDADES = ("comum", "rara", "epica", "lendaria")
+RARIDADE_NOME = {"comum": "Comum", "rara": "Rara", "epica": "Épica", "lendaria": "Lendária"}
+
+# A raridade sai do preco: dentro de cada tipo, item mais caro nunca tem raridade menor
+# e itens de mesmo preco tem a mesma. Cada linha e (preco minimo, raridade); os tipos
+# tem faixas proprias porque um vaso de 30 ja e o topo dos vasos.
+FAIXAS_RARIDADE = {
+    "especie": ((0, "comum"), (70, "rara"), (90, "epica"), (120, "lendaria")),
+    "vaso": ((0, "comum"), (20, "rara"), (30, "epica")),
+    "companheiro": ((0, "comum"), (30, "rara"), (50, "epica")),
+    "acessorio": ((0, "comum"), (24, "rara")),
+    "slot": ((0, "comum"), (60, "rara"), (110, "epica")),
+}
+
+
+def raridade_por_preco(tipo, preco):
+    rar = "comum"
+    for minimo, nome in FAIXAS_RARIDADE[tipo]:
+        if preco >= minimo:
+            rar = nome
+    return rar
+
 
 # onde cada tipo de item pode ser usado
 SLOTS_POR_TIPO = {
@@ -20,68 +41,68 @@ EXIGE_SLOT = {"especie_2": "slot_2", "especie_3": "slot_3"}
 
 ITENS = [
     # plantas (especies)
-    {"id": "muda", "tipo": "especie", "nome": "Muda comum", "preco": 0, "raridade": "comum",
+    {"id": "muda", "tipo": "especie", "nome": "Muda comum", "preco": 0,
      "desc": "A plantinha de sempre, verde e honesta.", "padrao": True},
-    {"id": "girassol", "tipo": "especie", "nome": "Girassol", "preco": 40, "raridade": "comum",
+    {"id": "girassol", "tipo": "especie", "nome": "Girassol", "preco": 40,
      "desc": "Pétalas amarelas e miolo escuro, sempre virado para a luz."},
-    {"id": "cacto", "tipo": "especie", "nome": "Cacto", "preco": 50, "raridade": "comum",
+    {"id": "cacto", "tipo": "especie", "nome": "Cacto", "preco": 50,
      "desc": "Sem folhas, cheio de personalidade. Ganha braços e uma flor rosa."},
-    {"id": "cogumelo", "tipo": "especie", "nome": "Cogumelo", "preco": 80, "raridade": "rara",
+    {"id": "cogumelo", "tipo": "especie", "nome": "Cogumelo", "preco": 80,
      "desc": "Chapéu vermelho de bolinhas que cresce a cada presença."},
-    {"id": "carnivora", "tipo": "especie", "nome": "Planta carnívora", "preco": 110, "raridade": "epica",
+    {"id": "carnivora", "tipo": "especie", "nome": "Planta carnívora", "preco": 110,
      "desc": "Várias armadilhas de dentes que abrem e fecham devagar."},
-    {"id": "jarro", "tipo": "especie", "nome": "Planta-jarro", "preco": 110, "raridade": "epica",
+    {"id": "jarro", "tipo": "especie", "nome": "Planta-jarro", "preco": 110,
      "desc": "Jarros vermelhos pendurados nas pontas das folhas, como na floresta tropical."},
-    {"id": "samambaia", "tipo": "especie", "nome": "Samambaia", "preco": 40, "raridade": "comum",
+    {"id": "samambaia", "tipo": "especie", "nome": "Samambaia", "preco": 40,
      "desc": "Folhas finas e fundas, de quem gosta de sombra.", "folha": "p-folha-fina"},
-    {"id": "lavanda", "tipo": "especie", "nome": "Lavanda", "preco": 50, "raridade": "comum",
+    {"id": "lavanda", "tipo": "especie", "nome": "Lavanda", "preco": 50,
      "desc": "Florzinhas roxas e um cheirinho que você quase sente.", "folha": "p-folha-fina"},
-    {"id": "cerejeira", "tipo": "especie", "nome": "Cerejeira", "preco": 70, "raridade": "rara",
+    {"id": "cerejeira", "tipo": "especie", "nome": "Cerejeira", "preco": 70,
      "desc": "Flores rosadas que parecem confete."},
-    {"id": "bambu", "tipo": "especie", "nome": "Bambu", "preco": 70, "raridade": "rara",
+    {"id": "bambu", "tipo": "especie", "nome": "Bambu", "preco": 70,
      "desc": "Caule grosso e folhas compridas, crescimento firme.", "folha": "p-folha-fina"},
-    {"id": "bonsai", "tipo": "especie", "nome": "Bonsai", "preco": 90, "raridade": "rara",
+    {"id": "bonsai", "tipo": "especie", "nome": "Bonsai", "preco": 90,
      "desc": "Folhas pequenas e redondas, paciência em forma de planta.", "folha": "p-folha-redonda"},
-    {"id": "jabuticabeira", "tipo": "especie", "nome": "Jabuticabeira", "preco": 90, "raridade": "rara",
+    {"id": "jabuticabeira", "tipo": "especie", "nome": "Jabuticabeira", "preco": 90,
      "desc": "Flores brancas e frutos escuros que nascem no tronco.", "folha": "p-folha-redonda"},
-    {"id": "ipe", "tipo": "especie", "nome": "Ipê amarelo", "preco": 120, "raridade": "epica",
+    {"id": "ipe", "tipo": "especie", "nome": "Ipê amarelo", "preco": 120,
      "desc": "A cara do Brasil: uma chuva de flores douradas."},
-    {"id": "baoba", "tipo": "especie", "nome": "Baobá", "preco": 120, "raridade": "lendaria",
+    {"id": "baoba", "tipo": "especie", "nome": "Baobá", "preco": 120,
      "desc": "Só quem já viu uma planta florescer pode plantar esta.",
      "req": {"floresceu": True}},
 
     # vasos
-    {"id": "terracota", "tipo": "vaso", "nome": "Terracota", "preco": 0, "raridade": "comum",
+    {"id": "terracota", "tipo": "vaso", "nome": "Terracota", "preco": 0,
      "desc": "O clássico.", "padrao": True},
-    {"id": "lata", "tipo": "vaso", "nome": "Lata reaproveitada", "preco": 12, "raridade": "comum",
+    {"id": "lata", "tipo": "vaso", "nome": "Lata reaproveitada", "preco": 12,
      "desc": "Sustentável e cheia de personalidade."},
-    {"id": "azul", "tipo": "vaso", "nome": "Cerâmica azul", "preco": 16, "raridade": "comum",
+    {"id": "azul", "tipo": "vaso", "nome": "Cerâmica azul", "preco": 16,
      "desc": "Azul de azulejo português."},
-    {"id": "xicara", "tipo": "vaso", "nome": "Xícara de café", "preco": 20, "raridade": "comum",
+    {"id": "xicara", "tipo": "vaso", "nome": "Xícara de café", "preco": 20,
      "desc": "Porque dev também planta no que tem à mão."},
-    {"id": "pixel", "tipo": "vaso", "nome": "Vaso roxo", "preco": 24, "raridade": "rara",
+    {"id": "pixel", "tipo": "vaso", "nome": "Vaso roxo", "preco": 24,
      "desc": "Um respiro de cor no meio do verde."},
-    {"id": "dourado", "tipo": "vaso", "nome": "Vaso dourado", "preco": 30, "raridade": "rara",
+    {"id": "dourado", "tipo": "vaso", "nome": "Vaso dourado", "preco": 30,
      "desc": "Para plantas que já se sentem estrelas."},
 
     # companheiros do vaso
-    {"id": "joaninha", "tipo": "companheiro", "nome": "Joaninha", "preco": 20, "raridade": "comum",
+    {"id": "joaninha", "tipo": "companheiro", "nome": "Joaninha", "preco": 20,
      "desc": "Passeia pela borda do vaso."},
-    {"id": "borboleta", "tipo": "companheiro", "nome": "Borboleta", "preco": 24, "raridade": "comum",
+    {"id": "borboleta", "tipo": "companheiro", "nome": "Borboleta", "preco": 24,
      "desc": "Voa em volta da planta o dia todo."},
-    {"id": "vagalume", "tipo": "companheiro", "nome": "Vagalume", "preco": 30, "raridade": "rara",
+    {"id": "vagalume", "tipo": "companheiro", "nome": "Vagalume", "preco": 30,
      "desc": "Uma luzinha que rodeia a planta."},
-    {"id": "passarinho", "tipo": "companheiro", "nome": "Passarinho", "preco": 40, "raridade": "rara",
+    {"id": "passarinho", "tipo": "companheiro", "nome": "Passarinho", "preco": 40,
      "desc": "Pousa ao lado do vaso e fica de vigia."},
-    {"id": "gato", "tipo": "companheiro", "nome": "Gato dorminhoco", "preco": 50, "raridade": "epica",
+    {"id": "gato", "tipo": "companheiro", "nome": "Gato dorminhoco", "preco": 50,
      "desc": "Dorme enroladinho junto ao vaso."},
 
     # acessorios do vaso
-    {"id": "laco", "tipo": "acessorio", "nome": "Laço", "preco": 16, "raridade": "comum",
+    {"id": "laco", "tipo": "acessorio", "nome": "Laço", "preco": 16,
      "desc": "Um laço rosa na borda do vaso."},
-    {"id": "oculos", "tipo": "acessorio", "nome": "Óculos", "preco": 20, "raridade": "comum",
+    {"id": "oculos", "tipo": "acessorio", "nome": "Óculos", "preco": 20,
      "desc": "O vaso fica com cara de quem leu a documentação."},
-    {"id": "chapeu", "tipo": "acessorio", "nome": "Chapéu de palha", "preco": 24, "raridade": "comum",
+    {"id": "chapeu", "tipo": "acessorio", "nome": "Chapéu de palha", "preco": 24,
      "desc": "Proteção solar para o vaso."},
 
     # acessorio exclusivo: nao esta a venda; so quem foi Fundador pode usar
@@ -90,11 +111,17 @@ ITENS = [
      "desc": "Para quem esteve no jardim desde o começo. Não está à venda."},
 
     # plantas extras no canteiro
-    {"id": "slot_2", "tipo": "slot", "nome": "Segunda plantinha", "preco": 60, "raridade": "rara",
+    {"id": "slot_2", "tipo": "slot", "nome": "Segunda plantinha", "preco": 60,
      "desc": "Uma plantinha companheira ao lado da principal. Ela cresce junto, um pouco menor."},
-    {"id": "slot_3", "tipo": "slot", "nome": "Terceira plantinha", "preco": 110, "raridade": "epica",
+    {"id": "slot_3", "tipo": "slot", "nome": "Terceira plantinha", "preco": 110,
      "desc": "Mais uma para o canteiro.", "req": {"item": "slot_2"}},
 ]
+
+# Exclusivos (fora da venda) trazem a raridade escrita a mao; o resto segue o preco.
+for _i in ITENS:
+    if not _i.get("exclusivo"):
+        _i["raridade"] = raridade_por_preco(_i["tipo"], _i["preco"])
+    _i["raridade_nome"] = RARIDADE_NOME[_i["raridade"]]
 
 _POR_ID = {i["id"]: i for i in ITENS}
 

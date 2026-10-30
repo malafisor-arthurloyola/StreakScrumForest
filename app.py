@@ -2496,7 +2496,8 @@ def _contexto_loja(db, member_id):
             usados[f"especie_{e['slot']}"] = e["especie"]
 
     itens = []
-    for it in catalog.ITENS:
+    # Do mais barato ao mais caro em cada grupo, para a raridade subir junto com o preco.
+    for it in sorted(catalog.ITENS, key=lambda i: i["preco"]):
         # Item exclusivo (Selo Fundador) so aparece para quem tem direito.
         if it.get("exclusivo") and not fundador:
             continue
@@ -2535,6 +2536,7 @@ def _contexto_loja(db, member_id):
         "total_itens": len(catalog.ITENS),
         "itens": itens,
         "grupos": GRUPOS_LOJA,
+        "raridades": [(r, catalog.RARIDADE_NOME[r]) for r in catalog.RARIDADES],
         "plantas_liberadas": [1] + [n for n in (2, 3) if f"slot_{n}" in possui],
         "compras": compras,
         "desfazer_restantes": max(DESFAZER_MAX - _desfeitas_do_membro(db, member_id), 0) if stats else 0,

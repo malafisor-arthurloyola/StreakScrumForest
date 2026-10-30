@@ -242,6 +242,21 @@ class TestPaginas(LojaBase):
         self.assertEqual(r.status_code, 200)
         self.assertIn("Girassol", r.get_data(as_text=True))
 
+    def test_loja_tem_filtro_de_raridade(self):
+        self.presencas(1, 10)
+        html = self.client.get("/loja?m=1").get_data(as_text=True)
+        self.assertIn('class="loja-filtro"', html)
+        for rotulo in ("Todas", "Comum", "Rara", "Épica", "Lendária"):
+            self.assertIn(rotulo, html)
+        self.assertIn('data-item="ipe" data-raridade="lendaria"', html)
+        self.assertIn('data-item="girassol" data-raridade="comum"', html)
+
+    def test_loja_ordena_do_mais_barato_ao_mais_caro(self):
+        self.presencas(1, 10)
+        html = self.client.get("/loja?m=1").get_data(as_text=True)
+        self.assertLess(html.index('data-item="girassol"'), html.index('data-item="cogumelo"'))
+        self.assertLess(html.index('data-item="cogumelo"'), html.index('data-item="carnivora"'))
+
     def test_album_abre(self):
         self.assertEqual(self.client.get("/album?m=1").status_code, 200)
 
