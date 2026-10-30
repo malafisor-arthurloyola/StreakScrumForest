@@ -69,3 +69,91 @@
 .mapa-legenda li b { color: var(--acc); }
 .mapa-dica { display: none; margin: 6px 0 0; color: var(--ink2); font-size: 0.85rem; text-align: center; }
 @media (max-width: 900px) { .mapa-dica { display: block; } }
+
+/* ===== Mapa mais vivo: cenario, praca, bichinhos ===== */
+.mapa-tufos path { stroke: #3f8a52; stroke-width: 2; stroke-linecap: round; opacity: 0.55; }
+.mapa-flores circle { opacity: 0.85; }
+.mapa-caminho path { stroke: #7a6045; }
+.mapa-caminho-meio path { fill: none; stroke: #937556; stroke-width: 18; stroke-linecap: round; stroke-dasharray: 2 16; opacity: 0.8; }
+.praca-borda { fill: #6f6a5f; }
+.praca { fill: #a39b8a; }
+.praca-junta { fill: none; stroke: #8a8374; stroke-width: 2.5; }
+
+.pinheiro path, .pinheiro rect { fill: #10301f; }
+.pinheiro.t1 path { fill: #143a26; }
+.pinheiro.t2 path { fill: #0b2417; }
+.pinheiro rect { fill: #3b2a1c; }
+.arbusto circle { fill: #2c7a43; }
+.arbusto circle:nth-of-type(3) { fill: #3a9452; }
+.arbusto .flor { fill: #ff9ec4; }
+.sombra { fill: #0b2015; opacity: 0.45; }
+
+.lote-sombra { fill: #0b2015; opacity: 0.4; }
+.lote-lado-e { fill: #7a5232; }
+.lote-lado-d { fill: #5e3d24; }
+.lote-tabua { fill: none; stroke: #4a301c; stroke-width: 2; opacity: 0.7; }
+.lote-grama { fill: #4a9a52; }
+.lote-terra { fill: #573a26; }
+.lote-sulco { stroke: #432c1d; stroke-width: 6; }
+.muda path { stroke: #4caf50; stroke-width: 2; stroke-linecap: round; }
+.muda ellipse { fill: #6fcf6a; }
+.cerca .mourao { stroke: #8a5a35; stroke-width: 5; stroke-linecap: round; }
+.cerca .cerca-trilho { stroke: #b58252; stroke-width: 3.2; }
+
+.estufa .vidro-lado { fill: rgba(170, 220, 230, 0.35); }
+.estufa .vidro-frente { fill: rgba(190, 235, 240, 0.45); }
+.estufa .vidro-teto { fill: rgba(200, 240, 245, 0.45); }
+.estufa .vidro-teto2 { fill: rgba(225, 250, 255, 0.35); }
+.estufa .caixilho { fill: none; stroke: #e8f2f0; stroke-width: 3; stroke-linejoin: round; opacity: 0.85; }
+.vasinhos-estufa circle { fill: #4caf50; opacity: 0.85; }
+
+.casinha .parede-l { fill: #8a5a35; }
+.casinha .parede-f { fill: #a86d40; }
+.casinha .telhado { fill: #6b3a26; }
+.casinha .telhado2 { fill: #ffffff; }
+.casinha .porta { fill: #5a3420; }
+.casinha .macaneta { fill: #ffd35c; }
+.casinha .janela { fill: #ffd98a; opacity: 0.9; }
+.casinha .tabuas { fill: none; stroke: #5e3d24; stroke-width: 1.6; opacity: 0.6; }
+.carrinho .cacamba { fill: #c1553b; }
+.carrinho .roda { fill: #2a2a2a; }
+.carrinho .cabo { stroke: #6b4a2f; stroke-width: 4; stroke-linecap: round; }
+.carrinho .terra-carrinho { fill: #573a26; }
+
+.lago .margem { fill: #6f6a5f; }
+.lago .agua-lago { fill: #2f6fb0; }
+.lago .reflexo { fill: #8fd3ff; opacity: 0.35; }
+.lago .vitorias ellipse { fill: #4caf50; }
+.lago .flor-lago { fill: #ff9ec4; }
+.lago .pedras ellipse { fill: #8d999f; }
+.lago .juncos path { stroke: #5f8f3a; stroke-width: 3; stroke-linecap: round; }
+
+.poste rect { fill: #2a2f2c; }
+.poste .lanterna { fill: #ffe7a0; }
+.poste .halo { fill: url(#mapa-brilho); }
+.poste .luz-chao { fill: #fff4b8; opacity: 0.12; }
+.mapa[data-periodo="manha"] .poste .halo, .mapa[data-periodo="meiodia"] .poste .halo, .mapa[data-periodo="tarde"] .poste .halo { display: none; }
+
+.mapa-fonte .agua { fill: #5f6b70; }
+.mapa-fonte.cheia .agua { fill: url(#mapa-agua); }
+.mapa-fonte .brilho-agua { fill: #ffffff; opacity: 0.18; }
+.mapa-fonte .jatos path { stroke-width: 3.5; }
+
+.bicho .olho { fill: #1a1a1a; }
+.bicho .rosa { fill: #ff9ec4; }
+.coelho .pelo { fill: #eef0f2; }
+.coelho .pelo-claro { fill: #ffffff; }
+.coelho .orelhas { transform-box: fill-box; transform-origin: 50% 100%; animation: orelha 3.4s ease-in-out var(--d, 0s) infinite; }
+.coelho .pulo { animation: pulinho 5s ease-in-out var(--d, 0s) infinite; }
+@keyframes orelha { 0%, 80%, 100% { transform: rotate(0); } 85% { transform: rotate(-12deg); } 90% { transform: rotate(6deg); } }
+@keyframes pulinho { 0%, 70%, 100% { transform: translateY(0); } 76% { transform: translateY(-9px); } 82% { transform: translateY(0); } }
+.esquilo .pelo { fill: #c8682c; }
+.esquilo .pelo-claro { fill: #f2c48a; }
+.esquilo .cauda { fill: #b85a24; transform-box: fill-box; transform-origin: 0% 100%; animation: cauda 2.6s ease-in-out var(--d, 0s) infinite alternate; }
+.esquilo .noz { fill: #7a4a24; }
+@keyframes cauda { from { transform: rotate(-6deg); } to { transform: rotate(8deg); } }
+.ourico .espinhos { fill: #6b4a2f; }
+.ourico .rosto { fill: #d9b48a; }
+.ourico .anda { animation: fareja 4s ease-in-out var(--d, 0s) infinite; }
+@keyframes fareja { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-6px); } }
+@media (prefers-reduced-motion: reduce) { .bicho *, .mapa-fonte .jatos path, .mapa-vagalume { animation: none !important; } }

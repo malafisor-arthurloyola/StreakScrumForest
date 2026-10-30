@@ -1652,6 +1652,7 @@ def mapa_page():
         lotes=sorted(lotes, key=lambda l: l["y"]),
         convidados=ctx["convidados"],
         centro=MAPA_CENTRO,
+        raios_praca=[(round(math.cos(k * math.pi / 12), 4), round(math.sin(k * math.pi / 12), 4)) for k in range(24)],
         marcos=_marcos_liberados(ctx["membros"], ctx["meta"]),
         marcos_info=game.marcos_coletivos(_progresso_coletivo(ctx["ativos"], ctx["meta"])),
     )
