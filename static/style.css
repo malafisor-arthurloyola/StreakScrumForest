@@ -474,7 +474,7 @@ input::placeholder { color: var(--ink2); opacity: 0.8; }
   list-style: none; display: flex; align-items: flex-end; gap: 10px;
   margin: 0 0 32px; padding: 4px 2px 12px; overflow-x: auto;
 }
-.escada li { flex: 1 0 74px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.escada li { flex: 1 0 64px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .degrau { width: 100%; height: var(--h); border-radius: 8px 8px 4px 4px; background: var(--s4); }
 .escada li:nth-child(n+4) .degrau { background: #2f7d5c; }
 .escada li:nth-child(n+7) .degrau { background: var(--ok); }
@@ -1014,14 +1014,25 @@ a.gh-dia:hover { filter: brightness(1.25); }
 .gh-legenda .gh-dia { display: inline-block; width: 16px; height: 16px; border-radius: 5px; }
 
 .pessoas { display: grid; gap: 4px; overflow-x: auto; padding-bottom: 4px; }
-.pessoa { display: flex; align-items: center; gap: 12px; padding: 5px 0; min-width: max-content; }
+.pessoa { display: flex; align-items: center; gap: 12px; padding: 5px 0; }
 .pessoa-nome { flex: none; width: 108px; color: var(--ink); font-weight: 700; text-decoration: none; }
 .pessoa-nome:hover { text-decoration: underline; }
-.pessoa-semanas { display: flex; gap: 14px; }
-.pessoa-sprint { display: flex; gap: 8px; padding: 0 8px; }
-.pessoa-cab .pessoa-sprint { padding: 0 8px; }
-.pessoa-sprint-nome { color: var(--ink2); font-size: 0.74rem; font-weight: 800; }
-.pessoa-sem { display: flex; gap: 3px; }
+/* Os quadradinhos encolhem para o periodo todo caber na largura do cartao (sem rolar de lado).
+   Cada sprint ocupa a largura proporcional ao numero de semanas (--n), igual no cabecalho e nas
+   linhas, entao o nome da sprint fica sempre em cima das semanas dela. */
+.pessoa-semanas { flex: 1; min-width: 0; display: flex; gap: 1.2%; }
+.pessoa-sprint { flex: var(--n, 2) 1 0; min-width: 0; display: flex; gap: 6%; padding: 0 2px; }
+.pessoa-sprint-nome { color: var(--ink2); font-size: 0.74rem; font-weight: 800; white-space: nowrap; }
+.pessoa-sem { flex: 1 1 0; min-width: 0; display: flex; gap: 2px; }
+.pessoa-sem .pdia { flex: 1 1 0; width: auto; height: auto; aspect-ratio: 1; max-width: 16px; min-width: 5px; border-radius: 3px; }
+@media (max-width: 760px) {
+  /* no celular os quadradinhos ficariam pequenos demais: mantem o tamanho e rola de lado */
+  .pessoa { min-width: max-content; }
+  .pessoa-semanas { flex: none; }
+  .pessoa-sprint { flex: none; gap: 8px; }
+  .pessoa-sem { flex: none; }
+  .pessoa-sem .pdia { flex: none; width: 14px; height: 14px; }
+}
 .pdia { display: block; width: 16px; height: 16px; border-radius: 4px; background: #2b4238; border: 1px solid #3a5649; box-sizing: border-box; }
 .pdia[data-estado="presente"] { background: var(--ok); border-color: transparent; }
 .pdia[data-estado="justificada"] { background: var(--aviso); border-color: transparent; }
@@ -1708,6 +1719,17 @@ body[data-admin="0"] .so-admin { display: none !important; }
 @media (max-width: 760px) { .selo-admin, .link-topo { min-height: 30px; padding: 0 9px; font-size: 0.76rem; } }
 .brand-name { white-space: nowrap; }
 .nav-link span { white-space: nowrap; }
+/* Telas medias (notebook com zoom, janela pela metade): a barra de cima nao pode passar da largura.
+   Primeiro aperta o espaco; se ainda nao couber, so os icones (o nome continua para leitor de tela). */
+@media (min-width: 761px) and (max-width: 1260px) {
+  .topbar { gap: 10px; }
+  .nav { gap: 2px; }
+  .nav-link { padding: 0.5rem 0.7rem; gap: 6px; }
+}
+@media (min-width: 761px) and (max-width: 1100px) {
+  .nav-link { padding: 0.55rem 0.75rem; }
+  .nav-link span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
 .txt-curto { display: none; }
 @media (max-width: 560px) {
   .txt-largo { display: none; }

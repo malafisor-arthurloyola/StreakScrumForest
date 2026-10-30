@@ -59,14 +59,14 @@
     <div class="pessoas">
       <div class="pessoa pessoa-cab" aria-hidden="true">
         <span class="pessoa-nome"></span>
-        <div class="pessoa-semanas">{% for g in p.grupos %}<span class="pessoa-sprint"><span class="pessoa-sprint-nome">Sprint {{ g.sprint }}</span></span>{% endfor %}</div>
+        <div class="pessoa-semanas">{% for g in p.grupos %}<span class="pessoa-sprint" style="--n: {{ g.idx | length }}"><span class="pessoa-sprint-nome">Sprint {{ g.sprint }}</span></span>{% endfor %}</div>
       </div>
       {% for l in p.linhas %}
       <div class="pessoa">
         <a class="pessoa-nome" href="{{ url_for('membro_page', member_id=l.id) }}">{{ l.name }}</a>
         <div class="pessoa-semanas">
           {% for g in p.grupos %}
-          <span class="pessoa-sprint">
+          <span class="pessoa-sprint" style="--n: {{ g.idx | length }}">
             {% for k in g.idx %}<span class="pessoa-sem">
               {% for c in l.semanas[k] %}<span class="pdia" data-estado="{{ c.estado }}" title="{{ c.rotulo }}: {{ textos_pessoa[c.estado] }}"></span>{% endfor %}
             </span>{% endfor %}
