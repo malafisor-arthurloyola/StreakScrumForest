@@ -1614,6 +1614,49 @@ def dashboard():
     )
 
 
+# Mapa do jardim (prototipo): canteiros em perspectiva ao redor da fonte. Coordenadas no
+# viewBox 1600 x 1000 do mapa. Os canteiros ficam numa elipse e sempre sobra um vao embaixo,
+# onde entram o caminho de entrada e o canteiro dos convidados.
+MAPA_CENTRO = (800, 470)
+MAPA_RAIO = (560, 300)
+
+
+def _posicoes_mapa(n):
+    if n <= 0:
+        return []
+    passo = 2 * math.pi / n
+    inicio = -math.pi / 2 + (passo / 2 if n % 2 == 0 else 0)
+    cx, cy = MAPA_CENTRO
+    rx, ry = MAPA_RAIO
+    pos = []
+    for k in range(n):
+        a = inicio + k * passo
+        pos.append((round(cx + rx * math.cos(a)), round(cy + ry * math.sin(a))))
+    return pos
+
+
+@app.route("/mapa")
+def mapa_page():
+    db = get_db()
+    ctx = _base_coletivo(db)
+    _enriquecer_jardim(db, ctx["ativos"], ctx["hoje"], ctx["dias_set"])
+    _enriquecer_jardim(db, ctx["convidados"], ctx["hoje"], ctx["dias_set"])
+    lotes = []
+    topo, base = MAPA_CENTRO[1] - MAPA_RAIO[1], MAPA_CENTRO[1] + MAPA_RAIO[1]
+    for m, (x, y) in zip(ctx["ativos"], _posicoes_mapa(len(ctx["ativos"]))):
+        # quem esta mais ao fundo fica um pouco menor (perspectiva)
+        escala = round(0.84 + 0.16 * (y - topo) / max(base - topo, 1), 3)
+        lotes.append({"m": m, "x": x, "y": y, "escala": escala})
+    return render_template(
+        "mapa.html",
+        lotes=sorted(lotes, key=lambda l: l["y"]),
+        convidados=ctx["convidados"],
+        centro=MAPA_CENTRO,
+        marcos=_marcos_liberados(ctx["membros"], ctx["meta"]),
+        marcos_info=game.marcos_coletivos(_progresso_coletivo(ctx["ativos"], ctx["meta"])),
+    )
+
+
 def _int_ou_none(valor):
     try:
         return int(valor)

@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% from "_planta.html" import conjunto %}
+{% from "_chama.html" import chama %}
+{% block title %}Mapa do jardim · Jardim da Equipe{% endblock %}
+
+{#
+  Prototipo: o jardim visto de cima, inclinado. O chao, os caminhos, os canteiros e a fonte sao um
+  SVG (viewBox 1600 x 1000); as plantas sao as mesmas do canteiro (macro conjunto), posicionadas
+  por cima em porcentagem, entao especies, vasos, extras e o crescimento ao vivo continuam valendo.
+#}
+{% macro canteiro(x, y, w=150, h=82, t=18) %}
+<g class="lote-chao">
+  <path class="lote-lado-e" d="M{{ x - w }} {{ y }}L{{ x }} {{ y + h }}V{{ y + h + t }}L{{ x - w }} {{ y + t }}Z"/>
+  <path class="lote-lado-d" d="M{{ x }} {{ y + h }}L{{ x + w }} {{ y }}V{{ y + t }}L{{ x }} {{ y + h + t }}Z"/>
+  <path class="lote-grama" d="M{{ x }} {{ y - h }}L{{ x + w }} {{ y }}L{{ x }} {{ y + h }}L{{ x - w }} {{ y }}Z"/>
+  {% set k = 0.8 %}
+  <path class="lote-terra" d="M{{ x }} {{ y - h * k }}L{{ x + w * k }} {{ y }}L{{ x }} {{ y + h * k }}L{{ x - w * k }} {{ y }}Z"/>
+  {% for i in range(1, 4) %}
+  {% set f = i / 4 %}
+  <path class="lote-sulco" d="M{{ x - w * k * (1 - f) }} {{ y - h * k * f }}L{{ x + w * k * f }} {{ y + h * k * (1 - f) }}"/>
+  {% endfor %}
+  <g class="cerca">
+    {% set cantos = [(x, y - h), (x + w, y), (x, y + h), (x - w, y)] %}
+    {% for i in range(4) %}
+    {% set a = cantos[i] %}{% set b = cantos[(i + 1) % 4] %}
+    {% for j in range(8) %}
+    {% set px = a[0] + (b[0] - a[0]) * j / 8 %}{% set py = a[1] + (b[1] - a[1]) * j / 8 %}
+    <path d="M{{ px }} {{ py }}V{{ py - 15 }}"/>
+    {% endfor %}
+    {% endfor %}
+    <path class="cerca-trilho" d="M{{ x }} {{ y - h - 11 }}L{{ x + w }} {{ y - 11 }}L{{ x }} {{ y + h - 11 }}L{{ x - w }} {{ y - 11 }}Z"/>
+    <path class="cerca-trilho" d="M{{ x }} {{ y - h - 5 }}L{{ x + w }} {{ y - 5 }}L{{ x }} {{ y + h - 5 }}L{{ x - w }} {{ y - 5 }}Z"/>
+  </g>
+</g>
+{% endmacro %}
+
+{% macro vaga(x, y, rotulo, nota) %}
+<g class="vaga">
+  <path d="M{{ x }} {{ y - 60 }}L{{ x + 110 }} {{ y }}L{{ x }} {{ y + 60 }}L{{ x - 110 }} {{ y }}Z"/>
+  <text x="{{ x }}" y="{{ y - 4 }}">{{ rotulo }}</text>
+  <text class="vaga-nota" x="{{ x }}" y="{{ y + 20 }}">{{ nota }}</text>
+</g>
+{% endmacro %}
+
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='mapa.css') }}">
+<header class="pagina-cab">
+  <div>
+    <h1>Mapa do jardim</h1>
+    <p class="sub">Protótipo: o mesmo jardim visto de cima, com um canteiro para cada pessoa ao redor da fonte.</p>
+  </div>
+  <div class="pagina-cab-acoes">
+    <a class="btn btn-ghost" href="{{ url_for('home') }}">Voltar para Hoje</a>
+  </div>
+</header>
+
+{% set cx, cy = centro %}
+{% set fonte = 'fonte' in marcos %}
+<div class="mapa-rolagem" id="mapa-rolagem">
+<section class="mapa" data-periodo="{{ cena_periodo }}" aria-label="Mapa do jardim da equipe">
+  <svg class="mapa-chao" viewBox="0 0 1600 1000" aria-hidden="true">
+    <defs>
+      <radialGradient id="mapa-luz" cx="50%" cy="47%" r="62%">
+        <stop offset="0" stop-color="#2d6b45"/><stop offset=".65" stop-color="#1d4a32"/><stop offset="1" stop-color="#10291d"/>
+      </radialGradient>
+    </defs>
+    <rect width="1600" height="1000" fill="url(#mapa-luz)"/>
+
+    {# bosque em volta #}
+    <g class="mapa-bosque">
+      {% for i in range(26) %}
+      {% set bx = (i * 131 + 40) % 1640 - 20 %}
+      <circle cx="{{ bx }}" cy="{{ 8 + (i * 37) % 40 }}" r="{{ 44 + (i * 13) % 26 }}"/>
+      {% endfor %}
+      {% for i in range(9) %}
+      <circle cx="{{ -10 + (i * 23) % 50 }}" cy="{{ 120 + i * 105 }}" r="{{ 46 + (i * 17) % 22 }}"/>
+      <circle cx="{{ 1610 - (i * 29) % 50 }}" cy="{{ 140 + i * 100 }}" r="{{ 46 + (i * 11) % 22 }}"/>
+      {% endfor %}
+    </g>
+
+    {# caminhos: o anel, a entrada e um ramo da fonte ate cada canteiro #}
+    <g class="mapa-caminho">
+      <ellipse cx="{{ cx }}" cy="{{ cy }}" rx="{{ 300 }}" ry="{{ 165 }}"/>
+      <path d="M{{ cx }} {{ cy }}V1010"/>
+      {% for l in lotes %}<path d="M{{ cx }} {{ cy }}L{{ l.x }} {{ l.y }}"/>{% endfor %}
+    </g>
+    <g class="mapa-caminho-borda">
+      <ellipse cx="{{ cx }}" cy="{{ cy }}" rx="{{ 300 }}" ry="{{ 165 }}"/>
+    </g>
+
+    {# vagas dos upgrades coletivos que ainda vao existir (prototipo) #}
+    {{ vaga(190, 150, 'Estufa', 'em breve') }}
+    {{ vaga(1410, 150, 'Casinha', 'em breve') }}
+    {% if 'arvore_time' in marcos %}
+    <g class="mapa-arvore" transform="translate(1410 905)">
+      <ellipse cx="0" cy="0" rx="70" ry="22" fill="#0f2618" opacity=".55"/>
+      <path d="M-9 0C-8-30-7-50-6-70H6C7-50 8-30 9 0Z" fill="#6b4a2f"/>
+      <circle cx="0" cy="-118" r="62" fill="#2fae66"/><circle cx="-44" cy="-88" r="42" fill="#4fcb7c"/>
+      <circle cx="46" cy="-90" r="44" fill="#4fcb7c"/><circle cx="0" cy="-150" r="38" fill="#82e29a"/>
+      <circle cx="-20" cy="-120" r="6" fill="#ffd35c"/><circle cx="24" cy="-136" r="6" fill="#ff9ec4"/><circle cx="34" cy="-96" r="6" fill="#ffd35c"/>
+    </g>
+    {% else %}
+    {{ vaga(1410, 870, 'Árvore do time', 'com 100% do jardim') }}
+    {% endif %}
+
+    {% for l in lotes %}{{ canteiro(l.x, l.y) }}{% endfor %}
+    {% if convidados %}{{ canteiro(210, 870, 150, 74, 14) }}{% endif %}
+
+    {# fonte no centro: seca ate o jardim coletivo chegar a 25% #}
+    <g class="mapa-fonte{{ ' cheia' if fonte }}" transform="translate({{ cx }} {{ cy }})">
+      <ellipse cx="0" cy="22" rx="128" ry="58" class="pedra-escura"/>
+      <ellipse cx="0" cy="8" rx="128" ry="58" class="pedra"/>
+      <ellipse cx="0" cy="8" rx="108" ry="46" class="agua"/>
+      <path d="M-16 8V-62H16V8Z" class="pedra-escura"/>
+      <ellipse cx="0" cy="-60" rx="62" ry="24" class="pedra-escura"/>
+      <ellipse cx="0" cy="-66" rx="62" ry="24" class="pedra"/>
+      <ellipse cx="0" cy="-66" rx="48" ry="17" class="agua"/>
+      <path d="M-9 -66V-118H9V-66Z" class="pedra-escura"/>
+      <ellipse cx="0" cy="-118" rx="30" ry="11" class="pedra"/>
+      <ellipse cx="0" cy="-119" rx="21" ry="7" class="agua"/>
+      {% if fonte %}
+      <g class="jatos">
+        <path d="M0 -122C-14 -150 -34 -140 -42 -92" /><path d="M0 -122C14 -150 34 -140 42 -92"/>
+        <path d="M0 -122V-156"/>
+      </g>
+      {% endif %}
+    </g>
+    {% if not fonte %}
+    <text class="mapa-aviso" x="{{ cx }}" y="{{ cy + 104 }}">A fonte enche quando o jardim coletivo chega a 25%</text>
+    {% endif %}
+  </svg>
+
+  {% for i in range(14 if 'vagalumes' in marcos else 7) %}
+  <i class="mapa-vagalume" style="--x:{{ (i * 71 + 9) % 96 + 2 }}%;--y:{{ (i * 43 + 11) % 80 + 6 }}%;--t:{{ 5 + (i % 4) }}s;--l:-{{ i * 0.8 }}s"></i>
+  {% endfor %}
+
+  {% for l in lotes %}
+  {% set m = l.m %}
+  <div class="lote" style="--x: {{ l.x / 16 }}%; --y: {{ l.y / 10 }}%; --k: {{ l.escala }}; z-index: {{ l.y }}" data-member-id="{{ m.id }}">
+    <div class="lote-planta">{{ conjunto(m, 120) }}</div>
+    <a class="lote-placa" href="{{ url_for('membro_page', member_id=m.id) }}">
+      <b>{{ m.name }}</b>
+      <span class="lote-info">{{ chama(m.streak, m.chama, m.aceso, m.id) }}<span data-estagio-for="{{ m.id }}">{{ m.estagio_nome }}</span></span>
+    </a>
+  </div>
+  {% endfor %}
+
+  {% if convidados %}
+  {% set n = convidados | length %}
+  <div class="lote lote-convidados" style="--x: {{ 210 / 16 }}%; --y: 88%; --k: 1; z-index: 2000">
+    <div class="convidados-vasos">
+      {% for m in convidados | sort(attribute='name') %}
+      <a class="convidado-vaso" href="{{ url_for('membro_page', member_id=m.id) }}" title="{{ m.name }}: {{ m.streak }} {{ 'dia' if m.streak == 1 else 'dias' }}, {{ m.estagio_nome }}">
+        {{ conjunto(m, 60) }}<span>{{ m.name.split()[0] }}</span>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</section>
+</div>
+<p class="mapa-dica">Arraste para o lado para ver o mapa todo.</p>
+
+<section class="card mapa-legenda">
+  <h2>Upgrades do jardim coletivo</h2>
+  <ul>
+    {% for mc in marcos_info %}
+    <li class="{{ 'liberado' if mc.liberado }}"><b>{{ mc.pct }}%</b> {{ mc.nome }}{% if not mc.liberado %} <span>(ainda não)</span>{% endif %}</li>
+    {% endfor %}
+  </ul>
+  <p class="ata-dica">Estufa e casinha são espaços reservados para upgrades futuros. Nada aqui compara pessoas: cada canteiro só mostra a própria planta.</p>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // No celular o mapa e mais largo que a tela: comeca centrado na fonte.
+  (function () {
+    var r = document.getElementById('mapa-rolagem');
+    if (r && r.scrollWidth > r.clientWidth) r.scrollLeft = (r.scrollWidth - r.clientWidth) / 2;
+  })();
+</script>
+{% endblock %}

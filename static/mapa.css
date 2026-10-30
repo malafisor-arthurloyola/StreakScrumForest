@@ -1,0 +1,71 @@
+/* ===== Mapa do jardim (prototipo): vista de cima, inclinada ===== */
+.mapa-rolagem { margin-top: 18px; border-radius: var(--r-lg); overflow-x: auto; scrollbar-width: thin; }
+.mapa { position: relative; width: 100%; min-width: 880px; aspect-ratio: 16 / 10; border-radius: var(--r-lg); overflow: hidden; background: #10291d; }
+.mapa-chao { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+.mapa-bosque circle { fill: #0c2116; }
+.mapa-bosque circle:nth-child(3n) { fill: #12301f; }
+
+.mapa-caminho ellipse, .mapa-caminho path { fill: none; stroke: #6f5a3f; stroke-width: 40; stroke-linecap: round; }
+.mapa-caminho-borda ellipse { fill: none; stroke: #8a7253; stroke-width: 2; stroke-dasharray: 2 10; opacity: 0.6; }
+
+.lote-grama { fill: #3b8a48; }
+.lote-lado-e { fill: #5a3d27; }
+.lote-lado-d { fill: #46301f; }
+.lote-terra { fill: #4a3324; }
+.lote-sulco { stroke: #3a281c; stroke-width: 5; stroke-linecap: round; opacity: 0.7; }
+.cerca path { stroke: #9a6a40; stroke-width: 4; stroke-linecap: round; }
+.cerca .cerca-trilho { fill: none; stroke: #b37d4c; stroke-width: 3; }
+
+.vaga path { fill: rgba(255, 255, 255, 0.03); stroke: rgba(217, 230, 220, 0.35); stroke-width: 2.5; stroke-dasharray: 9 9; }
+.vaga text { fill: rgba(217, 230, 220, 0.6); font: 700 24px var(--fonte, system-ui), sans-serif; text-anchor: middle; }
+.vaga .vaga-nota { font-size: 17px; font-weight: 500; }
+
+.mapa-fonte .pedra { fill: #b5c0c5; }
+.mapa-fonte .pedra-escura { fill: #8d999f; }
+.mapa-fonte .agua { fill: #5f6b70; }
+.mapa-fonte.cheia .agua { fill: #6db9ff; }
+.mapa-fonte .jatos path { fill: none; stroke: #a8dcff; stroke-width: 4; stroke-linecap: round; stroke-dasharray: 6 10; animation: mapa-jato 1.2s linear infinite; }
+@keyframes mapa-jato { to { stroke-dashoffset: -32; } }
+.mapa-aviso { fill: rgba(217, 230, 220, 0.75); font: 600 20px system-ui, sans-serif; text-anchor: middle; }
+
+.mapa-vagalume {
+  position: absolute; left: var(--x); top: var(--y); width: 6px; height: 6px; border-radius: 50%;
+  background: #e8ff8a; box-shadow: 0 0 10px 3px rgba(214, 255, 110, 0.55); pointer-events: none;
+  animation: mapa-vaga var(--t) ease-in-out var(--l) infinite alternate;
+}
+@keyframes mapa-vaga { from { transform: translate(0, 0); opacity: 0.25; } to { transform: translate(18px, -14px); opacity: 1; } }
+.mapa[data-periodo="manha"] .mapa-vagalume, .mapa[data-periodo="meiodia"] .mapa-vagalume,
+.mapa[data-periodo="tarde"] .mapa-vagalume, .mapa[data-periodo="amanhecer"] .mapa-vagalume { display: none; }
+
+/* Cada canteiro: o vaso apoiado no centro do lote e a placa na ponta da frente */
+.lote { position: absolute; left: var(--x); top: var(--y); width: 0; height: 0; }
+.lote-planta {
+  position: absolute; left: 0; bottom: -2.2cqw; width: calc(13cqw * var(--k)); transform: translateX(-50%);
+  filter: drop-shadow(0 6px 4px rgba(0, 0, 0, 0.35));
+}
+.mapa { container-type: inline-size; }
+.lote-placa {
+  position: absolute; left: 0; top: 4.6cqw; transform: translateX(-50%);
+  display: grid; justify-items: center; gap: 1px; min-width: 7.5em; padding: 4px 10px 5px;
+  border-radius: 8px; background: #6b4426; box-shadow: inset 0 0 0 2px #8a5a35, 0 3px 0 #3d2716;
+  color: #fff3e2; text-decoration: none; font-size: 0.82rem; line-height: 1.15; white-space: nowrap;
+}
+.lote-placa:hover { background: #7a4f2d; }
+.lote-placa b { font-size: 0.95rem; }
+.lote-info { display: flex; align-items: center; gap: 6px; color: #e9d7c1; font-size: 0.78rem; }
+.lote-info .chama { font-size: 0.78rem; }
+
+.lote-convidados { z-index: 2000; }
+.convidados-vasos { position: absolute; left: 0; bottom: -1.2cqw; transform: translateX(-50%); display: flex; gap: 0.6cqw; align-items: flex-end; }
+.convidado-vaso { display: grid; justify-items: center; width: 4.6cqw; color: #e9d7c1; font-size: 0.7rem; text-decoration: none; }
+.convidado-vaso span { margin-top: 1px; padding: 0 5px; border-radius: 5px; background: rgba(61, 39, 22, 0.85); }
+
+.mapa-legenda { margin-top: 16px; }
+.mapa-legenda h2 { margin: 0 0 8px; font-size: 1.05rem; }
+.mapa-legenda ul { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.mapa-legenda li { padding: 4px 10px; border-radius: 999px; background: var(--s2); color: var(--ink2); }
+.mapa-legenda li.liberado { color: var(--ink); box-shadow: inset 0 0 0 1px var(--acc); }
+.mapa-legenda li b { color: var(--acc); }
+.mapa-dica { display: none; margin: 6px 0 0; color: var(--ink2); font-size: 0.85rem; text-align: center; }
+@media (max-width: 900px) { .mapa-dica { display: block; } }
