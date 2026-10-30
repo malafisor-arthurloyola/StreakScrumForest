@@ -48,6 +48,24 @@ class TestCanteiroComCompras(ColetivoBase):
         self.assertIn('data-especie="lavanda"', html)
 
 
+class TestVisitantesEBichos(ColetivoBase):
+    def test_canteiro_dos_visitantes_tem_placa_e_um_link_por_convidado(self):
+        con = sqlite3.connect(DB)
+        for nome in ("Vi", "Ze"):
+            con.execute("INSERT INTO members (name, active, tipo) VALUES (?, 1, 'convidado')", (nome,))
+        con.commit()
+        n = con.execute("SELECT COUNT(*) FROM members WHERE active = 1 AND tipo = 'convidado'").fetchone()[0]
+        con.close()
+        html = self.get("/dashboard").get_data(as_text=True)
+        self.assertIn("Visitantes", html)
+        self.assertEqual(html.count('class="lote-vaga convidado-vaso'), n)
+
+    def test_bichinhos_sao_tocaveis(self):
+        html = self.get("/dashboard").get_data(as_text=True)
+        self.assertEqual(html.count('class="bicho-toque"'), 9)
+        self.assertIn("brinca-a", html)
+
+
 class TestDiaSemMapa(ColetivoBase):
     def test_tela_do_dia_continua_com_a_fileira(self):
         html = self.get("/dia/2026-10-19").get_data(as_text=True)

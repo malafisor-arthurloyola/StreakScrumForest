@@ -161,9 +161,11 @@
   {% if v.companheiro == 'joaninha' %}
   <g class="comp" transform="translate(74 113.5)"><g class="mov-joaninha"><g class="joaninha-vira"><g class="joaninha-passo">
     <path class="pernas" d="M-3 2.6L-4.6 5M0 3.2V5.8M3 2.6L4.6 5" stroke="#2a1410" stroke-width=".8" stroke-linecap="round" fill="none"/>
+    <g class="joaninha-asas"><ellipse class="asa-voo" cx="-3" cy="-4.4" rx="5.4" ry="2.4" transform="rotate(-25 -3 -4.4)"/>
+      <ellipse class="asa-voo" cx="1" cy="-4.8" rx="5.4" ry="2.4" transform="rotate(20 1 -4.8)"/></g>
     <circle cx="5.4" cy="-.6" r="2.3" fill="#2a1410"/><path d="M6.6-2.6L8.4-4.8M5.4-2.8L6.2-5.2" stroke="#2a1410" stroke-width=".55" stroke-linecap="round"/>
-    <g class="elitro e1"><path d="M0-4.2A5.2 4.2 0 0 0 0 4.2Z" fill="#e8443a"/><circle cx="-2.2" cy="-1" r=".95" fill="#2a1410"/><circle cx="-1.6" cy="2" r=".8" fill="#2a1410"/></g>
-    <g class="elitro e2"><path d="M0-4.2A5.2 4.2 0 0 1 0 4.2Z" fill="#e8443a"/><circle cx="2.2" cy="1.2" r=".95" fill="#2a1410"/></g>
+    <ellipse rx="5.2" ry="4.2" fill="#e8443a"/><path d="M0-4.2V4.2" stroke="#2a1410" stroke-width=".8"/>
+    <circle cx="-2.2" cy="-1" r=".95" fill="#2a1410"/><circle cx="-1.6" cy="2" r=".8" fill="#2a1410"/><circle cx="2.2" cy="1.2" r=".95" fill="#2a1410"/>
     <ellipse cx="-1.4" cy="-2.2" rx="1.6" ry=".8" fill="#fff" opacity=".45"/>
   </g></g></g></g>
   {% elif v.companheiro == 'borboleta' %}
@@ -180,16 +182,16 @@
     <circle class="vagalume-luz" r="2.6" fill="#c6f24e"/>
   </g></g>
   {% elif v.companheiro == 'passarinho' %}
-  <g class="comp" transform="translate(18 137)"><g class="mov-passaro">
+  <g class="comp" transform="translate(18 137)"><g class="mov-passaro"><g class="passaro-vira">
     <path class="passaro-cauda" d="M-7 0L-15 3.6L-13.6 6.4L-6 3Z" fill="#4a97e0"/>
+    <path class="passaro-pes" d="M-1 6V9.5M2.5 6V9.5" stroke="#ffb347" stroke-width="1.2" stroke-linecap="round"/>
     <ellipse rx="8" ry="6.2" fill="#6db9ff"/><ellipse cx="1" cy="2" rx="4.6" ry="3.4" fill="#cfe9ff"/>
-    <path class="passaro-asa" d="M-5-1Q0-4 4 0Q0 3-5 1Z" fill="#4a97e0"/>
     <g class="passaro-cabeca">
       <circle cx="5" cy="-4" r="4.4" fill="#6db9ff"/><path d="M9-4.4L13.5-3L9-2Z" fill="#ffb347"/>
       <ellipse class="olho-pisca" cx="6.2" cy="-4.8" rx="1.1" ry="1.1" fill="#12200a"/>
     </g>
-    <path d="M-1 6V9.5M2.5 6V9.5" stroke="#ffb347" stroke-width="1.2" stroke-linecap="round"/>
-  </g></g>
+    <path class="passaro-asa" d="M-5-1Q0-6 5-1Q0 3-5 1Z" fill="#4a97e0"/>
+  </g></g></g>
   {% elif v.companheiro == 'gato' %}
   <g class="comp" transform="translate(17 140)"><g class="mov-gato">
     <path class="gato-rabo" d="M-12 3Q-19 -2-13-8" stroke="#e08b3c" stroke-width="3.2" fill="none" stroke-linecap="round"/>
