@@ -221,7 +221,9 @@
       .then(function (res) {
         if (!res.ok) { mostrarToast(res.j.erro || 'Não deu certo.', 'info'); return; }
         try { sessionStorage.setItem('jardim.msg', mensagem); } catch (e) {}
-        location.reload();
+        // o som toca antes de recarregar (a pagina nova ainda nao pode tocar sem um toque)
+        if (window.Som) { Som.tocar(url.indexOf('comprar') >= 0 ? 'compra' : 'equipar'); setTimeout(function () { location.reload(); }, 450); }
+        else location.reload();
       })
       .catch(function () { mostrarToast('Sem conexão com o servidor.', 'info'); });
   }
