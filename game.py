@@ -465,6 +465,18 @@ def sprints_do_projeto(semana1_inicio, num_semanas, sprint_semanas):
     return lista
 
 
+def dias_de_retro(sprints, dias_letivos_lista):
+    """{data: n_sprint} com o ultimo dia letivo de cada sprint (a sexta da segunda semana, ou o
+    dia letivo anterior quando ela e feriado). E o dia da retrospectiva da sprint."""
+    letivos = sorted(dias_letivos_lista)
+    out = {}
+    for sp in sprints:
+        dentro = [d for d in letivos if sp["inicio"] <= d <= sp["fim"]]
+        if dentro:
+            out[dentro[-1]] = sp["n"]
+    return out
+
+
 def sprint_da_data(data_str, sprints):
     """Numero da sprint de uma data (antes do projeto = 1; depois = a ultima)."""
     atual = sprints[0]["n"]

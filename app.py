@@ -1,8 +1,10 @@
 import hashlib
 import hmac
 import io
+import json
 import math
 import os
+import secrets
 import shutil
 import sqlite3
 import tempfile
@@ -659,6 +661,8 @@ def init_db():
     _migrar_membros_tipo(db)
 
     _migrar_gitlab(db)
+
+    _migrar_retro(db)
 
     db.commit()
     db.close()
@@ -1328,8 +1332,15 @@ def dia(data_str):
         db, [s for s in ativos_visiveis if s["convidado"]], data_str, set(dias_letivos_lista)
     )
 
+    retro_dias = _dias_de_retro(db)
+    retro_card = None
+    if (data_str == date.today().isoformat() and data_str in retro_dias) or (eh_admin() and data_str in retro_dias):
+        retro_card = {"sprint": retro_dias[data_str], "hoje": data_str == date.today().isoformat(),
+                      "ativa": data_str == date.today().isoformat() and _retro_de_hoje(db) is not None}
+
     return render_template(
         "dia.html",
+        retro_card=retro_card,
         data_str=data_str,
         linhas=linhas,
         events=eventos_visiveis,
@@ -4219,6 +4230,272 @@ def api_loja_desfazer():
         )
     db.commit()
     return jsonify({"ok": True, "sementes": _stats_membro(db, member_id)["sementes"]})
+
+
+# ------------------------------------------------------------ retro da sprint (Defesa do Canteiro)
+# No ultimo dia letivo de cada sprint o time joga a retrospectiva como um tower defense.
+# Um aparelho e o TELAO (quem conduz): ele roda o jogo e grava o estado aqui a cada ~1 s.
+# Cada pessoa abre /retro no proprio aparelho, ve o tabuleiro e manda as acoes dela (problema,
+# coisa boa, porque, ideia, apoio...). O telao busca essas acoes na mesma chamada em que grava.
+
+RETRO_ACOES = ("clima", "problema", "bom", "eu", "porque", "ideia", "apoio", "completar",
+               "topo", "naotopo", "toque", "obrigado", "roti")
+RETRO_TEXTO_MAX = 80
+RETRO_ESTADO_MAX = 200_000          # bytes do estado gravado pelo telao
+RETRO_HOST_PARADO_S = 15            # telao sem dar sinal ha mais que isso: outro pode assumir
+RETRO_ESPECIES_COM_IMAGEM = {"muda", "girassol", "cacto", "cogumelo", "carnivora", "lavanda", "cerejeira",
+                             "bambu", "bonsai", "jabuticabeira", "ipe", "baoba"}
+
+
+def _migrar_retro(db):
+    """Tabelas da retro ao vivo (aditivas e idempotentes)."""
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS retro (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            data TEXT NOT NULL UNIQUE,
+            sprint INTEGER,
+            estado TEXT NOT NULL DEFAULT '',
+            rev INTEGER NOT NULL DEFAULT 0,
+            host_token TEXT NOT NULL DEFAULT '',
+            host_visto TEXT,
+            criada_por INTEGER,
+            criada_em TEXT NOT NULL DEFAULT (datetime('now'))
+        )""")
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS retro_acoes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            retro_id INTEGER NOT NULL REFERENCES retro(id) ON DELETE CASCADE,
+            member_id INTEGER NOT NULL,
+            tipo TEXT NOT NULL,
+            dados TEXT NOT NULL DEFAULT '{}',
+            criado_em TEXT NOT NULL DEFAULT (datetime('now'))
+        )""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_retro_acoes ON retro_acoes (retro_id, id)")
+
+
+def _dias_de_retro(db):
+    return game.dias_de_retro(_cfg_sprints(db), _dias_letivos(db))
+
+
+def _retro_de_hoje(db):
+    return db.execute("SELECT * FROM retro WHERE data = ?", (date.today().isoformat(),)).fetchone()
+
+
+def _retro_host_parado(db, retro):
+    if not retro["host_visto"]:
+        return True
+    r = db.execute("SELECT CAST(strftime('%s','now') AS INTEGER) - CAST(strftime('%s', ?) AS INTEGER) AS idade",
+                   (retro["host_visto"],)).fetchone()
+    return r["idade"] is None or r["idade"] > RETRO_HOST_PARADO_S
+
+
+def _iniciais(nome, usadas):
+    partes = [x for x in (nome or "").split() if x]
+    cands = []
+    if partes:
+        cands.append(partes[0][:2])
+        if len(partes) > 1:
+            cands.append(partes[0][0] + partes[-1][0])
+        cands.append(partes[0][:3])
+    cands.append("P" + str(len(usadas) + 1))
+    for c in cands:
+        c = c.upper()
+        if c not in usadas:
+            return c
+    return cands[-1].upper()
+
+
+def _retro_membros(db):
+    """Quem joga: pessoas ativas (equipe primeiro), com iniciais curtas e a especie da planta delas."""
+    visuais = {s["id"]: s.get("visual") or {} for s in get_member_stats(db)}
+    linhas = db.execute("SELECT * FROM members WHERE active = 1 ORDER BY name COLLATE NOCASE").fetchall()
+    linhas = sorted(linhas, key=lambda m: 0 if _e_equipe(m) else 1)
+    usadas, out = set(), []
+    for m in linhas:
+        ini = _iniciais(m["name"], usadas)
+        usadas.add(ini)
+        esp = visuais.get(m["id"], {}).get("especie") or "muda"
+        out.append({"id": m["id"], "nome": m["name"], "ini": ini, "equipe": _e_equipe(m),
+                    "especie": esp if esp in RETRO_ESPECIES_COM_IMAGEM else "muda"})
+    return out
+
+
+def _texto_retro(v):
+    return " ".join(str(v or "").split())[:RETRO_TEXTO_MAX]
+
+
+def _acao_retro_valida(tipo, d):
+    """Normaliza os dados de uma acao; None se for invalida."""
+    if tipo not in RETRO_ACOES or not isinstance(d, dict):
+        return None
+    if tipo == "clima":
+        return {"v": d.get("v")} if d.get("v") in ("sol", "nuvem", "chuva") else None
+    if tipo in ("problema", "bom"):
+        t = _texto_retro(d.get("txt"))
+        area = d.get("area")
+        return {"txt": t, "area": area} if t and area in ("daily", "dev", "enc") else None
+    if tipo == "eu":
+        ids = d.get("ids")
+        if not isinstance(ids, list) or len(ids) > 3:
+            return None
+        ids = [_int_ou_none(x) for x in ids]
+        return {"ids": ids} if None not in ids and len(set(ids)) == len(ids) else None
+    if tipo == "porque":
+        t = _texto_retro(d.get("txt"))
+        return {"txt": t, "rodada": _int_ou_none(d.get("rodada"))} if t else None
+    if tipo == "ideia":
+        t = _texto_retro(d.get("txt"))
+        if not t or d.get("t") not in ("cacto", "lavanda", "cogumelo", "bambu"):
+            return None
+        raiz = _int_ou_none(d.get("raiz"))
+        return {"txt": t, "t": d["t"], "raiz": -1 if raiz is None else raiz, "rodada": _int_ou_none(d.get("rodada"))}
+    if tipo == "apoio":
+        i = _int_ou_none(d.get("ideia"))
+        return {"ideia": i, "rodada": _int_ou_none(d.get("rodada"))} if i is not None else None
+    if tipo == "completar":
+        i = _int_ou_none(d.get("ideia"))
+        campo = d.get("campo")
+        if i is None or campo not in ("quem", "prazo", "raiz"):
+            return None
+        v = d.get("valor")
+        v = _int_ou_none(v) if campo == "raiz" else _texto_retro(v)[:30]
+        return {"ideia": i, "campo": campo, "valor": v, "rodada": _int_ou_none(d.get("rodada"))} if v not in (None, "") else None
+    if tipo in ("topo", "naotopo"):
+        return {"rodada": _int_ou_none(d.get("rodada"))}
+    if tipo == "toque":
+        lote = _int_ou_none(d.get("lote"))
+        return {"lote": lote} if lote is not None and 0 <= lote < 40 else None
+    if tipo == "obrigado":
+        para = _int_ou_none(d.get("para"))
+        return {"para": para, "txt": _texto_retro(d.get("txt"))} if para is not None else None
+    if tipo == "roti":
+        v = _int_ou_none(d.get("v"))
+        return {"v": v} if v is not None and 0 <= v <= 4 else None
+    return None
+
+
+@app.route("/retro")
+def retro_page():
+    db = get_db()
+    hoje = date.today().isoformat()
+    dias = _dias_de_retro(db)
+    retro = _retro_de_hoje(db)
+    eu = _eu_membro(db)
+    host = bool(retro and session.get("retro_host") and session.get("retro_host") == retro["host_token"])
+    telao = request.args.get("telao") == "1"
+    return render_template(
+        "retro.html", retro=retro, hoje=hoje, dia_de_retro=hoje in dias, sprint_n=dias.get(hoje) or _sprint_atual(db),
+        proximas=[{"data": d, "n": n} for d, n in sorted(dias.items()) if d >= hoje][:3],
+        eu=eu, membros=_retro_membros(db), sou_host=host, telao=telao,
+        pode_iniciar=bool(eu or eh_admin()) and (hoje in dias or eh_admin()),
+    )
+
+
+@app.route("/api/retro/iniciar", methods=["POST"])
+def api_retro_iniciar():
+    """Comeca a retro de hoje (ou entra na que ja comecou). Quem comeca fica com o telao."""
+    db = get_db()
+    hoje = date.today().isoformat()
+    dias = _dias_de_retro(db)
+    if not (_eu_id() is not None or eh_admin()):
+        return _erro("Entre no Meu jardim para começar a retro.", 403)
+    if hoje not in dias and not eh_admin():
+        return _erro("Hoje não é dia de retro. A retro é no último dia letivo de cada sprint.", 403)
+    retro = _retro_de_hoje(db)
+    if retro is None:
+        token = secrets.token_hex(16)
+        db.execute("INSERT INTO retro (data, sprint, host_token, host_visto, criada_por) VALUES (?, ?, ?, datetime('now'), ?)",
+                   (hoje, dias.get(hoje) or _sprint_atual(db), token, _eu_id()))
+        db.commit()
+        session["retro_host"] = token
+        return jsonify({"ok": True, "telao": True, "url": url_for("retro_page", telao=1)})
+    if session.get("retro_host") == retro["host_token"]:
+        return jsonify({"ok": True, "telao": True, "url": url_for("retro_page", telao=1)})
+    return jsonify({"ok": True, "telao": False, "url": url_for("retro_page")})
+
+
+@app.route("/api/retro/assumir", methods=["POST"])
+def api_retro_assumir():
+    """Outro aparelho vira o telao: quando o telao parou de responder, ou a pedido do administrador."""
+    db = get_db()
+    retro = _retro_de_hoje(db)
+    if retro is None:
+        return _erro("A retro de hoje ainda não começou.", 404)
+    if not (_eu_id() is not None or eh_admin()):
+        return _erro("Entre no Meu jardim para conduzir a retro.", 403)
+    if not _retro_host_parado(db, retro) and not eh_admin():
+        return _erro("O telão está funcionando em outro aparelho. Peça para quem conduz, ou espere ele parar.", 409)
+    token = secrets.token_hex(16)
+    db.execute("UPDATE retro SET host_token = ?, host_visto = datetime('now') WHERE id = ?", (token, retro["id"]))
+    db.commit()
+    session["retro_host"] = token
+    return jsonify({"ok": True, "url": url_for("retro_page", telao=1)})
+
+
+@app.route("/api/retro/host", methods=["POST"])
+def api_retro_host():
+    """O telao grava o estado do jogo e recebe as acoes novas das pessoas (id > desde)."""
+    db = get_db()
+    retro = _retro_de_hoje(db)
+    if retro is None:
+        return _erro("A retro de hoje ainda não começou.", 404)
+    if not session.get("retro_host") or session.get("retro_host") != retro["host_token"]:
+        return _erro("Outro aparelho assumiu o telão.", 409)
+    p = request.get_json(force=True, silent=True) or {}
+    rev = retro["rev"]
+    if "estado" in p:
+        texto = json.dumps(p.get("estado"), ensure_ascii=False, separators=(",", ":"))
+        if len(texto.encode("utf-8")) > RETRO_ESTADO_MAX:
+            return _erro("Estado grande demais.", 413)
+        rev += 1
+        db.execute("UPDATE retro SET estado = ?, rev = ?, host_visto = datetime('now') WHERE id = ?",
+                   (texto, rev, retro["id"]))
+    else:
+        db.execute("UPDATE retro SET host_visto = datetime('now') WHERE id = ?", (retro["id"],))
+    desde = _int_ou_none(p.get("desde")) or 0
+    acoes = [{"id": r["id"], "m": r["member_id"], "tipo": r["tipo"], "d": json.loads(r["dados"] or "{}")}
+             for r in db.execute("SELECT * FROM retro_acoes WHERE retro_id = ? AND id > ? ORDER BY id LIMIT 300",
+                                 (retro["id"], desde)).fetchall()]
+    db.commit()
+    return jsonify({"ok": True, "rev": rev, "acoes": acoes})
+
+
+@app.route("/api/retro/estado")
+def api_retro_estado():
+    """O que todas as telas mostram. Com ?rev=N igual ao atual, nao reenvia o estado (resposta curta)."""
+    db = get_db()
+    retro = _retro_de_hoje(db)
+    if retro is None:
+        return jsonify({"ok": True, "ativa": False, "eu": _eu_id()})
+    resp = {"ok": True, "ativa": True, "rev": retro["rev"], "eu": _eu_id(),
+            "host_parado": _retro_host_parado(db, retro),
+            "sou_host": bool(session.get("retro_host") and session.get("retro_host") == retro["host_token"])}
+    if _int_ou_none(request.args.get("rev")) != retro["rev"] and retro["estado"]:
+        resp["estado"] = json.loads(retro["estado"])
+    return jsonify(resp)
+
+
+@app.route("/api/retro/acao", methods=["POST"])
+def api_retro_acao():
+    db = get_db()
+    retro = _retro_de_hoje(db)
+    if retro is None:
+        return _erro("A retro de hoje ainda não começou.", 404)
+    mid = _eu_id()
+    if mid is None or not db.execute("SELECT 1 FROM members WHERE id = ? AND active = 1", (mid,)).fetchone():
+        return _erro("Entre no Meu jardim para jogar.", 403)
+    p = request.get_json(force=True, silent=True) or {}
+    tipo = p.get("tipo")
+    dados = _acao_retro_valida(tipo, p.get("dados") or {})
+    if dados is None:
+        return _erro("Ação inválida.")
+    n = db.execute("SELECT COUNT(*) FROM retro_acoes WHERE retro_id = ? AND member_id = ?", (retro["id"], mid)).fetchone()[0]
+    if n >= 400:
+        return _erro("Ações demais nesta retro.", 429)
+    cur = db.execute("INSERT INTO retro_acoes (retro_id, member_id, tipo, dados) VALUES (?, ?, ?, ?)",
+                     (retro["id"], mid, tipo, json.dumps(dados, ensure_ascii=False)))
+    db.commit()
+    return jsonify({"ok": True, "id": cur.lastrowid})
 
 
 if __name__ == "__main__":

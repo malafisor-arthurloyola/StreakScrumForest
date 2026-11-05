@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Retro da sprint · Jardim da Equipe{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='retro.css') }}">
+<section class="retro" aria-label="Retro da sprint">
+  <header class="retro-cab">
+    <h1>Defesa do Canteiro</h1>
+    <p>Retro da sprint {{ sprint_n or '' }}. Os problemas viram pragas; as ideias do time viram plantas.</p>
+  </header>
+
+  {% if not retro %}
+  <div class="retro-espera" id="retro-espera">
+    <h2>A retro ainda não começou</h2>
+    {% if dia_de_retro %}
+      <p>Hoje é dia de retro. Quem começar fica com o telão: abra no computador ligado ao projetor. As outras pessoas abrem esta página no celular e jogam de lá.</p>
+    {% else %}
+      <p>A retro acontece no último dia letivo de cada sprint. Nesse dia aparece aqui o botão para começar.</p>
+    {% endif %}
+    {% if pode_iniciar %}
+      <p><button type="button" class="btn btn-primary" id="retro-iniciar">Começar a retro (este aparelho vira o telão)</button></p>
+    {% elif not eu %}
+      <p><a href="{{ url_for('eu_page') }}">Entre no Meu jardim</a> para participar.</p>
+    {% endif %}
+    {% if proximas %}
+      <p>Próximas retros:</p>
+      <ul>{% for r in proximas %}<li>{{ r.data[8:10] }}/{{ r.data[5:7] }}: sprint {{ r.n }}{% if r.data == hoje %} (hoje){% endif %}</li>{% endfor %}</ul>
+    {% endif %}
+  </div>
+  {% else %}
+  <div class="retro-barra">
+    {% if sou_host and not telao %}
+      <span>Você está com o telão.</span> <a href="{{ url_for('retro_page', telao=1) }}">Abrir o telão neste aparelho</a>
+    {% elif telao and not sou_host %}
+      <span>Outro aparelho está com o telão. Esta tela mostra o jogo como a de qualquer pessoa.</span>
+    {% endif %}
+    {% if not eu and not (telao and sou_host) %}
+      <span>Você está só assistindo. <a href="{{ url_for('eu_page') }}">Entre no Meu jardim</a> para jogar.</span>
+    {% endif %}
+    <button type="button" class="btn" id="retro-assumir" hidden>O telão parou: conduzir daqui</button>
+  </div>
+  <div class="retro-palco">
+    <canvas id="retro-canvas" width="1600" height="900" aria-label="Tabuleiro animado da Defesa do Canteiro"></canvas>
+    <form id="retro-ficha" class="ficha" hidden aria-live="polite" onsubmit="return false"></form>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+{% if retro %}
+<script>
+  window.RETRO = {
+    modo: {{ ('telao' if (telao and sou_host) else 'jogador')|tojson }},
+    eu: {{ (eu.id if eu else none)|tojson }},
+    membros: {{ membros|tojson }},
+    img: {{ (url_for('static', filename='retro/'))|tojson }}
+  };
+</script>
+<script src="{{ url_for('static', filename='retro.js') }}"></script>
+{% else %}
+<script>
+(function () {
+  var b = document.getElementById('retro-iniciar');
+  if (b) b.addEventListener('click', function () {
+    b.disabled = true;
+    fetch('/api/retro/iniciar', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'fetch' }, body: '{}' })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (r) {
+        if (r.ok && r.j.url) { location.href = r.j.url; return; }
+        b.disabled = false;
+        if (window.mostrarToast) mostrarToast((r.j && r.j.erro) || 'Não deu para começar.', 'erro');
+      })
+      .catch(function () { b.disabled = false; });
+  });
+  // quando alguém começar em outro aparelho, esta tela entra sozinha
+  setInterval(function () {
+    if (document.hidden) return;
+    fetch('/api/retro/estado').then(function (r) { return r.json(); }).then(function (j) { if (j.ativa) location.reload(); }).catch(function () {});
+  }, 5000);
+})();
+</script>
+{% endif %}
+{% endblock %}

@@ -56,7 +56,7 @@ class TestScriptsInline(unittest.TestCase):
             sess["eu"] = mid
         urls = ["/dia/2026-10-19", "/dashboard", "/historico", "/membros", "/calendario", f"/loja?m={mid}",
                 "/sementes", "/album", "/sprint/1", "/ata/2026-10-19/daily", "/ata/2026-10-19/fechamento",
-                "/ata/2026-10-19/daily/imprimir", "/ata/sprint/1", "/eu", f"/membro/{mid}", "/qr/daily"]
+                "/ata/2026-10-19/daily/imprimir", "/ata/sprint/1", "/eu", f"/membro/{mid}", "/qr/daily", "/retro"]
         for url in urls:
             r = cliente.get(url)
             self.assertLess(r.status_code, 400, url)
