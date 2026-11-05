@@ -34,7 +34,10 @@ class Base(unittest.TestCase):
         self.salvar(data=DATA, tipo=tipo, campo="relator", valor=quem)
 
     def pelo_relator(self, quem, texto="algo", tipo="daily", campo="feito"):
-        self.salvar(data=DATA, tipo=tipo, campo=campo, member_id=quem, valor=texto)
+        # o relator escreve do aparelho dele (o PC do Scrum), nao do celular de quem fala: se a sessao
+        # deste cliente for da propria pessoa, a fala conta como dela ("proprio")
+        pc = appmod.app.test_client()
+        pc.post("/api/ata/salvar", json=dict(data=DATA, tipo=tipo, campo=campo, member_id=quem, valor=texto))
 
     def contagem(self):
         with appmod.app.test_request_context():
