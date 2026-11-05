@@ -1,0 +1,85 @@
+/* Retro da sprint (Defesa do Canteiro): palco do jogo e fichas. Vem do prototipo validado com o Arthur. */
+.retro{max-width:1280px;margin:0 auto;display:grid;gap:14px}
+.retro-cab{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px}
+.retro-cab h1{margin:0;font-size:clamp(22px,3vw,32px);color:var(--acc);text-wrap:balance}
+.retro-cab p{margin:0;color:var(--ink2);font-size:15px}
+.retro-palco{position:relative;border-radius:18px;overflow:hidden;box-shadow:0 8px 30px #0008;--madeira:#a86a43;--f:var(--font)}
+.retro-palco canvas{display:block;width:100%;height:auto;touch-action:manipulation;cursor:pointer}
+.retro-espera{background:var(--s1,#132019);border-radius:18px;padding:22px;display:grid;gap:12px;max-width:640px}
+.retro-espera h2{margin:0;font-size:24px}
+.retro-espera p{margin:0;color:var(--ink2);line-height:1.5}
+.retro-espera ul{margin:0;padding-left:20px;color:var(--ink2);line-height:1.6}
+.retro-barra{display:flex;flex-wrap:wrap;gap:10px;align-items:center;color:var(--ink2);font-size:14px}
+.retro-barra a{color:var(--acc)}
+.ficha button{font:700 15px var(--font);background:#132019;color:#eef5ef;border:2px solid #2c4034;border-radius:12px;padding:8px 14px;cursor:pointer}
+.ficha button:focus-visible{outline:3px solid #7fb83a;outline-offset:2px}
+.ficha{position:absolute;left:1.5%;top:17%;width:min(400px,42%);max-height:80%;overflow:auto;background:#fff3dc;color:#2a1f16;border:4px solid var(--madeira);border-radius:18px;padding:16px 18px;box-shadow:0 10px 30px #0007;display:grid;gap:8px}
+.ficha[hidden]{display:none}
+.ficha h2{margin:0;font-size:21px;line-height:1.2;text-wrap:balance}
+.ficha .passo{margin:0;font-size:13px;font-weight:800;color:#7a4a2c;text-transform:uppercase;letter-spacing:.04em}
+.ficha .aj{margin:0;font-size:14px;color:#5b4a3a;line-height:1.4}
+.ficha .rot{margin:4px 0 0;font-size:14px;font-weight:800}
+.ficha .campo{display:grid;gap:4px;font-size:14px;font-weight:800}
+.ficha textarea,.ficha input:not([type]),.ficha select{font:600 16px var(--f);color:#2a1f16;background:#fff;border:2px solid #d9c3a0;border-radius:10px;padding:8px 10px;width:100%;box-sizing:border-box;resize:none}
+.ficha textarea:focus,.ficha input:focus-visible,.ficha select:focus{outline:3px solid #7fb83a;outline-offset:1px}
+.ficha .duas{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ficha .chips{display:flex;flex-wrap:wrap;gap:6px}
+.ficha .chips input{position:absolute;opacity:0;pointer-events:none}
+.ficha .chips span{display:inline-block;padding:6px 11px;border-radius:999px;border:2px solid #d9c3a0;background:#fff;font-size:14px;font-weight:700;cursor:pointer}
+.ficha .chips input:checked+span{background:#2f9a5d;border-color:#2f9a5d;color:#fff}
+.ficha .chips input:focus-visible+span{outline:3px solid #7fb83a;outline-offset:2px}
+.ficha .lista{display:grid;gap:6px}
+.ficha .it{display:flex;justify-content:space-between;gap:10px;text-align:left;background:#fff;color:#2a1f16;border:2px solid #d9c3a0;padding:8px 10px;font-size:14.5px}
+.ficha .it small{color:#7a4a2c;font-weight:700;white-space:nowrap}
+.ficha .it.on{background:#e8f6c6;border-color:#2f9a5d}
+.ficha .mun{margin:2px 0 0;font-size:15px;font-weight:700}
+.ficha .mun i{display:inline-block;width:12px;height:9px;border-radius:50%;background:rgba(122,74,44,.25);margin-left:4px}
+.ficha .mun i.on{background:#7a4a2c}.ficha .mun i.ab{background:#ffb72e}
+.ficha .mun small{color:#7a4a2c;font-size:13px}
+.ficha .acoes{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
+.ficha .pri{background:#2f9a5d;border-color:#2f9a5d;color:#fff}.ficha .pri:disabled{opacity:.45;cursor:not-allowed}
+.ficha .sec{background:transparent;color:#2a1f16;border-color:#d9c3a0}
+.ficha .tempo{display:grid;gap:4px;font-size:13.5px;font-weight:700;color:#5b4a3a}
+.ficha .barra{height:8px;border-radius:6px;background:#ead9bb;overflow:hidden}.ficha .barra i{display:block;height:100%;background:#2f9a5d;border-radius:6px}.ficha .barra i.acabou{background:#ffb72e}
+.ficha .mural{display:grid;gap:8px}
+.ficha .id{display:grid;grid-template-columns:40px 1fr auto;gap:10px;align-items:start;background:#fff;border:2px solid #e3cfac;border-radius:12px;padding:8px 10px}
+.ficha .id.top{border-color:#2f9a5d;background:#f1fae3}
+.ficha .id img{width:40px;height:44px;object-fit:contain}
+.ficha .id p{margin:0}.ficha .id .q{font-size:12.5px;color:#7a4a2c;font-weight:700}.ficha .id .tx{font-size:15.5px;font-weight:800;line-height:1.25;margin:2px 0 6px}
+.ficha .id .cp{display:flex;flex-wrap:wrap;gap:6px}.ficha .id .ap{font-size:12.5px;color:#5b4a3a;margin-top:6px}
+.ficha .id select{width:auto;font-size:13px;padding:3px 6px;border-radius:999px;border-style:dashed}
+.ficha .ok{font-size:13px;font-weight:700;background:#e8f6c6;border-radius:999px;padding:3px 9px}
+.ficha .lado{display:grid;justify-items:center;gap:2px}.ficha .lado .f{font-size:24px;font-weight:800;line-height:1;color:#2f9a5d}.ficha .lado small{font-size:11px;color:#7a4a2c}
+.ficha .mini{padding:5px 10px;font-size:13px;margin-top:4px}.ficha .mini:disabled{opacity:.45}
+.ficha details{border-top:2px dashed #e3cfac;padding-top:8px}.ficha summary{font-weight:800;cursor:pointer;font-size:15px}
+.ficha details[open]{display:grid;gap:8px}
+.ficha .tipos{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}
+.ficha .tp input{position:absolute;opacity:0}
+.ficha .tp span{display:grid;grid-template-columns:34px 1fr;grid-template-rows:auto auto;column-gap:6px;align-items:center;background:#fff;border:2px solid #e3cfac;border-radius:12px;padding:6px 8px;cursor:pointer}
+.ficha .tp img{grid-row:span 2;width:34px;height:38px;object-fit:contain}.ficha .tp b{font-size:14px}.ficha .tp small{font-size:12px;color:#7a4a2c;line-height:1.2}
+.ficha .tp input:checked+span{border-color:#2f9a5d;background:#e8f6c6;box-shadow:inset 0 0 0 1px #2f9a5d}.ficha .tp input:focus-visible+span{outline:3px solid #7fb83a;outline-offset:2px}
+.ficha .fim{align-items:center;justify-content:space-between;border-top:2px dashed #e3cfac;padding-top:8px}.ficha .fim .aj{font-size:12.5px;max-width:52%}
+.ficha .fraco{margin:0;display:flex;gap:8px;align-items:center;font-size:13.5px;line-height:1.35;background:#ffe9b8;border-radius:10px;padding:6px 10px}.ficha .fraco img{width:26px;height:30px;object-fit:contain;flex:none}
+.ficha .mut{margin:0;font-size:13px;font-weight:700;color:#5b4a3a}.ficha .mut.on{color:#2f9a5d}
+.ficha .tp em{font-style:normal;font-size:11px;background:#ffb72e;color:#2a1f16;border-radius:6px;padding:1px 5px;margin-left:4px}
+.ficha .pq{display:grid;gap:6px;background:#fff8ea;border:2px dashed #e3cfac;border-radius:12px;padding:8px 10px}
+.ficha .pqi{margin:0;font-size:14px;line-height:1.35}.ficha .pqi b{color:#7a4a2c;margin-right:4px}.ficha .pqi span{font-size:11.5px;background:#e8f6c6;color:#1f6b3e;border-radius:6px;padding:1px 6px;font-weight:800}
+.ficha .linha{display:flex;gap:6px}.ficha .linha input{flex:1;min-width:0}
+.ficha .id .rz{font-size:12.5px;color:#1f6b3e;font-weight:700;margin:-3px 0 6px}
+.ficha .roda{display:flex;flex-wrap:wrap;gap:5px;align-items:center}.ficha .roda .rt{font-size:13px;font-weight:800;margin-right:4px}
+.ficha .vz{display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:800;padding:2px 7px 2px 3px;border-radius:999px;background:#ead9bb;color:#7a4a2c;opacity:.6}
+.ficha .vz img{width:18px;height:20px;object-fit:contain;filter:grayscale(1)}.ficha .vz.on{background:#2f9a5d;color:#fff;opacity:1}.ficha .vz.on img{filter:none}
+.ficha .dp{margin:0;font-size:15px;line-height:1.45;font-weight:600;background:#fff;border-left:5px solid #2f9a5d;border-radius:8px;padding:10px 12px}.ficha .dp small{display:block;margin-top:6px;font-size:12.5px;color:#7a4a2c;font-weight:700}
+.ficha .sug{display:grid;gap:6px}.ficha .lnk{justify-self:start;background:none;border:0;padding:0;color:#1f6b3e;font-size:13.5px;font-weight:800;text-decoration:underline;cursor:pointer}
+.ficha .sgl{display:flex;flex-wrap:wrap;gap:5px}.ficha .sgl[hidden]{display:none}.ficha .sgc{background:#fff;color:#2a1f16;border:1.5px dashed #d9c3a0;border-radius:999px;padding:4px 10px;font-size:13px;font-weight:600}
+.ficha .barras{display:grid;gap:6px}.ficha .br{display:grid;grid-template-columns:1fr 34%  22px;gap:8px;align-items:center;font-size:13.5px}.ficha .bt{font-weight:700;line-height:1.25}.ficha .bt em{font-style:normal;font-size:11px;background:#2f9a5d;color:#fff;border-radius:6px;padding:1px 5px}
+.ficha .bb{height:12px;background:#ead9bb;border-radius:6px;overflow:hidden}.ficha .bb i{display:block;height:100%;background:#a86a43;border-radius:6px}.ficha .br.forte .bb i{background:#d9463b}.ficha .br b{text-align:right}
+.ficha .sint{margin:0;font-size:14px;background:#e8f6c6;border-radius:10px;padding:8px 10px;line-height:1.4}
+@media (max-width:760px){.ficha{position:static;width:auto;max-height:none;border-radius:0 0 18px 18px;border-width:0 4px 4px}}
+/* o site usa .top (planta balancando) e .linha (linha da tabela do dia) para outras coisas */
+.ficha .top{animation:none;transform:none;transition:none}
+.ficha .linha{padding:0;background:none;border-radius:0}
+.ficha .chips{margin-top:0}
+.ficha .comp *{transform-box:view-box}
+.ficha a.btn{justify-self:start}
+.retro [hidden]{display:none!important}

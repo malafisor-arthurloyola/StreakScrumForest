@@ -29,6 +29,16 @@
     {% if admin %}<a class="btn btn-primary btn-qr-modal" href="{{ url_for('qr_page', evento='daily') }}">QR de presença</a>{% endif %}
   </div>
 </header>
+{% if retro_card %}
+<a class="chamada-jardim chamada-retro" data-passo="retro" href="{{ url_for('retro_page') }}">
+  <span class="chamada-icone" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 20v-7"/><path d="M12 14c-4 0-6-2.4-6-6 3.8 0 6 2.2 6 6z"/><path d="M12 12c0-4.4 2.8-7 7-7 0 4.4-2.4 7-7 7z"/><path d="M7.5 20h9"/></svg></span>
+  <span class="chamada-txt">
+    <b>{% if retro_card.hoje %}Hoje é dia de retro da sprint {{ retro_card.sprint }}{% else %}Dia de retro da sprint {{ retro_card.sprint }}{% endif %}</b>
+    <small>Defesa do Canteiro: o time transforma problemas em pragas e defende o canteiro com as próprias ideias.</small>
+  </span>
+  <span class="chamada-btn">{% if retro_card.ativa %}Entrar na retro{% elif retro_card.hoje %}Começar a retro{% else %}Ver a retro{% endif %}</span>
+</a>
+{% endif %}
 {% if chamada_jardim and papel_admin != 'computador' %}
 <a class="chamada-jardim" data-passo="{{ chamada_jardim.passo or 'entrar' }}" href="{{ url_for('eu_page') }}{{ chamada_jardim.ancora or '' }}">
   <span class="chamada-icone" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 20v-7"/><path d="M12 14c-4 0-6-2.4-6-6 3.8 0 6 2.2 6 6z"/><path d="M12 12c0-4.4 2.8-7 7-7 0 4.4-2.4 7-7 7z"/><path d="M7.5 20h9"/></svg></span>

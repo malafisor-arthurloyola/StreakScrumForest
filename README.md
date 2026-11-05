@@ -807,3 +807,17 @@ tests/                  # mais de 600 testes (unittest)
 | Meta de floracao     | 36 presenças    |
 
 Acesse a tela **Calendario** para ajustar qualquer valor.
+
+## Retro da sprint: Defesa do Canteiro (`/retro`)
+
+A retro é no **último dia letivo de cada sprint** (calculado dos dias letivos, já com feriados): 23/10, 06/11, 19/11
+(20/11 é feriado), 04/12 e 18/12. Nesse dia aparece um cartão na tela Hoje.
+
+- **Quem começa fica com o telão**: abra `/retro` no computador do projetor e toque em "Começar a retro". Esse aparelho
+  roda o jogo e grava o estado no servidor a cada segundo.
+- **As outras pessoas** abrem `/retro` no celular, logadas no Meu jardim, e jogam de lá (problemas, abelhas, eu também,
+  porquês, ideias, apoios, eu topo, obrigados e nota). Quem não está logado só assiste.
+- Se o telão travar ou fechar, depois de 15 s qualquer pessoa logada vê "O telão parou: conduzir daqui" e assume; o
+  jogo continua de onde parou (uma rodada pega na defesa volta para a conversa).
+- O administrador pode começar a retro em qualquer dia (para ensaiar).
+- Tabelas novas: `retro` (um estado por dia) e `retro_acoes` (fila de ações das pessoas). Migração aditiva.
