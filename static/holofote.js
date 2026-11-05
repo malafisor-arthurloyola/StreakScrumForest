@@ -146,6 +146,7 @@
     });
     if (j.pode_scrum) {
       html += '<div class="hf-rodape"><button type="button" class="btn btn-ghost hf-encerrar">Encerrar rodada</button>' +
+        '<button type="button" class="btn btn-ghost hf-ant">Pessoa anterior</button>' +
         '<button type="button" class="btn btn-primary hf-prox">Próxima pessoa</button></div>';
     }
     pop.innerHTML = html;
@@ -188,6 +189,22 @@
       enc.addEventListener('click', function () {
         var b = document.getElementById('rodada-fim');
         if (b) b.click(); else postar('/api/holofote', { member_id: null }).then(buscar);
+      });
+    }
+    // volta para quem falou antes (ex.: tocou em Próxima sem querer ou a pessoa quer completar a fala)
+    var ant = pop.querySelector('.hf-ant');
+    if (ant) {
+      var temAnterior = !!(j.ordem && j.ordem.length && j.pos !== null && j.pos !== undefined && j.pos > 0);
+      ant.disabled = !temAnterior;
+      ant.addEventListener('click', function () {
+        if (!temAnterior) return;
+        var b = document.getElementById('rodada-ant');
+        if (b) { b.click(); return; }
+        // tela sem o controle da rodada (outro aparelho do Scrum): acende direto a pessoa anterior
+        postar('/api/holofote', {
+          member_id: j.ordem[j.pos - 1].id, modo: 'celular', tipo: j.tipo, data: j.data,
+          ordem: j.ordem.map(function (p) { return p.id; }),
+        }).then(buscar);
       });
     }
     var prox = pop.querySelector('.hf-prox');

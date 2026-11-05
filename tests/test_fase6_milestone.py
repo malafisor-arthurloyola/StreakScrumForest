@@ -135,9 +135,13 @@ class TestCardsSoDaSprintAtual(unittest.TestCase):
         b = self.client.get("/api/gitlab/backlog?q=card").get_json()
         self.assertEqual([c["iid"] for c in b["cards"]], [2])           # backlog da sprint antiga continua
 
-    def test_card_sem_milestone_fica_de_fora_quando_ha_milestones(self):
-        self._enviar([self._card(1, "review", ("", "", "")), self._card(2, "review", S2)])
-        self.assertEqual([c["iid"] for c in self._cards()["fiz"]], [2])
+    def test_card_sem_milestone_conta_como_da_sprint_atual(self):
+        # o card de um colega movido para Review sem milestone precisa aparecer em "Vou revisar"
+        self._enviar([self._card(1, "review", ("", "", "")), self._card(2, "review", S2),
+                      self._card(3, "em_revisao", ("", "", ""), usuario="beto"), self._card(4, "review", S1)])
+        r = self._cards()
+        self.assertEqual(sorted(c["iid"] for c in r["fiz"]), [1, 2])
+        self.assertEqual(sorted(c["iid"] for c in r["revisar"]), [1, 2, 3])   # o da sprint antiga continua fora
 
     def test_sem_nenhuma_milestone_no_quadro_mostra_tudo(self):
         self._enviar([self._card(1, "review", ("", "", "")), self._card(2, "done", ("", "", ""))])

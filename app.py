@@ -3818,8 +3818,10 @@ def _cards_do_usuario(db, usuario):
                 "citacao": f"#{r['iid']} {(r['titulo'] or '').strip()}".strip()}
 
     # Review / Waiting review / fechados: so da milestone (sprint) de hoje; muda sozinha.
+    # Card SEM milestone conta como da sprint atual: ele nao e de sprint nenhuma, e esconde-lo
+    # sumia com cards reais (ex.: o card de um colega que alguem acabou de mover para Review).
     atual = _milestone_atual_do_banco(db)
-    fil_sql = " AND milestone = ?" if atual else ""
+    fil_sql = " AND (milestone = ? OR milestone = '')" if atual else ""
     fil_par = (atual,) if atual else ()
 
     fazer = []
@@ -3911,7 +3913,7 @@ def api_gitlab_buscar():
            "WHERE coluna IN ('review', 'em_revisao', 'done')")
     par = []
     if atual and not exato:
-        sql += " AND milestone = ?"
+        sql += " AND (milestone = ? OR milestone = '')"      # sem milestone conta como da sprint atual
         par.append(atual)
     sql += " ORDER BY atualizado_em DESC, iid DESC"
     cards = [dict(r) for r in db.execute(sql, par).fetchall()]

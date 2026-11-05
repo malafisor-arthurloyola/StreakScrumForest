@@ -97,6 +97,14 @@ class TestRotaBuscar(unittest.TestCase):
         self.assertEqual([c["iid"] for c in self._buscar("#4")["cards"]], [4])
         self.assertEqual([c["iid"] for c in self._buscar("5")["cards"]], [5])
 
+    def test_card_sem_milestone_aparece_na_busca(self):
+        cards = [self._c(7, "em_revisao", ("", "", ""), "Card do colega sem sprint", usuario="beto"),
+                 self._c(1, "review", S2, "Limpeza de dados")]
+        r = self.client.post("/api/gitlab/snapshot", json={"cards": cards, "base_url": ""},
+                             headers={"Authorization": "Bearer " + TOKEN})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual([c["iid"] for c in self._buscar("colega")["cards"]], [7])
+
     def test_backlog_nao_aparece_aqui(self):
         self.assertEqual(self._buscar("pesquisa")["cards"], [])
         self.assertEqual(self._buscar("6")["cards"], [])

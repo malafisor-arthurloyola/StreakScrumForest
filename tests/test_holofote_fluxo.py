@@ -284,6 +284,26 @@ class TestVidaDoHolofote(FluxoBase):
         e = self.estado()
         self.assertEqual((e["member_id"], e["modo"]), (self.bia, "celular"))
 
+    def test_voltar_para_a_pessoa_anterior_mantem_a_ordem(self):
+        ordem = [self.bia, self.ana, self.caio]
+        self.pc.post("/api/holofote", json={"member_id": self.bia, "tipo": "daily", "ordem": ordem})
+        self.pc.post("/api/holofote", json={"member_id": self.ana, "tipo": "daily", "ordem": ordem})
+        self.assertEqual(self.estado()["pos"], 1)
+        # "Pessoa anterior": acende de novo quem falou antes, com a mesma ordem sorteada
+        self.pc.post("/api/holofote", json={"member_id": self.bia, "tipo": "daily", "ordem": ordem})
+        e = self.estado()
+        self.assertEqual((e["member_id"], e["pos"]), (self.bia, 0))
+        self.assertEqual([p["id"] for p in e["ordem"]], ordem)
+
+    def test_painel_e_controle_tem_o_botao_de_voltar(self):
+        with open(os.path.join(os.path.dirname(__file__), "..", "static", "holofote.js"), encoding="utf-8") as f:
+            js = f.read()
+        self.assertIn("hf-ant", js)
+        self.assertIn("Pessoa anterior", js)
+        h = self.pc.get("/").get_data(as_text=True)
+        if 'id="rodada"' in h:
+            self.assertIn('id="rodada-ant"', h)
+
     def test_pessoa_inexistente_ou_inativa_e_recusada(self):
         self.assertEqual(self.holofote(99999).status_code, 400)
         self.pc.post(f"/api/membros/{self.davi}", json={"active": False})
