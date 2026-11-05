@@ -142,11 +142,11 @@ class TestFalaPronta(MinijogosBase):
         self.fala("feito", "#101 terminei a tela")
         r = self.jogo("fala-pronta")
         self.assertEqual(r.status_code, 400)
-        self.fala("planejado", "#102 comecar a API")
-        r = self.jogo("fala-pronta")
-        self.assertEqual(r.status_code, 200)
-        self.assertEqual(r.get_json()["ganhou"], game.SEED_FALA_PRONTA)
+        self.assertNotIn("fala_pronta", self.jogadas())
+        r = self.fala("planejado", "#102 comecar a API")         # preencheu os dois: ganha sozinho, sem botao
+        self.assertEqual(r.get_json()["minijogo"], {"jogo": "fala_pronta", "ganhou": game.SEED_FALA_PRONTA})
         self.assertIn("fala_pronta", self.jogadas())
+        self.assertEqual(self.jogo("fala-pronta").status_code, 200)   # o botao continua respondendo
 
     def test_uma_vez_por_dia(self):
         self.fala("feito", "a")
@@ -154,14 +154,39 @@ class TestFalaPronta(MinijogosBase):
         self.jogo("fala-pronta")
         self.assertEqual(self.jogo("fala-pronta").get_json()["ganhou"], 0)
 
-    def test_depois_da_vez_na_daily_nao_vale(self):
-        self.fala("feito", "a")
-        self.fala("planejado", "b")
+    def _vez(self):
         pc = appmod.app.test_client()
         os.environ["ADMIN_LOCAL"] = "1"
         pc.post("/api/holofote", json={"member_id": self.ana, "modo": "celular", "tipo": "daily"})
         os.environ["ADMIN_LOCAL"] = "0"
+
+    def test_fala_escrita_antes_da_vez_vale_mesmo_sem_tocar_no_botao(self):
+        con = sqlite3.connect(DB)                                  # fala salva antes da vez, sem tocar no botao
+        con.execute("INSERT INTO ata_falas (data, tipo, member_id, feito, planejado, origem, atualizada_em) "
+                    "VALUES (?, 'daily', ?, 'a', 'b', 'proprio', '2026-10-20 09:00:00')", (HOJE, self.ana))
+        con.commit()
+        con.close()
+        self._vez()
+        self.assertIn("fala_pronta", self.jogadas())
+        self.assertNotIn("fala_daily", self.jogadas())
+
+    def test_fala_que_nao_mudou_desde_antes_da_vez_vale_ao_abrir_o_jardim(self):
+        con = sqlite3.connect(DB)
+        con.execute("INSERT INTO ata_falas (data, tipo, member_id, feito, planejado, origem, atualizada_em) "
+                    "VALUES (?, 'daily', ?, 'a', 'b', 'proprio', '2026-10-20 09:00:00')", (HOJE, self.ana))
+        con.execute("INSERT INTO minijogos (member_id, data, jogo, criado_em) VALUES (?, ?, 'vez_daily', "
+                    "'2026-10-20 10:00:00')", (self.ana, HOJE))
+        con.commit()
+        con.close()
+        self.cel.get("/eu")
+        self.assertIn("fala_pronta", self.jogadas())
+
+    def test_depois_da_vez_na_daily_nao_vale(self):
+        self._vez()
+        self.fala("feito", "a")
+        self.fala("planejado", "b")
         self.assertIn("vez_daily", self.jogadas())
+        self.assertNotIn("fala_pronta", self.jogadas())
         r = self.jogo("fala-pronta")
         self.assertEqual(r.status_code, 400)
         self.assertIn("vez", r.get_json()["erro"].lower())
@@ -345,10 +370,11 @@ class TestAvisarQueNaoVai(MinijogosBase):
     def test_se_acabou_indo_vale_a_fala_pronta_e_nao_soma_as_duas(self):
         self.preencher()
         self.jogo("avisar")
+        self.assertNotIn("fala_pronta", self.jogadas())             # avisou: o aviso e o premio do dia
         self.jogo("desavisar")
         self.assertIsNone(self.status())
         self.assertNotIn("fala_avisada", self.jogadas())
-        self.assertEqual(self.jogo("fala-pronta").get_json()["ganhou"], game.SEED_FALA_PRONTA)
+        self.assertIn("fala_pronta", self.jogadas())                # desfez: a fala escrita volta a valer
 
     def test_fala_pronta_recusa_quem_avisou(self):
         self.preencher()
@@ -487,11 +513,12 @@ class TestDailyPreenchida(MinijogosBase):
 
     def test_depois_da_vez_preencher_rende_tres(self):
         self.passar_a_vez()
-        self.preencher()
-        r = self.jogo("fala-daily")
-        self.assertEqual(r.status_code, 200)
-        self.assertEqual(r.get_json()["ganhou"], game.SEED_FALA_DAILY)
+        self.fala("feito", "#101 terminei a tela")
+        self.assertNotIn("fala_daily", self.jogadas())
+        r = self.fala("planejado", "#102 comecar a API")            # sem botao: ao preencher, ganha
+        self.assertEqual(r.get_json()["minijogo"], {"jogo": "fala_daily", "ganhou": game.SEED_FALA_DAILY})
         self.assertIn("fala_daily", self.jogadas())
+        self.assertNotIn("fala_pronta", self.jogadas())
         self.presente(self.ana)
         self.assertIn(game.SEED_FALA_DAILY, [x["valor"] for x in self.premios()])
 
@@ -507,10 +534,27 @@ class TestDailyPreenchida(MinijogosBase):
         self.assertEqual(self.jogo("fala-daily").status_code, 400)
 
     def test_antes_da_vez_o_caminho_e_a_fala_pronta(self):
-        self.preencher()
+        self.fala("feito", "a")
         r = self.jogo("fala-daily")
         self.assertEqual(r.status_code, 400)
         self.assertIn("fala pronta", r.get_json()["erro"].lower())
+
+    def test_presenca_marcada_pelo_scrum_nao_atrapalha(self):
+        self.presente(self.ana)                                     # Scrum deu presenca antes da fala
+        self.preencher()
+        self.assertIn("fala_pronta", self.jogadas())
+
+    def test_relator_preenche_e_a_pessoa_ainda_pode_preencher_a_dela(self):
+        self.passar_a_vez()
+        con = sqlite3.connect(DB)
+        con.execute("INSERT INTO ata_falas (data, tipo, member_id, feito, planejado, origem) "
+                    "VALUES (?, 'daily', ?, 'a', 'b', 'relator')", (HOJE, self.ana))
+        con.commit()
+        con.close()
+        self.cel.get("/eu")
+        self.assertNotIn("fala_daily", self.jogadas())             # o texto do relator nao paga a pessoa
+        self.fala("planejado", "#103 eu mesma completei")
+        self.assertIn("fala_daily", self.jogadas())
 
     def test_quem_fez_a_fala_pronta_nao_ganha_de_novo(self):
         self.preencher()

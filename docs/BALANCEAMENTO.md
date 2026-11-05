@@ -278,3 +278,9 @@ total esperado (`tests/test_catalog.py`, `tests/test_game.py`) avisam se o equil
   pronta (+5) ou avisou (+3) não soma os +3 (regra em `game.premios_minijogos` e na rota). Fala escrita
   pelo relator não conta (o relator já tem o bônus dele). Não entra no Álbum da estação (o álbum premia a
   fala preparada antes). O teto do dedicado não muda (ele faz a Fala pronta todo dia). Preços iguais.
+  Na mesma mudança, o prêmio da daily ficou **automático**: antes, a Fala pronta só contava ao tocar no
+  botão, e quem preenchia pelo QR ou só digitava em Meu jardim ficava sem os +5. Agora o servidor dá o
+  prêmio ao salvar a fala (Meu jardim ou QR), ao acender a vez da pessoa na rodada (fala já escrita vira
+  Fala pronta) e ao abrir Meu jardim (fala que não mudou desde antes da vez também vira Fala pronta).
+  A vez que passou não risca mais o passo 1: ele vira "Preencher a daily" com +3. Avisar que não vai tira
+  a Fala pronta do dia (o aviso é o prêmio); desfazer o aviso devolve.

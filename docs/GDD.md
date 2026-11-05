@@ -215,7 +215,7 @@ bloqueia compra nova, mas nunca remove o que já foi comprado.
 | Boas-vindas | +20 | Na primeira presença |
 | Ata preenchida | +1 por ata (Daily e Day Closing) | Fala com conteúdo; só em dia letivo; sexta só tem a da Daily |
 | Bônus de relator (Scrum) | +1 por fala de **outra pessoa** que o Scrum preenche | Máximo 3 por ata; só vale se o Scrum entrou com o PIN e é o relator da ata |
-| Minigame da daily (Meu jardim) | +5 Fala pronta, +3 Avisou ou +3 Daily preenchida | Um só por dia. Fala pronta: antes da sua vez na rodada. Daily preenchida: a própria pessoa preenche O que fiz e O que vou fazer depois da sua vez, no mesmo dia. Quem fez a Fala pronta ou avisou não ganha os +3 ao preencher de novo. Vale com presença (o aviso vale sem) |
+| Minigame da daily (Meu jardim) | +5 Fala pronta, +3 Avisou ou +3 Daily preenchida | Um só por dia e automático: rende assim que a própria pessoa deixa O que fiz e O que vou fazer preenchidos (Meu jardim ou QR), sem botão. Fala pronta: preenchida antes da sua vez na rodada. Daily preenchida: depois da sua vez, no mesmo dia. Fala escrita pelo relator não paga a pessoa; se ela completar a própria depois, ganha. Quem fez a Fala pronta ou avisou não ganha os +3 ao preencher de novo. Vale com presença (o aviso vale sem) |
 | Meta com recompensa | 1 a 30 por meta (recomendado 3 a 10) | Definida pelo admin; só rende se cumprida até o prazo |
 | Impedimentos, campo de revisão, escolha de cards do GitLab | 0 | Nunca rendem semente |
 

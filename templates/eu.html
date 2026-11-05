@@ -38,10 +38,10 @@
   {% if vendo_amanha %}<p class="sub sub-secao">Preparando a véspera: a fala e o cuidado de amanhã já podem ficar prontos hoje. As sementes valem no dia, quando você marcar presença (o aviso vale na hora).</p>{% endif %}
   {% if mj.letivo %}
   <ol class="ritual-passos">
-    <li class="passo" data-passo="fala" data-estado="{{ 'feito' if (mj.fala_pronta or mj.fala_avisada or mj.fala_daily) else ('perdido' if mj.vez_passou else 'aberto') }}">
+    <li class="passo" data-passo="fala" data-estado="{{ 'feito' if (mj.fala_pronta or mj.fala_avisada or mj.fala_daily) else 'aberto' }}">
       <a href="#fala-daily">
         <span class="passo-n" aria-hidden="true">1</span>
-        <span class="passo-txt"><b>Fala pronta</b><small>{% if mj.fala_pronta %}pronta antes da daily{% elif mj.fala_avisada %}avisou que não vai{% elif mj.fala_daily %}daily preenchida{% elif mj.vez_passou %}sua vez já passou: preencha a daily{% else %}antes da sua vez na daily{% endif %}</small></span>
+        <span class="passo-txt"><b>{{ 'Preencher a daily' if (mj.vez_passou and not mj.fala_pronta and not mj.fala_avisada) else 'Fala pronta' }}</b><small>{% if mj.fala_pronta %}pronta antes da daily{% elif mj.fala_avisada %}avisou que não vai{% elif mj.fala_daily %}daily preenchida{% elif mj.vez_passou %}sua vez já passou, mas ainda vale preencher{% else %}antes da sua vez na daily{% endif %}</small></span>
         <span class="passo-sem">+{{ seeds_mj.fala_avisada if mj.fala_avisada else (seeds_mj.fala_daily if (mj.vez_passou and not mj.fala_pronta) else seeds_mj.fala_pronta) }}</span>
       </a>
     </li>
@@ -133,7 +133,7 @@
         {% elif mj.fala_daily %}
         <p class="selo-pronto">Daily preenchida <b>+{{ seeds_mj.fala_daily }}</b></p>
         {% elif mj.vez_passou %}
-        <p class="fala-acao-nota">Sua vez na daily já passou hoje, mas preencher a sua parte ainda rende +{{ seeds_mj.fala_daily }}. Amanhã, deixe pronta antes da sua vez e ganhe +{{ seeds_mj.fala_pronta }}.</p>
+        <p class="fala-acao-nota">Sua vez na daily já passou, mas ainda dá para escrever a sua parte: preenchendo O que fiz e O que vou fazer, você ganha +{{ seeds_mj.fala_daily }}. Amanhã, deixe pronta antes da sua vez e ganhe +{{ seeds_mj.fala_pronta }}.</p>
         <button type="button" class="btn btn-primary btn-minijogo" data-minijogo="fala-daily">Daily preenchida <span class="btn-sem">+{{ seeds_mj.fala_daily }}</span></button>
         {% elif mj.letivo %}
         <button type="button" class="btn btn-primary btn-minijogo" data-minijogo="fala-pronta">Fala pronta <span class="btn-sem">+{{ seeds_mj.fala_pronta }}</span></button>
@@ -362,10 +362,39 @@
           var bom = res.ok && res.j.ok;
           if (!bom) mostrarToast(res.j.erro || 'Não salvou.', 'info');
           else marcarSalvo(tipo);
+          if (bom && res.j.minijogo) premioDaily(res.j.minijogo);
           if (bom && aoOk) aoOk();
           return bom;
         })
         .catch(function () { if (!opcoes.keepalive) mostrarToast('Sem conexão. O texto continua aqui; tente de novo.', 'info'); return false; });
+    }
+    // Preencher O que fiz e O que vou fazer ja da o premio da daily (o servidor decide: +5 antes da
+    // vez na rodada, +3 depois). Aqui so se mostra o selo no lugar do botao.
+    function premioDaily(mj) {
+      var bloco = document.getElementById('fala-daily');
+      if (!bloco || !mj || !mj.ganhou) return;
+      var pronta = mj.jogo === 'fala_pronta';
+      var txt = pronta ? 'Fala pronta antes da daily' : 'Daily preenchida';
+      comemorar(bloco, mj.ganhou);
+      mostrarToast(txt + ': +' + mj.ganhou + ' sementes.', 'sucesso');
+      var chip = bloco.querySelector('.fala-estado');
+      if (chip) { chip.textContent = pronta ? 'Pronta' : 'Preenchida'; chip.dataset.estado = pronta ? 'pronta' : 'preenchida'; }
+      var acao = bloco.querySelector('.fala-acao');
+      if (acao) {
+        acao.innerHTML = '';
+        var p = document.createElement('p');
+        p.className = 'selo-pronto';
+        p.innerHTML = txt + ' <b>+' + mj.ganhou + '</b>';
+        acao.appendChild(p);
+      }
+      var li = document.querySelector('.passo[data-passo="fala"]');
+      if (li) {
+        li.dataset.estado = 'feito';
+        var small = li.querySelector('small');
+        if (small) small.textContent = pronta ? 'pronta antes da daily' : 'daily preenchida';
+        var sem = li.querySelector('.passo-sem');
+        if (sem) sem.textContent = '+' + mj.ganhou;
+      }
     }
     // "Salvo" discreto no canto do bloco, em vez de um aviso a cada campo.
     function marcarSalvo(tipo) {
