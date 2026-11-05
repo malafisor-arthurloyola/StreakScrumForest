@@ -602,3 +602,61 @@ class TestDailyPreenchida(MinijogosBase):
         self.passar_a_vez()
         h = self.cel.get(f"/dia/{HOJE}").get_data(as_text=True)
         self.assertIn("Preencher a daily", h)
+
+
+class TestScrumPreencheAPropriaFala(MinijogosBase):
+    """O Scrum (relator) que escreve a propria linha na ata ou na rodada ganha o premio da daily
+    como qualquer pessoa; escrever a fala dos outros continua sendo relatar."""
+
+    def setUp(self):
+        super().setUp()
+        con = sqlite3.connect(DB)
+        appmod._garantir_ata  # noqa: B018 (a ata e criada pela rota)
+        con.close()
+        os.environ["ADMIN_LOCAL"] = "1"
+
+    def salvar(self, mid, campo, valor):
+        return self.cel.post("/api/ata/salvar", json={"data": HOJE, "tipo": "daily", "campo": campo,
+                                                      "member_id": mid, "valor": valor})
+
+    def origem(self, mid):
+        con = sqlite3.connect(DB)
+        try:
+            return con.execute("SELECT origem FROM ata_falas WHERE data = ? AND tipo = 'daily' AND member_id = ?",
+                               (HOJE, mid)).fetchone()[0]
+        finally:
+            con.close()
+
+    def test_a_propria_linha_na_ata_vale_como_fala_pronta(self):
+        self.salvar(self.ana, "feito", "#101")
+        r = self.salvar(self.ana, "planejado", "#102")
+        self.assertEqual(self.origem(self.ana), "proprio")
+        self.assertEqual(r.get_json()["minijogo"]["jogo"], "fala_pronta")
+        self.assertIn("fala_pronta", self.jogadas())
+
+    def test_a_linha_de_outra_pessoa_continua_relatada(self):
+        self.salvar(self.bia, "feito", "a")
+        self.salvar(self.bia, "planejado", "b")
+        self.assertEqual(self.origem(self.bia), "relator")
+        self.assertEqual(self.jogadas(self.bia), set())
+
+    def test_fala_antiga_do_relator_na_propria_linha_vale_ao_abrir_o_jardim(self):
+        con = sqlite3.connect(DB)
+        con.execute("INSERT OR IGNORE INTO atas (data, tipo) VALUES (?, 'daily')", (HOJE,))
+        con.execute("UPDATE atas SET relator_id = ? WHERE data = ? AND tipo = 'daily'", (self.ana, HOJE))
+        con.execute("INSERT INTO ata_falas (data, tipo, member_id, feito, planejado, origem, atualizada_em) "
+                    "VALUES (?, 'daily', ?, 'a', 'b', 'relator', '2026-10-20 09:00:00')", (HOJE, self.ana))
+        con.execute("INSERT INTO ata_falas (data, tipo, member_id, feito, planejado, origem, atualizada_em) "
+                    "VALUES (?, 'daily', ?, 'a', 'b', 'relator', '2026-10-20 09:00:00')", (HOJE, self.bia))
+        con.execute("INSERT INTO minijogos (member_id, data, jogo, criado_em) VALUES (?, ?, 'vez_daily', "
+                    "'2026-10-20 10:00:00')", (self.ana, HOJE))
+        con.commit()
+        con.close()
+        os.environ["ADMIN_LOCAL"] = "0"
+        self.cel.get("/eu")
+        self.assertIn("fala_pronta", self.jogadas())
+        bia = appmod.app.test_client()
+        with bia.session_transaction() as sess:
+            sess["eu"] = self.bia
+        bia.get("/eu")
+        self.assertEqual(self.jogadas(self.bia), set())          # a fala que o relator escreveu por ela nao paga

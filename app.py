@@ -3346,13 +3346,21 @@ def api_ata_salvar():
         return _erro(MSG_SO_ADMIN, 403)
     _garantir_ata(db, data_str, tipo)
     resposta = {"ok": True}
+    # O Scrum (ou o admin) que escreve a PROPRIA linha na ata ou na rodada nao esta relatando ninguem:
+    # a fala e dele ("proprio"), rende o premio da daily e nao conta no bonus de relator.
+    eu = _eu_membro(db)
+    eu_id = eu["id"] if eu is not None else None
 
     if campo in ("feito", "planejado"):
         mid = _int_ou_none(p.get("member_id"))
         if mid is None:
             return _erro("Pessoa inválida.")
         texto = (p.get("valor") or "")
-        _salvar_fala(db, data_str, tipo, mid, origem="relator", **{campo: texto})
+        _salvar_fala(db, data_str, tipo, mid, origem="proprio" if mid == eu_id else "relator", **{campo: texto})
+        if mid == eu_id and tipo == "daily":
+            ganhou = _premiar_daily(db, mid, data_str)
+            if ganhou:
+                resposta["minijogo"] = {"jogo": ganhou, "ganhou": game.MINIJOGOS[ganhou][0]}
         # relatar a fala de alguem conta como presenca (a menos que ele tenha avisado)
         if texto.strip():
             evento = ATA_EVENTO[tipo]
@@ -3369,7 +3377,7 @@ def api_ata_salvar():
         mid = _int_ou_none(p.get("member_id"))
         if mid is None:
             return _erro("Pessoa inválida.")
-        _salvar_fala(db, data_str, tipo, mid, review=(p.get("valor") or ""), origem="relator")
+        _salvar_fala(db, data_str, tipo, mid, review=(p.get("valor") or ""), origem="proprio" if mid == eu_id else "relator")
     elif campo == "bloqueio_pessoal":
         # impedimento de UMA pessoa (o relator pode preencher por ela). Nunca rende semente
         # e nao mexe na presenca. Diferente do 'bloqueios' (impedimento geral do dia).
@@ -3521,8 +3529,14 @@ def _premiar_daily(db, member_id, data_str):
         return None
     f = db.execute("SELECT feito, planejado, origem, atualizada_em FROM ata_falas "
                    "WHERE data = ? AND tipo = 'daily' AND member_id = ?", (data_str, member_id)).fetchone()
-    if not (f and (f["feito"] or "").strip() and (f["planejado"] or "").strip() and (f["origem"] or "") == "proprio"):
+    if not (f and (f["feito"] or "").strip() and (f["planejado"] or "").strip()):
         return None
+    if (f["origem"] or "") != "proprio":
+        # A linha do proprio relator (Scrum) marcada como 'relator' foi escrita por ele mesmo na ata
+        # ou na rodada (falas antigas, de antes dessa marca virar 'proprio'): vale como dele.
+        ata = db.execute("SELECT relator_id FROM atas WHERE data = ? AND tipo = 'daily'", (data_str,)).fetchone()
+        if not (f["origem"] == "relator" and ata and ata["relator_id"] == member_id):
+            return None
     feitas = _jogadas_do_dia(db, member_id, data_str)
     if feitas & {"fala_pronta", "fala_avisada", "fala_daily"}:
         return None
