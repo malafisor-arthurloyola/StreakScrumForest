@@ -38,11 +38,11 @@
   {% if vendo_amanha %}<p class="sub sub-secao">Preparando a véspera: a fala e o cuidado de amanhã já podem ficar prontos hoje. As sementes valem no dia, quando você marcar presença (o aviso vale na hora).</p>{% endif %}
   {% if mj.letivo %}
   <ol class="ritual-passos">
-    <li class="passo" data-passo="fala" data-estado="{{ 'feito' if (mj.fala_pronta or mj.fala_avisada) else ('perdido' if mj.vez_passou else 'aberto') }}">
+    <li class="passo" data-passo="fala" data-estado="{{ 'feito' if (mj.fala_pronta or mj.fala_avisada or mj.fala_daily) else ('perdido' if mj.vez_passou else 'aberto') }}">
       <a href="#fala-daily">
         <span class="passo-n" aria-hidden="true">1</span>
-        <span class="passo-txt"><b>Fala pronta</b><small>{% if mj.fala_pronta %}pronta antes da daily{% elif mj.fala_avisada %}avisou que não vai{% elif mj.vez_passou %}sua vez já passou {{ quando }}{% else %}antes da sua vez na daily{% endif %}</small></span>
-        <span class="passo-sem">+{{ seeds_mj.fala_avisada if mj.fala_avisada else seeds_mj.fala_pronta }}</span>
+        <span class="passo-txt"><b>Fala pronta</b><small>{% if mj.fala_pronta %}pronta antes da daily{% elif mj.fala_avisada %}avisou que não vai{% elif mj.fala_daily %}daily preenchida{% elif mj.vez_passou %}sua vez já passou: preencha a daily{% else %}antes da sua vez na daily{% endif %}</small></span>
+        <span class="passo-sem">+{{ seeds_mj.fala_avisada if mj.fala_avisada else (seeds_mj.fala_daily if (mj.vez_passou and not mj.fala_pronta) else seeds_mj.fala_pronta) }}</span>
       </a>
     </li>
     <li class="passo" data-passo="cuidar" data-estado="{{ 'feito' if mj.cuidar else 'aberto' }}">
@@ -79,8 +79,8 @@
   {% for f in minhas_falas %}
   <article class="eu-fala-bloco" data-tipo="{{ f.tipo }}" id="fala-{{ f.tipo }}">
     {% if f.tipo == 'daily' %}
-      {% set est = 'pronta' if mj.fala_pronta else ('avisou' if mj.fala_avisada else 'rascunho') %}
-      {% set est_txt = {'pronta': 'Pronta', 'avisou': 'Avisou que não vai', 'rascunho': 'Rascunho'}[est] %}
+      {% set est = 'pronta' if mj.fala_pronta else ('avisou' if mj.fala_avisada else ('preenchida' if mj.fala_daily else 'rascunho')) %}
+      {% set est_txt = {'pronta': 'Pronta', 'avisou': 'Avisou que não vai', 'preenchida': 'Preenchida', 'rascunho': 'Rascunho'}[est] %}
     {% else %}
       {% set est = 'pronta' if mj.fechamento_pronto else 'rascunho' %}
       {% set est_txt = {'pronta': 'Dia fechado', 'rascunho': 'Rascunho'}[est] %}
@@ -130,8 +130,11 @@
         {% elif mj.fala_avisada %}
         <p class="selo-pronto selo-aviso">Você avisou que não vai à daily. <b>+{{ seeds_mj.fala_avisada }}</b></p>
         <button type="button" class="link-acao" data-minijogo-simples="desavisar">Vou à daily, desfazer o aviso</button>
+        {% elif mj.fala_daily %}
+        <p class="selo-pronto">Daily preenchida <b>+{{ seeds_mj.fala_daily }}</b></p>
         {% elif mj.vez_passou %}
-        <p class="fala-acao-nota">Sua vez na daily já passou hoje: a fala continua valendo na ata. Amanhã, deixe pronta antes.</p>
+        <p class="fala-acao-nota">Sua vez na daily já passou hoje, mas preencher a sua parte ainda rende +{{ seeds_mj.fala_daily }}. Amanhã, deixe pronta antes da sua vez e ganhe +{{ seeds_mj.fala_pronta }}.</p>
+        <button type="button" class="btn btn-primary btn-minijogo" data-minijogo="fala-daily">Daily preenchida <span class="btn-sem">+{{ seeds_mj.fala_daily }}</span></button>
         {% elif mj.letivo %}
         <button type="button" class="btn btn-primary btn-minijogo" data-minijogo="fala-pronta">Fala pronta <span class="btn-sem">+{{ seeds_mj.fala_pronta }}</span></button>
         {% if mj.status_daily != 'presente' and mj.status_daily != 'faltou' %}
@@ -454,12 +457,12 @@
             if (!j) { btn.disabled = false; return; }
             comemorar(bloco, j.ganhou);
             var SELO = { fechamento: ['Dia fechado', 'Dia fechado'], avisar: ['Você avisou que não vai à daily.', 'Avisou que não vai'],
-                         'fala-pronta': ['Fala pronta antes da daily', 'Pronta'] }[jogo];
+                         'fala-pronta': ['Fala pronta antes da daily', 'Pronta'], 'fala-daily': ['Daily preenchida', 'Preenchida'] }[jogo];
             var p = document.createElement('p');
             p.className = 'selo-pronto' + (jogo === 'avisar' ? ' selo-aviso' : '');
             p.innerHTML = SELO[0] + ' <b>+' + (j.ganhou || 0) + '</b>';
             var chip = bloco.querySelector('.fala-estado');
-            if (chip) { chip.textContent = SELO[1]; chip.dataset.estado = jogo === 'avisar' ? 'avisou' : 'pronta'; }
+            if (chip) { chip.textContent = SELO[1]; chip.dataset.estado = jogo === 'avisar' ? 'avisou' : (jogo === 'fala-daily' ? 'preenchida' : 'pronta'); }
             var acao = btn.closest('.fala-acao');
             acao.innerHTML = '';
             acao.appendChild(p);
@@ -621,6 +624,7 @@
     }
     if (e.fala_pronta) passo('fala', 'feito', 'pronta antes da daily');
     else if (e.fala_avisada) passo('fala', 'feito', 'avisou que não vai');
+    else if (e.fala_daily) passo('fala', 'feito', 'daily preenchida');
     if (e.fechamento_pronto) passo('fechamento', 'feito', 'Day Closing preenchido');
     if (e.cuidar) passo('cuidar', 'feito', 'cuidada ' + QUANDO);
     var sec = document.getElementById('cuidar');

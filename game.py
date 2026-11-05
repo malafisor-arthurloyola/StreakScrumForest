@@ -59,6 +59,7 @@ SEED_RELATOR_MAX_POR_ATA = 3   # limite do bonus do relator por ata (Daily ou Da
 # antes da vez da pessoa na rodada); aqui so se conta o que foi gravado.
 SEED_FALA_PRONTA = 5          # fala da daily pronta antes da sua vez na rodada
 SEED_FALA_AVISADA = 3         # avisou pelo celular que nao vai a daily (antes, nao depois)
+SEED_FALA_DAILY = 3           # preencheu a propria daily depois da sua vez, sem ter feito a Fala pronta
 SEED_FECHAMENTO_PRONTO = 3    # Day Closing preenchido no proprio dia
 SEED_CUIDAR = 3               # regar, adubar e carinho, a qualquer hora do dia
 SEED_FIGURINHA = 10           # semana do Album da estacao revelada
@@ -69,6 +70,7 @@ FALAS_DO_ALBUM = ("fala_pronta", "fala_avisada")    # avisar tambem conta: melho
 MINIJOGOS = {
     "fala_pronta": (SEED_FALA_PRONTA, "Fala pronta"),
     "fala_avisada": (SEED_FALA_AVISADA, "Avisou que não ia à daily"),
+    "fala_daily": (SEED_FALA_DAILY, "Daily preenchida"),
     "fechamento_pronto": (SEED_FECHAMENTO_PRONTO, "Fechamento pronto"),
     "cuidar": (SEED_CUIDAR, "Cuidou da planta"),
 }
@@ -752,10 +754,15 @@ def premios_minijogos(jogadas, semanas_projeto, registros_por_data, sprint_seman
             return True
         return reg.get("presente", False)
 
-    validas = sorted({(d, j) for d, j in jogadas if j in MINIJOGOS and d in letivos and vale(d, j)})
+    validas = {(d, j) for d, j in jogadas if j in MINIJOGOS and d in letivos and vale(d, j)}
+    # Daily preenchida (+3) e o minimo para quem nao preparou a fala antes: se no mesmo dia houve
+    # Fala pronta ou aviso, so esse vale (nunca os dois).
+    com_preparo = {d for d, j in validas if j in ("fala_pronta", "fala_avisada")}
+    validas = sorted((d, j) for d, j in validas if not (j == "fala_daily" and d in com_preparo))
     premios = []
     detalhes = {"fala_pronta": "a fala da daily estava pronta antes da sua vez",
                 "fala_avisada": "avisou pelo celular que não ia à daily",
+                "fala_daily": "preencheu a própria daily depois da sua vez",
                 "fechamento_pronto": "o Day Closing ficou preenchido", "cuidar": "regou, adubou e fez carinho"}
     for d, j in validas:
         valor, rotulo = MINIJOGOS[j]

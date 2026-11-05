@@ -271,3 +271,10 @@ total esperado (`tests/test_catalog.py`, `tests/test_game.py`) avisam se o equil
   da sexta conta o dia inteiro; falta/aviso em Dev ou encerramento de sexta não contam (nem os antigos);
   presença antiga neles continua valendo. Teto do dedicado com minigames 1.000 -> 946 (base 135 -> 117,
   atas 90 -> 81, "Fechar o dia" -27). Preços iguais. Ver 3.1.
+- **Daily preenchida (05/11/2026)**: quem não deixou a fala pronta antes da sua vez na rodada ganhava
+  só o +1 da ata ao preencher a daily depois (caso de 05/11). Agora a própria pessoa
+  ganha **+3** (`SEED_FALA_DAILY`, minigame `fala_daily`) ao preencher O que fiz e O que vou fazer em Meu
+  jardim no mesmo dia, depois da vez dela, com presença. É um prêmio da daily por dia: quem fez a Fala
+  pronta (+5) ou avisou (+3) não soma os +3 (regra em `game.premios_minijogos` e na rota). Fala escrita
+  pelo relator não conta (o relator já tem o bônus dele). Não entra no Álbum da estação (o álbum premia a
+  fala preparada antes). O teto do dedicado não muda (ele faz a Fala pronta todo dia). Preços iguais.

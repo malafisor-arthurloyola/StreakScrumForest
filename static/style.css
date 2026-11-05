@@ -2332,7 +2332,7 @@ body.holofote-escuro .cena.holofote-ativo { position: relative; z-index: 901; }
 .fala-cab { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
 .fala-cab h3 { margin: 0; font-size: var(--t-md); }
 .fala-estado { padding: 3px 10px; border-radius: 999px; font-size: var(--t-xs); font-weight: 700; background: var(--s3); color: var(--ink2); }
-.fala-estado[data-estado="pronta"] { background: rgba(79, 219, 155, 0.16); color: var(--ok); }
+.fala-estado[data-estado="pronta"], .fala-estado[data-estado="preenchida"] { background: rgba(79, 219, 155, 0.16); color: var(--ok); }
 .fala-estado[data-estado="avisou"] { background: rgba(109, 185, 255, 0.16); color: var(--aviso); }
 .fala-salvo { margin-left: auto; color: var(--ink2); font-size: var(--t-xs); }
 .fala-salvo.pisca { animation: salvo-pisca 1.2s ease-out; }
