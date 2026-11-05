@@ -11,6 +11,8 @@ Dados ficam salvos em um banco SQLite real (`data/strikes.db`), nao em localStor
 - [docs/PROCESSO.md](docs/PROCESSO.md): relato do processo de criação, patch notes, problemas encontrados e correções.
 - [docs/BALANCEAMENTO.md](docs/BALANCEAMENTO.md): as contas por trás das sementes e dos preços.
 - [docs/HANDOFF-KIRO.md](docs/HANDOFF-KIRO.md) e [docs/HANDOFF-KIRO-2.md](docs/HANDOFF-KIRO-2.md): notas de passagem entre agentes.
+- [ACORDO-DE-COLABORACAO.md](ACORDO-DE-COLABORACAO.md): como contribuir por merge request e a divisão de eventuais
+  lucros (60% para o autor, 40% entre os colaboradores). Quem contribui registra o aceite na tabela do final.
 
 ## Como rodar
 
