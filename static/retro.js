@@ -808,6 +808,8 @@
         '<label class="campo">Em poucas palavras<textarea id="fTxt" rows="2" maxlength="80"></textarea></label>' + sug('fTxt', pb ? SUG.problema : SUG.bom) +
         '<p class="rot">Em que parte do dia?</p>' + chips('area', AREAS, rp && rp.area ? rp.area : 'dev') + '<p class="aj" id="fMsg">' + resumoEnviados() + '</p>' +
         '<div class="acoes"><button type="button" class="pri" id="bEnviar">Enviar</button></div>';
+    } else if (S.fase === 'eu' && !S.probs.length) {
+      h = '<p class="passo">Momento 3 de 3</p><h2>Eu também</h2><p class="aj">Ainda não há problemas para marcar. Quem conduz vai voltar ao momento 1 para o time escrever o que atrapalhou.</p>' + htmlPendente() + '<div id="vivo"></div>';
     } else if (S.fase === 'eu') {
       var sel = meu.eu || (S.euDe[EU] || []).slice();
       meu.eu = sel;
@@ -890,7 +892,7 @@
   function reabrirProx() { var b = document.getElementById('bProx'); if (b) b.disabled = false; avancouEm = 0; }
   function avancar() {
         if (S.fase === 'abertura') irPara('problemas');
-        else if (S.fase === 'problemas') irPara('bons');
+        else if (S.fase === 'problemas') { if (!S.probs.length && !confirm('Ninguém mandou problema ainda. Passar para "o que foi bom" mesmo assim?')) { reabrirProx(); return; } irPara('bons'); }
         else if (S.fase === 'bons') irPara('eu');
         else if ((S.fase === 'eu' || S.fase === 'euRes') && !S.probs.length) irPara('problemas');
         else if (S.fase === 'eu') irPara('euRes');
