@@ -603,6 +603,7 @@
     if (txt !== ultimoEnviado) { snap.t = t; corpo.estado = snap; }
     postar('/api/retro/host', corpo).then(function (r) {
       hostEnviando = false;
+      if (r.status === 404) { hostParado = true; aviso('A retro foi reiniciada.', 'info'); setTimeout(function () { location.href = '/retro'; }, 800); return; }
       if (r.status === 409 || r.status === 403) { hostParado = true; aviso((r.j && r.j.erro) || 'Outro aparelho assumiu o telão. Esta tela agora só mostra.', 'erro'); setTimeout(function () { location.href = '/retro'; }, 1500); return; }
       if (r.ok && corpo.estado) ultimoEnviado = txt;
       if (r.ok && r.j.acoes) { r.j.acoes.forEach(aplicar); if (r.j.acoes.length) renderPainel(); }
@@ -639,7 +640,7 @@
   function cicloJogador() {
     if (document.hidden) return;
     fetch('/api/retro/estado' + (rev != null ? '?rev=' + rev : '')).then(function (r) { return r.json(); }).then(function (j) {
-      if (!j.ativa) return;
+      if (!j.ativa) { if (rev != null) { aviso('A retro foi reiniciada.', 'info'); setTimeout(function () { location.href = '/retro'; }, 800); } return; }
       if (j.estado) {
         var faseAntes = ultimaFaseVista;
         aplicarSnapshot(j.estado); rev = j.rev;
@@ -957,6 +958,13 @@
   if (bAss) bAss.onclick = function () {
     if (!hostParadoVisto && !confirm('O telão está funcionando em outro aparelho. Trazer o telão para este aparelho? O outro passa a só mostrar o jogo.')) return;
     postar('/api/retro/assumir', {}).then(function (r) { if (r.ok) location.href = r.j.url; else aviso((r.j && r.j.erro) || 'Não deu.', 'erro'); }); };
+
+  var bRei = document.getElementById('retro-reiniciar');
+  if (bRei) bRei.onclick = function () {
+    if (!confirm('Reiniciar a retro de hoje? Tudo o que o time mandou (problemas, ideias, agradecimentos) será apagado e todas as telas voltam para o começo.')) return;
+    bRei.disabled = true;
+    postar('/api/retro/reiniciar', {}).then(function (r) { if (r.ok) location.href = r.j.url; else { bRei.disabled = false; aviso((r.j && r.j.erro) || 'Não deu.', 'erro'); } });
+  };
 
   function retomar(e) {
     if (!e || !e.v) return;

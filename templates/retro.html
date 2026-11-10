@@ -45,6 +45,9 @@
     {% if pode_conduzir and not (telao and sou_host) %}
       <button type="button" class="btn" id="retro-assumir">Conduzir daqui (este aparelho vira o telão)</button>
     {% endif %}
+    {% if pode_conduzir %}
+      <button type="button" class="btn btn-ghost" id="retro-reiniciar">Reiniciar a retro</button>
+    {% endif %}
   </div>
   <div class="retro-palco">
     <canvas id="retro-canvas" width="1600" height="900" aria-label="Tabuleiro animado da Defesa do Canteiro"></canvas>
