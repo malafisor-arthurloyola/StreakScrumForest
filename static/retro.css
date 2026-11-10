@@ -75,7 +75,9 @@
 .ficha .barras{display:grid;gap:6px}.ficha .br{display:grid;grid-template-columns:1fr 34%  22px;gap:8px;align-items:center;font-size:13.5px}.ficha .bt{font-weight:700;line-height:1.25}.ficha .bt em{font-style:normal;font-size:11px;background:#2f9a5d;color:#fff;border-radius:6px;padding:1px 5px}
 .ficha .bb{height:12px;background:#ead9bb;border-radius:6px;overflow:hidden}.ficha .bb i{display:block;height:100%;background:#a86a43;border-radius:6px}.ficha .br.forte .bb i{background:#d9463b}.ficha .br b{text-align:right}
 .ficha .sint{margin:0;font-size:14px;background:#e8f6c6;border-radius:10px;padding:8px 10px;line-height:1.4}
-@media (max-width:760px){.ficha{position:static;width:auto;max-height:none;border-radius:0 0 18px 18px;border-width:0 4px 4px}}
+/* no celular a ficha (onde a pessoa responde) vem antes do tabuleiro, sem precisar rolar */
+@media (max-width:760px){.retro-palco{display:flex;flex-direction:column}.ficha{position:static;order:-1;width:auto;max-height:none;border-radius:18px 18px 0 0;border-width:4px 4px 0}}
+.ficha .pend{background:#fff;border:2px dashed #ffb72e;border-radius:12px;padding:8px 10px;display:grid;gap:4px}
 /* o site usa .top (planta balancando) e .linha (linha da tabela do dia) para outras coisas */
 .ficha .top{animation:none;transform:none;transition:none}
 .ficha .linha{padding:0;background:none;border-radius:0}

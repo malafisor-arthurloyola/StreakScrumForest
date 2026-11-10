@@ -4242,7 +4242,8 @@ RETRO_ACOES = ("clima", "problema", "bom", "eu", "porque", "ideia", "apoio", "co
                "topo", "naotopo", "toque", "obrigado", "roti")
 RETRO_TEXTO_MAX = 80
 RETRO_ESTADO_MAX = 200_000          # bytes do estado gravado pelo telao
-RETRO_HOST_PARADO_S = 15            # telao sem dar sinal ha mais que isso: outro pode assumir
+RETRO_HOST_PARADO_S = 15            # telao sem dar sinal ha mais que isso: quem conduz pode assumir de outro aparelho
+MSG_RETRO_SO_CONDUZ = "Só quem conduz a retro (administrador ou Scrum do dia) começa e avança o jogo."
 RETRO_ESPECIES_COM_IMAGEM = {"muda", "girassol", "cacto", "cogumelo", "carnivora", "lavanda", "cerejeira",
                              "bambu", "bonsai", "jabuticabeira", "ipe", "baoba"}
 
@@ -4374,6 +4375,35 @@ def _acao_retro_valida(tipo, d):
     return None
 
 
+RETRO_ANTES_DAS_RODADAS = ("abertura", "problemas", "bons", "eu", "euRes")
+
+
+def _retro_acao_fora_de_hora(estado, tipo, dados):
+    """Mensagem de erro se a acao nao cabe mais na etapa em que o telao esta; None se cabe.
+    Sem isso a pessoa recebia "ok", mas o telao ja tinha passado de etapa e descartava a resposta."""
+    if not isinstance(estado, dict) or not estado.get("fase"):
+        return None                     # o telao ainda nao gravou nada: deixa entrar
+    fase = estado.get("fase")
+    atual = estado.get("atual") if isinstance(estado.get("atual"), dict) else None
+    if tipo == "clima":
+        ok = fase in RETRO_ANTES_DAS_RODADAS
+    elif tipo in ("problema", "bom"):
+        ok = fase in RETRO_ANTES_DAS_RODADAS
+    elif tipo == "eu":
+        ok = fase in ("eu", "euRes")
+    elif tipo in ("porque", "ideia", "apoio", "completar", "topo", "naotopo"):
+        fases = ("topo",) if tipo in ("topo", "naotopo") else ("conversa", "topo")
+        ok = (fase == "rodada" and atual is not None and atual.get("fase") in fases
+              and dados.get("rodada") in (None, estado.get("rodadas")))
+    elif tipo == "toque":
+        ok = fase == "rodada"
+    elif tipo in ("obrigado", "roti"):
+        ok = fase in ("fecho", "fim")
+    else:
+        ok = True
+    return None if ok else "Essa etapa já passou no telão. Sua tela vai atualizar em instantes."
+
+
 @app.route("/retro")
 def retro_page():
     db = get_db()
@@ -4387,21 +4417,22 @@ def retro_page():
         "retro.html", retro=retro, hoje=hoje, dia_de_retro=hoje in dias, sprint_n=dias.get(hoje) or _sprint_atual(db),
         proximas=[{"data": d, "n": n} for d, n in sorted(dias.items()) if d >= hoje][:3],
         eu=eu, membros=_retro_membros(db), sou_host=host, telao=telao,
-        pode_iniciar=bool(eu or eh_admin()) and (hoje in dias or eh_admin()),
+        pode_iniciar=eh_admin(), pode_conduzir=eh_admin(),
     )
 
 
 @app.route("/api/retro/iniciar", methods=["POST"])
 def api_retro_iniciar():
-    """Comeca a retro de hoje (ou entra na que ja comecou). Quem comeca fica com o telao."""
+    """Comeca a retro de hoje (ou entra na que ja comecou). So quem conduz (administrador ou
+    Scrum do dia) comeca, e o aparelho dele vira o telao. As outras pessoas so entram como jogador."""
     db = get_db()
     hoje = date.today().isoformat()
     dias = _dias_de_retro(db)
-    if not (_eu_id() is not None or eh_admin()):
-        return _erro("Entre no Meu jardim para começar a retro.", 403)
-    if hoje not in dias and not eh_admin():
-        return _erro("Hoje não é dia de retro. A retro é no último dia letivo de cada sprint.", 403)
     retro = _retro_de_hoje(db)
+    if retro is not None and session.get("retro_host") != retro["host_token"]:
+        return jsonify({"ok": True, "telao": False, "url": url_for("retro_page")})
+    if not eh_admin():
+        return _erro(MSG_RETRO_SO_CONDUZ, 403)
     if retro is None:
         token = secrets.token_hex(16)
         db.execute("INSERT INTO retro (data, sprint, host_token, host_visto, criada_por) VALUES (?, ?, ?, datetime('now'), ?)",
@@ -4416,15 +4447,14 @@ def api_retro_iniciar():
 
 @app.route("/api/retro/assumir", methods=["POST"])
 def api_retro_assumir():
-    """Outro aparelho vira o telao: quando o telao parou de responder, ou a pedido do administrador."""
+    """Outro aparelho vira o telao. So quem conduz (administrador ou Scrum do dia) pode, a qualquer
+    momento: participante nenhum assume o jogo, nem com o telao parado."""
     db = get_db()
     retro = _retro_de_hoje(db)
     if retro is None:
         return _erro("A retro de hoje ainda não começou.", 404)
-    if not (_eu_id() is not None or eh_admin()):
-        return _erro("Entre no Meu jardim para conduzir a retro.", 403)
-    if not _retro_host_parado(db, retro) and not eh_admin():
-        return _erro("O telão está funcionando em outro aparelho. Peça para quem conduz, ou espere ele parar.", 409)
+    if not eh_admin():
+        return _erro(MSG_RETRO_SO_CONDUZ, 403)
     token = secrets.token_hex(16)
     db.execute("UPDATE retro SET host_token = ?, host_visto = datetime('now') WHERE id = ?", (token, retro["id"]))
     db.commit()
@@ -4441,6 +4471,8 @@ def api_retro_host():
         return _erro("A retro de hoje ainda não começou.", 404)
     if not session.get("retro_host") or session.get("retro_host") != retro["host_token"]:
         return _erro("Outro aparelho assumiu o telão.", 409)
+    if not eh_admin():
+        return _erro(MSG_RETRO_SO_CONDUZ, 403)
     p = request.get_json(force=True, silent=True) or {}
     rev = retro["rev"]
     if "estado" in p:
@@ -4468,7 +4500,7 @@ def api_retro_estado():
     if retro is None:
         return jsonify({"ok": True, "ativa": False, "eu": _eu_id()})
     resp = {"ok": True, "ativa": True, "rev": retro["rev"], "eu": _eu_id(),
-            "host_parado": _retro_host_parado(db, retro),
+            "host_parado": _retro_host_parado(db, retro), "pode_conduzir": eh_admin(),
             "sou_host": bool(session.get("retro_host") and session.get("retro_host") == retro["host_token"])}
     if _int_ou_none(request.args.get("rev")) != retro["rev"] and retro["estado"]:
         resp["estado"] = json.loads(retro["estado"])
@@ -4489,6 +4521,13 @@ def api_retro_acao():
     dados = _acao_retro_valida(tipo, p.get("dados") or {})
     if dados is None:
         return _erro("Ação inválida.")
+    try:
+        estado = json.loads(retro["estado"]) if retro["estado"] else None
+    except ValueError:
+        estado = None
+    fora = _retro_acao_fora_de_hora(estado, tipo, dados)
+    if fora:
+        return _erro(fora, 409)
     n = db.execute("SELECT COUNT(*) FROM retro_acoes WHERE retro_id = ? AND member_id = ?", (retro["id"], mid)).fetchone()[0]
     if n >= 400:
         return _erro("Ações demais nesta retro.", 429)
