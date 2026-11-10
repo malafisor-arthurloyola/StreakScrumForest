@@ -60,9 +60,11 @@ SEGURANCA: o token do GitLab e o SYNC_TOKEN NUNCA aparecem em mensagens nem no s
 falhar, a mensagem de erro nao mostra segredos.
 """
 import argparse
+import http.client
 import json
 import os
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -73,9 +75,23 @@ if RAIZ not in sys.path:
     sys.path.insert(0, RAIZ)
 import gitlab_sync  # noqa: E402
 
-TIMEOUT = 20
-POR_PAGINA = 100
-MAX_PAGINAS = 50          # trava de seguranca (ate 5000 issues)
+TIMEOUT = 30
+# Paginas menores: cada issue vem com a descricao inteira, entao 100 por pagina passava de
+# 500 KB e a conexao com o GitLab da faculdade as vezes caia no meio (IncompleteRead).
+# Da para trocar com GITLAB_POR_PAGINA no .env (1 a 100).
+POR_PAGINA = 40
+MAX_PAGINAS = 200         # trava de seguranca (ate 8000 issues com 40 por pagina)
+TENTATIVAS = 4            # quantas vezes tenta cada pagina antes de desistir
+ESPERA_INICIAL = 2        # segundos; dobra a cada tentativa (2, 4, 8)
+
+# Falhas de rede que valem uma nova tentativa (conexao cortada, tempo esgotado, servidor ocupado).
+_ERROS_TRANSITORIOS = (
+    http.client.IncompleteRead,
+    http.client.RemoteDisconnected,
+    ConnectionError,       # inclui ConnectionResetError e ConnectionAbortedError
+    TimeoutError,          # inclui socket.timeout
+)
+_HTTP_TRANSITORIOS = (429, 500, 502, 503, 504)
 
 
 def _env(nome, padrao=None, obrigatorio=False):
@@ -119,66 +135,90 @@ def _sair(msg, codigo=1):
     sys.exit(codigo)
 
 
-def _get_json(url, headers):
-    """GET que devolve (dados_json, cabecalhos). Sem imprimir segredos em caso de erro."""
-    req = urllib.request.Request(url, headers=headers, method="GET")
+def _por_pagina():
+    """Tamanho da pagina: GITLAB_POR_PAGINA do .env (1 a 100) ou o padrao."""
     try:
-        with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
-            corpo = resp.read().decode("utf-8")
-            return json.loads(corpo), dict(resp.headers)
-    except urllib.error.HTTPError as e:
-        _sair(f"O GitLab respondeu {e.code} ao ler as issues. Verifique a URL, o Project ID e o token.")
-    except urllib.error.URLError as e:
-        _sair(f"Nao consegui falar com o GitLab ({e.reason}). Voce esta na rede certa?")
-    except (ValueError, json.JSONDecodeError):
-        _sair("O GitLab devolveu algo que nao e JSON. Verifique a URL.")
+        valor = int(os.environ.get("GITLAB_POR_PAGINA", "") or POR_PAGINA)
+    except ValueError:
+        valor = POR_PAGINA
+    return max(1, min(100, valor))
+
+
+def _esperar(segundos):
+    time.sleep(segundos)
+
+
+def _get_json(url, headers, tentativas=None, espera_inicial=None):
+    """GET que devolve (dados_json, cabecalhos). Sem imprimir segredos em caso de erro.
+
+    Se a conexao cair no meio da resposta (IncompleteRead), estourar o tempo ou o GitLab
+    responder 429/5xx, tenta de novo esperando cada vez mais (2 s, 4 s, 8 s). Erros que nao
+    se resolvem tentando de novo (401, 404, JSON invalido) param na hora."""
+    tentativas = TENTATIVAS if tentativas is None else tentativas
+    espera = ESPERA_INICIAL if espera_inicial is None else espera_inicial
+    ultimo = ""
+    for tentativa in range(1, tentativas + 1):
+        req = urllib.request.Request(url, headers=headers, method="GET")
+        try:
+            with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+                corpo = resp.read().decode("utf-8")
+                return json.loads(corpo), dict(resp.headers)
+        except urllib.error.HTTPError as e:
+            if e.code not in _HTTP_TRANSITORIOS:
+                _sair(f"O GitLab respondeu {e.code} ao ler as issues. Verifique a URL, o Project ID e o token.")
+            ultimo = f"o GitLab respondeu {e.code}"
+        except _ERROS_TRANSITORIOS as e:
+            ultimo = f"a conexao caiu no meio ({type(e).__name__})"
+        except urllib.error.URLError as e:
+            if not isinstance(e.reason, (TimeoutError, ConnectionError)):
+                _sair(f"Nao consegui falar com o GitLab ({e.reason}). Voce esta na rede certa?")
+            ultimo = f"a conexao falhou ({e.reason})"
+        except (ValueError, json.JSONDecodeError):
+            _sair("O GitLab devolveu algo que nao e JSON. Verifique a URL.")
+        if tentativa < tentativas:
+            print(f"Aviso: {ultimo}; tentando de novo em {espera} s "
+                  f"({tentativa + 1}/{tentativas}).", file=sys.stderr)
+            _esperar(espera)
+            espera *= 2
+    _sair(f"Desisti depois de {tentativas} tentativas: {ultimo}. A rede pode estar instavel; "
+          f"tente de novo ou diminua GITLAB_POR_PAGINA no .env (hoje {_por_pagina()}).")
+
+
+def _paginar(base, projeto, token, caminho, filtros):
+    """Le todas as paginas de GET /projects/:id/<caminho> e devolve a lista juntada."""
+    base = base.rstrip("/")
+    projeto_cod = urllib.parse.quote(str(projeto), safe="")
+    headers = {"PRIVATE-TOKEN": token, "Accept": "application/json"}
+    por_pagina = _por_pagina()
+    itens = []
+    for pagina in range(1, MAX_PAGINAS + 1):
+        params = urllib.parse.urlencode(dict(filtros, per_page=por_pagina, page=pagina))
+        url = f"{base}/api/v4/projects/{projeto_cod}/{caminho}?{params}"
+        lote, cabecalhos = _get_json(url, headers)
+        if not isinstance(lote, list) or not lote:
+            break
+        itens.extend(lote)
+        proxima = cabecalhos.get("X-Next-Page") or cabecalhos.get("x-next-page") or ""
+        if not str(proxima).strip():
+            break
+    return itens
 
 
 def ler_issues_do_gitlab(base, projeto, token):
     """Le TODAS as issues abertas do projeto, paginando. Devolve a lista crua (formato da API)."""
-    base = base.rstrip("/")
-    projeto_cod = urllib.parse.quote(str(projeto), safe="")
-    headers = {"PRIVATE-TOKEN": token, "Accept": "application/json"}
-    issues = []
-    for pagina in range(1, MAX_PAGINAS + 1):
-        params = urllib.parse.urlencode({
-            "state": "opened", "per_page": POR_PAGINA, "page": pagina,
-            "with_labels_details": "false",
-        })
-        url = f"{base}/api/v4/projects/{projeto_cod}/issues?{params}"
-        lote, cabecalhos = _get_json(url, headers)
-        if not isinstance(lote, list) or not lote:
-            break
-        issues.extend(lote)
-        proxima = cabecalhos.get("X-Next-Page") or cabecalhos.get("x-next-page") or ""
-        if not str(proxima).strip():
-            break
-    return issues
+    return _paginar(base, projeto, token, "issues", {
+        "state": "opened", "with_labels_details": "false",
+    })
 
 
 def ler_fechadas_do_gitlab(base, projeto, token, dias):
     """Le as issues FECHADAS nos ultimos `dias` dias (para a coluna 'done' / "O que fiz").
     Usa closed_after para nao trazer o historico inteiro."""
     import datetime
-    base = base.rstrip("/")
-    projeto_cod = urllib.parse.quote(str(projeto), safe="")
-    headers = {"PRIVATE-TOKEN": token, "Accept": "application/json"}
     desde = (datetime.date.today() - datetime.timedelta(days=max(0, dias))).isoformat()
-    issues = []
-    for pagina in range(1, MAX_PAGINAS + 1):
-        params = urllib.parse.urlencode({
-            "state": "closed", "closed_after": desde + "T00:00:00Z",
-            "per_page": POR_PAGINA, "page": pagina,
-        })
-        url = f"{base}/api/v4/projects/{projeto_cod}/issues?{params}"
-        lote, cabecalhos = _get_json(url, headers)
-        if not isinstance(lote, list) or not lote:
-            break
-        issues.extend(lote)
-        proxima = cabecalhos.get("X-Next-Page") or cabecalhos.get("x-next-page") or ""
-        if not str(proxima).strip():
-            break
-    return issues
+    return _paginar(base, projeto, token, "issues", {
+        "state": "closed", "closed_after": desde + "T00:00:00Z",
+    })
 
 
 def _carregar_de_arquivo(caminho):
@@ -227,14 +267,14 @@ def ler_membros_do_projeto(base, projeto, token):
     headers = {"PRIVATE-TOKEN": token, "Accept": "application/json"}
     membros = []
     for pagina in range(1, MAX_PAGINAS + 1):
-        params = urllib.parse.urlencode({"per_page": POR_PAGINA, "page": pagina})
+        params = urllib.parse.urlencode({"per_page": _por_pagina(), "page": pagina})
         url = f"{base}/api/v4/projects/{projeto_cod}/members/all?{params}"
         req = urllib.request.Request(url, headers=headers, method="GET")
         try:
             with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
                 lote = json.loads(resp.read().decode("utf-8"))
                 proxima = resp.headers.get("X-Next-Page") or ""
-        except (urllib.error.URLError, ValueError):
+        except (urllib.error.URLError, ValueError) + _ERROS_TRANSITORIOS:
             return None
         if not isinstance(lote, list) or not lote:
             break
