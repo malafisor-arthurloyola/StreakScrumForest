@@ -60,7 +60,7 @@
 <section class="ata-falas" aria-label="Falas">
   {% for l in linhas %}
   {% set minha = (not pode_editar) and eu_id and (l.id == eu_id) %}
-  <article class="ata-linha{{ ' ata-linha-minha' if minha }}" data-member-id="{{ l.id }}" data-status="{{ l.status }}"{{ ' data-minha="1"' if minha }}>
+  <article class="ata-linha{{ ' ata-linha-minha' if minha }}" data-member-id="{{ l.id }}" data-status="{{ l.status }}"{% if minha %} data-minha="1"{% endif %}>
     <div class="ata-linha-topo">
       <h3 class="ata-nome">{{ l.name }}{% if minha %} <span class="ata-selo-eu">você</span>{% endif %} <span class="ata-selo-relator" {{ 'hidden' if not l.e_relator }}>relator</span></h3>
       <div class="ata-status" role="group" aria-label="Situação de {{ l.name }}">
