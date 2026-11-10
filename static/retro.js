@@ -99,6 +99,11 @@
   function forca(d) { return 1 + d.apoios.length + (d.quem ? 1 : 0) + (d.prazo ? 1 : 0) + (d.raiz >= 0 ? 1 : 0); }
   function ordenadas(A) { return A.ideias.slice().sort(function (a, b) { return forca(b) - forca(a) || a.id - b.id; }); }
 
+  // etapas antes das conversas: problema, coisa boa e clima ainda valem em todas elas, para nada se perder
+  // quando quem conduz avanca enquanto alguem termina de escrever
+  var ANTES = ['abertura', 'problemas', 'bons', 'eu', 'euRes'];
+  function antesDasRodadas() { return ANTES.indexOf(S.fase) >= 0; }
+  function daRodada(A, d, fases) { return A && fases.indexOf(A.fase) >= 0 && (d.rodada == null || d.rodada === S.rodadas); }
   function aplicar(a) {
     var m = a.m, d = a.d || {}, A = S.atual;
     if (a.id && a.id <= S.ultimaAcao) return;
@@ -106,42 +111,42 @@
     if (!MEMB[m]) return;
     presente(m);
     switch (a.tipo) {
-      case 'clima': S.climas[m] = d.v; break;
+      case 'clima': if (!antesDasRodadas()) return; S.climas[m] = d.v; break;
       case 'problema':
-        if (S.fase !== 'problemas' && S.fase !== 'abertura') return;
+        if (!antesDasRodadas()) return;
         S.probs.push({ id: S.probs.length + 1, rota: d.area, txt: d.txt });
         efeitos.push({ k: 'balao', t: 'Problema: ' + d.txt, rota: d.area, vida: 3 });
         break;
       case 'bom':
-        if (S.fase !== 'bons' && S.fase !== 'problemas') return;
+        if (!antesDasRodadas()) return;
         S.bons.push({ id: S.bons.length + 1, zona: d.area, txt: d.txt, usada: false });
         efeitos.push({ k: 'balaoBom', t: 'Foi bom: ' + d.txt, zona: d.area, vida: 3 });
         break;
       case 'eu':
-        if (S.fase !== 'eu') return;
+        if (S.fase !== 'eu' && S.fase !== 'euRes') return;
         S.euDe[m] = d.ids.filter(function (x) { return !!probPor(x); }).slice(0, 3);
         d.ids.forEach(function (x) { if (probPor(x)) efeitos.push({ k: 'pop', pid: x, vida: 0.8 }); });
         break;
       case 'porque':
-        if (!A || A.fase !== 'conversa') return;
+        if (!daRodada(A, d, ['conversa', 'topo'])) return;
         if (A.pq.some(function (x) { return x.dono === m; })) return;
         A.pq.push({ dono: m, txt: d.txt });
         if (A.pq.length <= MAXPQ && A.vida > 1) { A.vida--; }
         break;
       case 'ideia':
-        if (!A || A.fase !== 'conversa') return;
+        if (!daRodada(A, d, ['conversa', 'topo'])) return;
         if (A.ideias.some(function (x) { return x.dono === m; })) return;
         A.ideias.push({ id: A.ideias.length, dono: m, t: d.t, txt: d.txt, apoios: [], quem: '', prazo: '', por: {}, raiz: d.raiz >= 0 && d.raiz < A.pq.length ? d.raiz : -1 });
         break;
       case 'apoio':
-        if (!A || A.fase !== 'conversa') return;
+        if (!daRodada(A, d, ['conversa', 'topo'])) return;
         var ia = A.ideias[d.ideia];
         if (!ia || ia.dono === m || ia.apoios.indexOf(m) >= 0) return;
         if (A.ideias.filter(function (x) { return x.apoios.indexOf(m) >= 0; }).length >= APO) return;
         ia.apoios.push(m);
         break;
       case 'completar':
-        if (!A || A.fase !== 'conversa') return;
+        if (!daRodada(A, d, ['conversa', 'topo'])) return;
         var ic = A.ideias[d.ideia];
         if (!ic) return;
         if (d.campo === 'raiz') { if (ic.raiz >= 0 || !(d.valor >= 0 && d.valor < A.pq.length)) return; ic.raiz = d.valor; ic.por.raiz = m; }
@@ -149,11 +154,11 @@
         else if (d.campo === 'prazo') { if (ic.prazo || PRAZOS.indexOf(d.valor) < 0) return; ic.prazo = d.valor; ic.por.prazo = m; }
         break;
       case 'topo':
-        if (!A || A.fase !== 'topo') return;
+        if (!daRodada(A, d, ['topo'])) return;
         if (A.topos.indexOf(m) < 0) A.topos.push(m);
         break;
       case 'naotopo':
-        if (!A || A.fase !== 'topo') return;
+        if (!daRodada(A, d, ['topo'])) return;
         A.fase = 'conversa'; A.topos = []; A.esc = null;
         S.aviso = ini(m) + ' pediu para conversar mais. O plano voltou para o mural.';
         efeitos.push({ k: 'faixa', t: 'Ainda não: de volta à conversa', sub: ini(m) + ' quer conversar mais antes de plantar', vida: 3 });
@@ -163,14 +168,14 @@
         if (lp && lp.pronta > 0 && lp.mun > 0) lp.clique = true;
         break;
       case 'obrigado':
-        if (S.fase !== 'fecho') return;
+        if (S.fase !== 'fecho' && S.fase !== 'fim') return;
         if (!MEMB[d.para] || d.para === m) return;
         if (S.obrigados.some(function (o) { return o.de === m && o.para === d.para; })) return;
         S.obrigados.push({ de: m, para: d.para, txt: d.txt || '' });
         polen(m, d.para);
         break;
       case 'roti':
-        if (S.fase !== 'fecho') return;
+        if (S.fase !== 'fecho' && S.fase !== 'fim') return;
         S.roti[m] = d.v;
         break;
     }
@@ -571,7 +576,11 @@
   function acao(tipo, dados) {
     if (EU == null) { aviso('Entre no Meu jardim para jogar.', 'erro'); return Promise.resolve(false); }
     return postar('/api/retro/acao', { tipo: tipo, dados: dados }).then(function (r) {
-      if (!r.ok) { aviso((r.j && r.j.erro) || 'Não deu para enviar.', 'erro'); return false; }
+      if (!r.ok) {
+        aviso((r.j && r.j.erro) || 'Não deu para enviar.', 'erro');
+        if (r.status === 409 && !TELAO) { rev = null; cicloJogador(); }
+        return false;
+      }
       return true;
     }).catch(function () { aviso('Sem conexão. Tente de novo.', 'erro'); return false; });
   }
@@ -583,15 +592,23 @@
     copia.t = Date.now();
     return copia;
   }
-  var hostEnviando = false, hostParado = false;
-  function cicloHost() {
+  var hostEnviando = false, hostParado = false, ultimoEnviado = '', esperando = [];
+  function cicloHost(depois) {
+    if (typeof depois === 'function') esperando.push(depois);
     if (hostEnviando || hostParado) return;
     hostEnviando = true;
-    postar('/api/retro/host', { estado: snapshot(), desde: S.ultimaAcao }).then(function (r) {
+    var feitos = esperando; esperando = [];
+    var snap = snapshot(), t = snap.t; delete snap.t;
+    var txt = JSON.stringify(snap), corpo = { desde: S.ultimaAcao };
+    if (txt !== ultimoEnviado) { snap.t = t; corpo.estado = snap; }
+    postar('/api/retro/host', corpo).then(function (r) {
       hostEnviando = false;
-      if (r.status === 409) { hostParado = true; aviso('Outro aparelho assumiu o telão. Esta tela agora só mostra.', 'erro'); setTimeout(function () { location.href = '/retro'; }, 1500); return; }
+      if (r.status === 409 || r.status === 403) { hostParado = true; aviso((r.j && r.j.erro) || 'Outro aparelho assumiu o telão. Esta tela agora só mostra.', 'erro'); setTimeout(function () { location.href = '/retro'; }, 1500); return; }
+      if (r.ok && corpo.estado) ultimoEnviado = txt;
       if (r.ok && r.j.acoes) { r.j.acoes.forEach(aplicar); if (r.j.acoes.length) renderPainel(); }
-    }).catch(function () { hostEnviando = false; });
+      feitos.forEach(function (f) { f(r.ok); });
+      if (esperando.length) cicloHost();
+    }).catch(function () { hostEnviando = false; feitos.forEach(function (f) { f(false); }); });
   }
 
   // jogador: aplica o estado que chega
@@ -618,7 +635,7 @@
     efeitos.forEach(function (e) { e.vida -= dt; if (e.k === 'txt') e.y -= 24 * dt; });
     efeitos = efeitos.filter(function (e) { return e.vida > 0; });
   }
-  var ultimaFaseVista = '';
+  var ultimaFaseVista = '', hostParadoVisto = false;
   function cicloJogador() {
     if (document.hidden) return;
     fetch('/api/retro/estado' + (rev != null ? '?rev=' + rev : '')).then(function (r) { return r.json(); }).then(function (j) {
@@ -630,7 +647,9 @@
         if (chaveFase !== faseAntes) { ultimaFaseVista = chaveFase; anunciar(); }
         renderPainel();
       }
-      var bA = document.getElementById('retro-assumir'); if (bA) bA.hidden = !j.host_parado;
+      hostParadoVisto = !!j.host_parado;
+      var bA = document.getElementById('retro-assumir');
+      if (bA) bA.textContent = j.host_parado ? 'O telão parou: conduzir daqui' : 'Conduzir daqui (este aparelho vira o telão)';
     }).catch(function () {});
   }
   function anunciar() {
@@ -661,15 +680,39 @@
     }).join('') + '</div>';
   }
   var chavePainel = '';
+  // o que a pessoa esta escrevendo e ainda nao mandou: quando a etapa muda, o texto nao some
+  var rasc = {};
+  function chaveRasc(id, fase, A) {
+    if (id === 'fTxt' && ANTES.indexOf(fase) >= 0) return 'pb';
+    if (fase === 'rodada' && A) return id + ':' + A.pid;
+    if (fase === 'fecho' || fase === 'fim') return id + ':fecho';
+    return id + ':' + fase;
+  }
+  function guardarRasc(fase, A) {
+    ['fTxt', 'pTxt'].forEach(function (id) {
+      var el = document.getElementById(id); if (!el || !painel.contains(el)) return;
+      var k = chaveRasc(id, fase, A), v = el.value.trim();
+      if (v) rasc[k] = { v: el.value, qual: val('qual'), area: val('area') }; else delete rasc[k];
+    });
+  }
+  function voltarRasc() {
+    ['fTxt', 'pTxt'].forEach(function (id) {
+      var el = document.getElementById(id), r = rasc[chaveRasc(id, S.fase, S.atual)];
+      if (el && r && !el.value) el.value = r.v;
+    });
+  }
+  var faseDoPainel = null, atualDoPainel = null;
   function renderPainel() {
     if (!painel) return;
     var A = S.atual, ch = S.fase + '|' + (A ? A.pid + A.fase : '') + '|' + (TELAO ? 't' : 'j');
     var foco = document.activeElement && painel.contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
     if (ch === chavePainel) { atualizarVivo(); return; }
     if (foco && ch.split('|')[0] === chavePainel.split('|')[0] && ch.split('|')[1] === chavePainel.split('|')[1]) { atualizarVivo(); return; }
-    chavePainel = ch;
+    if (!TELAO) guardarRasc(faseDoPainel, atualDoPainel);
+    chavePainel = ch; faseDoPainel = S.fase; atualDoPainel = A ? { pid: A.pid } : null;
     painel.innerHTML = TELAO ? htmlTelao() : htmlJogador();
     painel.hidden = !painel.innerHTML;
+    if (!TELAO) voltarRasc();
     ligar(); ligaSug(); atualizarVivo();
   }
   // partes que mudam sem refazer o formulario (listas, contadores)
@@ -736,6 +779,20 @@
       return '<article class="id top"><img src="' + BASE + esp(d.dono) + '.png" alt=""><div><p class="q"><b>' + esc(d.dono === EU ? 'Você' : ini(d.dono)) + '</b> · ' + TIPOS[d.t].papel + '</p><p class="tx">' + esc(d.txt) + '</p><p class="ap">' + (d.quem ? 'quem: ' + esc(d.quem === 'TIME' ? 'o time todo' : quem(d.quem)) : 'sem dono ainda') + (d.prazo ? ' · até ' + esc(d.prazo) : '') + '</p></div><div class="lado"><span class="f">' + forca(d) + '</span><small>força</small></div></article>';
     }).join('') + '</div>';
   }
+  function resumoEnviados() {
+    var p = [];
+    if (meu.probs) p.push(meu.probs + (meu.probs === 1 ? ' problema' : ' problemas'));
+    if (meu.bons) p.push(meu.bons + (meu.bons === 1 ? ' coisa boa' : ' coisas boas'));
+    return p.length ? 'Você já mandou ' + p.join(' e ') + '.' : '';
+  }
+  function htmlPendente() {
+    var r = rasc.pb; if (!r) return '';
+    return '<div class="pend" id="pend"><p class="rot">Você não chegou a enviar:</p><p class="aj">"' + esc(r.v.trim()) + '" (' + (r.qual === 'bom' ? 'o que foi bom' : 'o que atrapalhou') + ')</p><div class="acoes"><button type="button" class="sec mini" id="bPend">Enviar agora</button></div></div>';
+  }
+  function euNaoConfirmado() {
+    var conf = (S.euDe[EU] || []).slice().sort().join(','), meus = (meu.eu || []).slice().sort().join(',');
+    return meu.eu && meu.eu.length && conf !== meus;
+  }
   function htmlJogador() {
     var A = S.atual, h = '';
     if (EU == null) return '<p class="passo">Retro da sprint</p><h2>Entre no Meu jardim para jogar</h2><p class="aj">Você está vendo o tabuleiro. Para mandar problemas, ideias e apoios, entre com seu PIN.</p><div class="acoes"><a class="btn btn-primary" href="/eu">Entrar no Meu jardim</a></div>';
@@ -744,20 +801,23 @@
         '<p class="rot">Como você chega nesta retro?</p><p class="aj">Ninguém vê o que você marcou. O céu do jardim mostra a mistura do time.</p>' + chips('clima', CLIMAS, S.climas[EU] || 'sol') +
         '<div class="acoes"><button type="button" class="pri" id="bClima">' + (S.climas[EU] ? 'Trocar' : 'Marcar') + '</button></div><div id="vivo"></div>';
     } else if (S.fase === 'problemas' || S.fase === 'bons') {
-      var pb = S.fase === 'problemas';
-      h = '<p class="passo">' + (pb ? 'Momento 1 de 3' : 'Momento 2 de 3') + '</p><h2>' + (pb ? 'O que atrapalhou nesta sprint?' : 'O que foi bom nesta sprint?') + '</h2><p class="aj">' + (pb ? 'Um problema por vez, quantos quiser. Ninguém vê quem escreveu.' : 'Cada coisa boa vira uma abelha que ajuda as soluções da mesma área.') + '</p>' +
+      var pb = S.fase === 'problemas', rp = rasc.pb;
+      h = '<p class="passo">' + (pb ? 'Momento 1 de 3' : 'Momento 2 de 3') + '</p><h2>' + (pb ? 'O que atrapalhou nesta sprint?' : 'O que foi bom nesta sprint?') + '</h2><p class="aj">' + (pb ? 'Um problema por vez, quantos quiser. Ninguém vê quem escreveu.' : 'Cada coisa boa vira uma abelha que ajuda as soluções da mesma área. Ainda dá para mandar problema.') + '</p>' +
+        '<p class="rot">É sobre</p>' + chips('qual', [['problema', 'o que atrapalhou'], ['bom', 'o que foi bom']], rp && rp.qual ? rp.qual : (pb ? 'problema' : 'bom')) +
         '<label class="campo">Em poucas palavras<textarea id="fTxt" rows="2" maxlength="80"></textarea></label>' + sug('fTxt', pb ? SUG.problema : SUG.bom) +
-        '<p class="rot">Em que parte do dia?</p>' + chips('area', AREAS, 'dev') + '<p class="aj" id="fMsg">' + ((pb ? meu.probs : meu.bons) ? 'Você já mandou ' + (pb ? meu.probs : meu.bons) + '.' : '') + '</p>' +
-        '<div class="acoes"><button type="button" class="pri" id="bEnviar">' + (pb ? 'Soltar praga' : 'Soltar abelha') + '</button></div>';
+        '<p class="rot">Em que parte do dia?</p>' + chips('area', AREAS, rp && rp.area ? rp.area : 'dev') + '<p class="aj" id="fMsg">' + resumoEnviados() + '</p>' +
+        '<div class="acoes"><button type="button" class="pri" id="bEnviar">Enviar</button></div>';
     } else if (S.fase === 'eu') {
       var sel = meu.eu || (S.euDe[EU] || []).slice();
       meu.eu = sel;
       h = '<p class="passo">Momento 3 de 3</p><h2>Eu também</h2><p class="aj">Você tem 3 toques. Toque nos problemas que você também sentiu.</p><div class="lista">' + S.probs.map(function (p) {
         var on = sel.indexOf(p.id) >= 0;
         return '<button type="button" class="it' + (on ? ' on' : '') + '" data-p="' + p.id + '" aria-pressed="' + on + '"><span>' + esc(p.txt) + '</span><small>' + ZONA[p.rota] + '</small></button>';
-      }).join('') + '</div><p class="aj" id="euRest">' + (3 - sel.length) + ' toque(s) restantes</p><div class="acoes"><button type="button" class="pri" id="bEu">' + (S.euDe[EU] ? 'Atualizar' : 'Confirmar') + '</button></div><div id="vivo"></div>';
+      }).join('') + '</div><p class="aj" id="euRest">' + (3 - sel.length) + ' toque(s) restantes</p><div class="acoes"><button type="button" class="pri" id="bEu">' + (S.euDe[EU] ? 'Atualizar' : 'Confirmar') + '</button></div>' + htmlPendente() + '<div id="vivo"></div>';
     } else if (S.fase === 'euRes') {
-      h = '<p class="passo">Momento 3 · resultado</p><h2>O que o time mais sentiu</h2><p class="aj">A ordem das conversas sai daqui.</p><div id="vivo"></div>';
+      h = '<p class="passo">Momento 3 · resultado</p><h2>O que o time mais sentiu</h2><p class="aj">A ordem das conversas sai daqui.</p>' +
+        (euNaoConfirmado() ? '<div class="pend"><p class="rot">Seus toques de "eu também" ainda não foram confirmados.</p><div class="acoes"><button type="button" class="pri" id="bEu">Confirmar agora</button></div></div>' : '') +
+        htmlPendente() + '<div id="vivo"></div>';
     } else if (S.fase === 'rodada' && A && A.fase === 'conversa') {
       var jaIdeia = A.ideias.some(function (d) { return d.dono === EU; }), jaPq = A.pq.some(function (x) { return x.dono === EU; });
       h = '<p class="passo">Rodada ' + S.rodadas + ' · conversa do time</p><h2>' + esc(A.txt) + '</h2><p class="aj" id="tempo"></p>' +
@@ -808,26 +868,53 @@
   function ligar() {
     var $ = function (id) { return document.getElementById(id); };
     if (TELAO) {
-      if ($('bProx')) $('bProx').onclick = function () {
+      if ($('bProx')) {
+        var bp = $('bProx');
+        // um toque duplo no botao pulava duas etapas: ele so volta a valer depois de um instante
+        if (Date.now() - avancouEm < 1200) { bp.disabled = true; setTimeout(function () { bp.disabled = false; }, 1200 - (Date.now() - avancouEm)); }
+        bp.onclick = function () {
+          if (avancando || Date.now() - avancouEm < 1200) return;
+          avancando = true; bp.disabled = true;
+          cicloHost(function () { avancando = false; avancouEm = Date.now(); avancar(); });
+        };
+      }
+      if ($('bEncerrar')) $('bEncerrar').onclick = function () { if (confirm('Encerrar as rodadas agora? Os problemas que faltam vão para a composteira.')) { cicloHost(function () { fimDasRodadas(); renderPainel(); cicloHost(); }); } };
+      return;
+    }
+    ligarJogador($);
+  }
+  var avancando = false, avancouEm = 0;
+  function reabrirProx() { var b = document.getElementById('bProx'); if (b) b.disabled = false; avancouEm = 0; }
+  function avancar() {
         if (S.fase === 'abertura') irPara('problemas');
         else if (S.fase === 'problemas') irPara('bons');
         else if (S.fase === 'bons') irPara('eu');
         else if (S.fase === 'eu') irPara('euRes');
-        else if (S.fase === 'euRes') { if (!S.probs.length) { aviso('Ninguém escreveu problema. Voltem ao momento 1.', 'erro'); return; } montarFila(); S.fase = 'rodada'; tIntervalo = 0.5; }
-        else if (S.fase === 'rodada' && S.atual && S.atual.fase === 'conversa') { if (!S.atual.ideias.length && !confirm('Ninguém pôs ideia no mural. Plantar mesmo assim (a praga passa sem defesa nova)?')) return; propoeTopo(); }
+        else if (S.fase === 'euRes') { if (!S.probs.length) { aviso('Ninguém escreveu problema. Voltem ao momento 1.', 'erro'); reabrirProx(); return; } montarFila(); S.fase = 'rodada'; tIntervalo = 0.5; }
+        else if (S.fase === 'rodada' && S.atual && S.atual.fase === 'conversa') { if (!S.atual.ideias.length && !confirm('Ninguém pôs ideia no mural. Plantar mesmo assim (a praga passa sem defesa nova)?')) { reabrirProx(); return; } propoeTopo(); }
         else if (S.fase === 'rodada' && S.atual && S.atual.fase === 'topo') combinar();
         else if (S.fase === 'fecho') { S.fase = 'fim'; }
         renderPainel(); cicloHost();
-      };
-      if ($('bEncerrar')) $('bEncerrar').onclick = function () { if (confirm('Encerrar as rodadas agora? Os problemas que faltam vão para a composteira.')) { fimDasRodadas(); renderPainel(); cicloHost(); } };
-      return;
-    }
+  }
+  function ligarJogador($) {
     if ($('bClima')) $('bClima').onclick = function () { acao('clima', { v: val('clima') }).then(function (ok) { if (ok) aviso('Marcado.', 'sucesso'); }); };
     if ($('bEnviar')) $('bEnviar').onclick = function () {
       var t = $('fTxt').value.trim(); if (!t) { $('fMsg').textContent = 'Escreva algo antes.'; return; }
-      var pb = S.fase === 'problemas';
-      acao(pb ? 'problema' : 'bom', { txt: t, area: val('area') }).then(function (ok) {
-        if (!ok) return; if (pb) meu.probs++; else meu.bons++; $('fTxt').value = ''; $('fMsg').textContent = 'Você já mandou ' + (pb ? meu.probs : meu.bons) + '. Pode mandar mais.';
+      var tipo = val('qual') || (S.fase === 'bons' ? 'bom' : 'problema'), b = $('bEnviar');
+      b.disabled = true;
+      acao(tipo, { txt: t, area: val('area') }).then(function (ok) {
+        b.disabled = false;
+        if (!ok) return; if (tipo === 'problema') meu.probs++; else meu.bons++;
+        delete rasc.pb; var f = $('fTxt'); if (f) f.value = '';
+        if ($('fMsg')) $('fMsg').textContent = resumoEnviados() + ' Pode mandar mais.';
+        aviso(tipo === 'problema' ? 'Problema enviado.' : 'Coisa boa enviada.', 'sucesso');
+      });
+    };
+    if ($('bPend')) $('bPend').onclick = function () {
+      var r = rasc.pb; if (!r) return;
+      acao(r.qual === 'bom' ? 'bom' : 'problema', { txt: r.v.trim(), area: r.area || 'dev' }).then(function (ok) {
+        if (!ok) return; if (r.qual === 'bom') meu.bons++; else meu.probs++;
+        delete rasc.pb; var p = $('pend'); if (p) p.remove(); aviso('Enviado.', 'sucesso');
       });
     };
     painel.querySelectorAll('.it[data-p]').forEach(function (b) {
@@ -838,7 +925,7 @@
         $('euRest').textContent = (3 - meu.eu.length) + ' toque(s) restantes';
       };
     });
-    if ($('bEu')) $('bEu').onclick = function () { acao('eu', { ids: meu.eu }).then(function (ok) { if (ok) aviso('Eu também enviado.', 'sucesso'); }); };
+    if ($('bEu')) $('bEu').onclick = function () { acao('eu', { ids: meu.eu }).then(function (ok) { if (ok) { aviso('Eu também enviado.', 'sucesso'); if (S.fase === 'euRes') { chavePainel = ''; } } }); };
     if ($('bPq')) $('bPq').onclick = function () { var v = $('pTxt').value.trim(); if (!v) return; acao('porque', { txt: v, rodada: S.rodadas }).then(function (ok) { if (ok) { var l = $('pTxt').closest('.linha'); if (l) l.remove(); var sg = painel.querySelector('[data-sg="pTxt"]'); if (sg) sg.parentNode.remove(); } }); };
     if ($('bIdeia')) $('bIdeia').onclick = function () {
       var v = $('fTxt').value.trim(); if (!v) { aviso('Escreva a ideia.', 'info'); return; }
@@ -867,7 +954,9 @@
 
   // ---------------------------------------------------------------- partida
   var bAss = document.getElementById('retro-assumir');
-  if (bAss) bAss.onclick = function () { postar('/api/retro/assumir', {}).then(function (r) { if (r.ok) location.href = r.j.url; else aviso((r.j && r.j.erro) || 'Não deu.', 'erro'); }); };
+  if (bAss) bAss.onclick = function () {
+    if (!hostParadoVisto && !confirm('O telão está funcionando em outro aparelho. Trazer o telão para este aparelho? O outro passa a só mostrar o jogo.')) return;
+    postar('/api/retro/assumir', {}).then(function (r) { if (r.ok) location.href = r.j.url; else aviso((r.j && r.j.erro) || 'Não deu.', 'erro'); }); };
 
   function retomar(e) {
     if (!e || !e.v) return;
@@ -885,7 +974,8 @@
     if (TELAO) {
       passo(dt);
       pragas.forEach(function (p) { if (p.principal && S.atual) { p.vida = S.atual.vida; p.max = S.atual.max; } });
-      acum += dt; if (acum > 0.25) { acum = 0; atualizarVivo(); }
+      // refaz a ficha quando a praga entra ou sai (senao o botao de combinar so aparecia depois de alguma acao)
+      acum += dt; if (acum > 0.25) { acum = 0; renderPainel(); }
     } else interpolar(dt);
     desenha(t); requestAnimationFrame(laco);
   }

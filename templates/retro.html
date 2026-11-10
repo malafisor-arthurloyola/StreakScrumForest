@@ -12,15 +12,20 @@
   {% if not retro %}
   <div class="retro-espera" id="retro-espera">
     <h2>A retro ainda não começou</h2>
-    {% if dia_de_retro %}
-      <p>Hoje é dia de retro. Quem começar fica com o telão: abra no computador ligado ao projetor. As outras pessoas abrem esta página no celular e jogam de lá.</p>
-    {% else %}
-      <p>A retro acontece no último dia letivo de cada sprint. Nesse dia aparece aqui o botão para começar.</p>
-    {% endif %}
     {% if pode_iniciar %}
+      {% if dia_de_retro %}
+        <p>Hoje é dia de retro. Comece no computador ligado ao projetor: ele vira o telão e só ele avança as etapas. As outras pessoas abrem esta página no celular e jogam de lá.</p>
+      {% else %}
+        <p>Hoje não é dia de retro, mas quem conduz pode começar um ensaio.</p>
+      {% endif %}
       <p><button type="button" class="btn btn-primary" id="retro-iniciar">Começar a retro (este aparelho vira o telão)</button></p>
-    {% elif not eu %}
-      <p><a href="{{ url_for('eu_page') }}">Entre no Meu jardim</a> para participar.</p>
+    {% elif dia_de_retro %}
+      <p>Hoje é dia de retro. Quem conduz (administrador ou Scrum do dia) começa no telão; esta página entra sozinha no jogo quando começar.</p>
+    {% else %}
+      <p>A retro acontece no último dia letivo de cada sprint. Quem conduz começa no telão e esta página entra sozinha no jogo.</p>
+    {% endif %}
+    {% if not eu %}
+      <p><a href="{{ url_for('eu_page') }}">Entre no Meu jardim</a> antes, para poder jogar do seu celular.</p>
     {% endif %}
     {% if proximas %}
       <p>Próximas retros:</p>
@@ -37,7 +42,9 @@
     {% if not eu and not (telao and sou_host) %}
       <span>Você está só assistindo. <a href="{{ url_for('eu_page') }}">Entre no Meu jardim</a> para jogar.</span>
     {% endif %}
-    <button type="button" class="btn" id="retro-assumir" hidden>O telão parou: conduzir daqui</button>
+    {% if pode_conduzir and not (telao and sou_host) %}
+      <button type="button" class="btn" id="retro-assumir">Conduzir daqui (este aparelho vira o telão)</button>
+    {% endif %}
   </div>
   <div class="retro-palco">
     <canvas id="retro-canvas" width="1600" height="900" aria-label="Tabuleiro animado da Defesa do Canteiro"></canvas>
@@ -52,6 +59,7 @@
 <script>
   window.RETRO = {
     modo: {{ ('telao' if (telao and sou_host) else 'jogador')|tojson }},
+    conduz: {{ pode_conduzir|tojson }},
     eu: {{ (eu.id if eu else none)|tojson }},
     membros: {{ membros|tojson }},
     img: {{ (url_for('static', filename='retro/'))|tojson }}

@@ -36,7 +36,7 @@
     <b>{% if retro_card.hoje %}Hoje é dia de retro da sprint {{ retro_card.sprint }}{% else %}Dia de retro da sprint {{ retro_card.sprint }}{% endif %}</b>
     <small>Defesa do Canteiro: o time transforma problemas em pragas e defende o canteiro com as próprias ideias.</small>
   </span>
-  <span class="chamada-btn">{% if retro_card.ativa %}Entrar na retro{% elif retro_card.hoje %}Começar a retro{% else %}Ver a retro{% endif %}</span>
+  <span class="chamada-btn">{% if retro_card.ativa %}Entrar na retro{% elif retro_card.hoje and admin %}Começar a retro{% elif retro_card.hoje %}Abrir a retro{% else %}Ver a retro{% endif %}</span>
 </a>
 {% endif %}
 {% if chamada_jardim and papel_admin != 'computador' %}
