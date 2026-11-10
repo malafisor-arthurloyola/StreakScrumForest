@@ -856,6 +856,8 @@
     else if (S.fase === 'bons') { h += '<h2>O que foi bom?</h2><p class="aj">Cada coisa boa vira uma abelha na colmeia da área.</p>'; prox = 'Próximo: eu também'; }
     else if (S.fase === 'eu') { h += '<h2>Eu também</h2><p class="aj">Cada pessoa toca em até 3 problemas que também sentiu.</p>'; prox = 'Ver o resultado'; }
     else if (S.fase === 'euRes') { h += '<h2>O que o time mais sentiu</h2>'; prox = 'Começar as conversas'; }
+    // sem nenhum problema nao ha o que conversar: em vez de travar, volta para o momento 1
+    if ((S.fase === 'eu' || S.fase === 'euRes') && !S.probs.length) { h += '<p class="aj"><b>Ninguém mandou problema ainda.</b> Voltem ao momento 1 para escrever o que atrapalhou.</p>'; prox = 'Voltar para os problemas'; }
     else if (S.fase === 'rodada' && A && A.fase === 'conversa') { h += '<h2>' + esc(A.txt) + '</h2><p class="aj" id="tempo"></p>'; prox = 'Combinar e plantar'; }
     else if (S.fase === 'rodada' && A && A.fase === 'topo') { h += '<h2>Todo mundo topa?</h2>' + htmlPlano(); prox = 'Plantar sem esperar todos'; }
     else if (S.fase === 'rodada') { h += '<h2>Defesa</h2><p class="aj">Toque nas plantas com anel amarelo. Elas também atacam sozinhas depois de um instante.</p>'; prox = ''; }
@@ -890,6 +892,7 @@
         if (S.fase === 'abertura') irPara('problemas');
         else if (S.fase === 'problemas') irPara('bons');
         else if (S.fase === 'bons') irPara('eu');
+        else if ((S.fase === 'eu' || S.fase === 'euRes') && !S.probs.length) irPara('problemas');
         else if (S.fase === 'eu') irPara('euRes');
         else if (S.fase === 'euRes') { if (!S.probs.length) { aviso('Ninguém escreveu problema. Voltem ao momento 1.', 'erro'); reabrirProx(); return; } montarFila(); S.fase = 'rodada'; tIntervalo = 0.5; }
         else if (S.fase === 'rodada' && S.atual && S.atual.fase === 'conversa') { if (!S.atual.ideias.length && !confirm('Ninguém pôs ideia no mural. Plantar mesmo assim (a praga passa sem defesa nova)?')) { reabrirProx(); return; } propoeTopo(); }
