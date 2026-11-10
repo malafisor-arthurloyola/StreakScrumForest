@@ -603,6 +603,7 @@
     if (txt !== ultimoEnviado) { snap.t = t; corpo.estado = snap; }
     postar('/api/retro/host', corpo).then(function (r) {
       hostEnviando = false;
+      if (r.status === 404) { hostParado = true; aviso('A retro foi reiniciada.', 'info'); setTimeout(function () { location.href = '/retro'; }, 800); return; }
       if (r.status === 409 || r.status === 403) { hostParado = true; aviso((r.j && r.j.erro) || 'Outro aparelho assumiu o telão. Esta tela agora só mostra.', 'erro'); setTimeout(function () { location.href = '/retro'; }, 1500); return; }
       if (r.ok && corpo.estado) ultimoEnviado = txt;
       if (r.ok && r.j.acoes) { r.j.acoes.forEach(aplicar); if (r.j.acoes.length) renderPainel(); }
@@ -639,7 +640,7 @@
   function cicloJogador() {
     if (document.hidden) return;
     fetch('/api/retro/estado' + (rev != null ? '?rev=' + rev : '')).then(function (r) { return r.json(); }).then(function (j) {
-      if (!j.ativa) return;
+      if (!j.ativa) { if (rev != null) { aviso('A retro foi reiniciada.', 'info'); setTimeout(function () { location.href = '/retro'; }, 800); } return; }
       if (j.estado) {
         var faseAntes = ultimaFaseVista;
         aplicarSnapshot(j.estado); rev = j.rev;
@@ -855,6 +856,8 @@
     else if (S.fase === 'bons') { h += '<h2>O que foi bom?</h2><p class="aj">Cada coisa boa vira uma abelha na colmeia da área.</p>'; prox = 'Próximo: eu também'; }
     else if (S.fase === 'eu') { h += '<h2>Eu também</h2><p class="aj">Cada pessoa toca em até 3 problemas que também sentiu.</p>'; prox = 'Ver o resultado'; }
     else if (S.fase === 'euRes') { h += '<h2>O que o time mais sentiu</h2>'; prox = 'Começar as conversas'; }
+    // sem nenhum problema nao ha o que conversar: em vez de travar, volta para o momento 1
+    if ((S.fase === 'eu' || S.fase === 'euRes') && !S.probs.length) { h += '<p class="aj"><b>Ninguém mandou problema ainda.</b> Voltem ao momento 1 para escrever o que atrapalhou.</p>'; prox = 'Voltar para os problemas'; }
     else if (S.fase === 'rodada' && A && A.fase === 'conversa') { h += '<h2>' + esc(A.txt) + '</h2><p class="aj" id="tempo"></p>'; prox = 'Combinar e plantar'; }
     else if (S.fase === 'rodada' && A && A.fase === 'topo') { h += '<h2>Todo mundo topa?</h2>' + htmlPlano(); prox = 'Plantar sem esperar todos'; }
     else if (S.fase === 'rodada') { h += '<h2>Defesa</h2><p class="aj">Toque nas plantas com anel amarelo. Elas também atacam sozinhas depois de um instante.</p>'; prox = ''; }
@@ -889,6 +892,7 @@
         if (S.fase === 'abertura') irPara('problemas');
         else if (S.fase === 'problemas') irPara('bons');
         else if (S.fase === 'bons') irPara('eu');
+        else if ((S.fase === 'eu' || S.fase === 'euRes') && !S.probs.length) irPara('problemas');
         else if (S.fase === 'eu') irPara('euRes');
         else if (S.fase === 'euRes') { if (!S.probs.length) { aviso('Ninguém escreveu problema. Voltem ao momento 1.', 'erro'); reabrirProx(); return; } montarFila(); S.fase = 'rodada'; tIntervalo = 0.5; }
         else if (S.fase === 'rodada' && S.atual && S.atual.fase === 'conversa') { if (!S.atual.ideias.length && !confirm('Ninguém pôs ideia no mural. Plantar mesmo assim (a praga passa sem defesa nova)?')) { reabrirProx(); return; } propoeTopo(); }
@@ -957,6 +961,13 @@
   if (bAss) bAss.onclick = function () {
     if (!hostParadoVisto && !confirm('O telão está funcionando em outro aparelho. Trazer o telão para este aparelho? O outro passa a só mostrar o jogo.')) return;
     postar('/api/retro/assumir', {}).then(function (r) { if (r.ok) location.href = r.j.url; else aviso((r.j && r.j.erro) || 'Não deu.', 'erro'); }); };
+
+  var bRei = document.getElementById('retro-reiniciar');
+  if (bRei) bRei.onclick = function () {
+    if (!confirm('Reiniciar a retro de hoje? Tudo o que o time mandou (problemas, ideias, agradecimentos) será apagado e todas as telas voltam para o começo.')) return;
+    bRei.disabled = true;
+    postar('/api/retro/reiniciar', {}).then(function (r) { if (r.ok) location.href = r.j.url; else { bRei.disabled = false; aviso((r.j && r.j.erro) || 'Não deu.', 'erro'); } });
+  };
 
   function retomar(e) {
     if (!e || !e.v) return;

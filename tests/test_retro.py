@@ -231,6 +231,23 @@ class TestFluxo(RetroBase):
         self.post(host, "/api/retro/host", {"estado": {"v": 1, "fase": "fecho"}})
         self.assertEqual(acao("obrigado", {"para": self.mids[0]}).status_code, 200)
 
+    def test_reiniciar_apaga_a_retro_de_hoje_so_para_quem_conduz(self):
+        host, ana = self.conduz(), self.pessoa(self.mids[1])
+        self.post(host, "/api/retro/iniciar")
+        self.post(ana, "/api/retro/acao", {"tipo": "problema", "dados": {"txt": "Daily longa", "area": "daily"}})
+        self.assertNotIn('id="retro-reiniciar"', ana.get("/retro", **REMOTO).get_data(as_text=True))
+        self.assertIn('id="retro-reiniciar"', host.get("/retro", **REMOTO).get_data(as_text=True))
+        self.assertEqual(self.post(ana, "/api/retro/reiniciar").status_code, 403)
+        self.assertTrue(ana.get("/api/retro/estado", **REMOTO).get_json()["ativa"])
+        self.assertEqual(self.post(host, "/api/retro/reiniciar").status_code, 200)
+        self.assertFalse(ana.get("/api/retro/estado", **REMOTO).get_json()["ativa"])
+        con = sqlite3.connect(DB)
+        self.assertEqual(con.execute("SELECT COUNT(*) FROM retro_acoes").fetchone()[0], 0)
+        con.close()
+        # o telao antigo e avisado (404) e da para comecar de novo
+        self.assertEqual(self.post(host, "/api/retro/host", {"estado": {"v": 1}}).status_code, 404)
+        self.assertTrue(self.post(host, "/api/retro/iniciar").get_json()["telao"])
+
     def test_estado_grande_demais_e_recusado(self):
         host = self.conduz()
         self.post(host, "/api/retro/iniciar")

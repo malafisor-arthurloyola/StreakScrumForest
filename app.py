@@ -4462,6 +4462,22 @@ def api_retro_assumir():
     return jsonify({"ok": True, "url": url_for("retro_page", telao=1)})
 
 
+@app.route("/api/retro/reiniciar", methods=["POST"])
+def api_retro_reiniciar():
+    """Apaga a retro de hoje (estado e respostas) para comecar do zero. So quem conduz.
+    Os aparelhos abertos voltam sozinhos para a tela de espera."""
+    db = get_db()
+    if not eh_admin():
+        return _erro(MSG_RETRO_SO_CONDUZ, 403)
+    retro = _retro_de_hoje(db)
+    if retro is not None:
+        db.execute("DELETE FROM retro_acoes WHERE retro_id = ?", (retro["id"],))
+        db.execute("DELETE FROM retro WHERE id = ?", (retro["id"],))
+        db.commit()
+    session.pop("retro_host", None)
+    return jsonify({"ok": True, "url": url_for("retro_page")})
+
+
 @app.route("/api/retro/host", methods=["POST"])
 def api_retro_host():
     """O telao grava o estado do jogo e recebe as acoes novas das pessoas (id > desde)."""
