@@ -11,6 +11,7 @@
 {% set esp = v.especie or 'muda' %}
 {% set F = '#' ~ (v.folha or 'p-folha') %}
 {% set pend = esp in ['samambaia', 'jarro'] and not sem_vaso %}
+{% set aquatica = esp == 'vitoria' and not sem_vaso %}
 <svg class="planta{{ ' sem-vaso' if sem_vaso }}" viewBox="0 0 120 150" width="{{ tamanho }}" height="{{ (tamanho * 1.25) | round | int }}"
      role="img" aria-label="Planta de {{ membro.name }}: {{ membro.estagio_nome }}"
      {% if extra_de %}data-extra-de="{{ extra_de }}"{% else %}data-member-id="{{ membro.id }}"{% endif %}
@@ -25,14 +26,22 @@
   <g class="fios"><path d="M35 117L60 34M85 117L60 34M60 114L60 34" stroke="#d9772e" stroke-width="1.2" fill="none" stroke-linecap="round"/>
     <circle cx="60" cy="32" r="3.2" fill="none" stroke="#9aa0a6" stroke-width="1.5"/><path d="M60 29V-40" stroke="#9aa0a6" stroke-width="1.2" opacity=".55"/></g>
   {% endif %}
-  {% if sem_vaso %}{# plantada direto na terra: so uma covinha de terra fofa em volta do caule #}
+  {% if sem_vaso %}{# plantada direto no chao: covinha de terra fofa, ou uma lagoinha pra especies aquaticas #}
+  {% if esp == 'vitoria' %}
+  <g class="cova"><ellipse cx="60" cy="118" rx="18" ry="5" fill="#153a42" opacity=".45"/><ellipse cx="60" cy="116.5" rx="15" ry="3.6" fill="#2f7f8f"/></g>
+  {% else %}
   <g class="cova"><ellipse cx="60" cy="117" rx="17" ry="4.6" fill="#3e281b"/><ellipse cx="60" cy="116" rx="11" ry="2.6" fill="#6b4630"/></g>
+  {% endif %}
   {% endif %}
   {# Cada vaso tem formato proprio (a cor vem do CSS por data-vaso). Todos cabem entre y = 114 e 148
      com a terra em y = 116, entao planta, acessorios e companheiros ficam no mesmo lugar em qualquer vaso. #}
   {% set vs = v.vaso or 'terracota' %}
   <g class="vaso">
-    {% if vs == 'lata' %}
+    {% if aquatica %}{# vitoria-regia ignora o vaso equipado: ela e sempre uma lagoa #}
+    <ellipse cx="60" cy="122.5" rx="37" ry="7.5" fill="#153a42" opacity=".45"/>
+    <ellipse cx="60" cy="119.5" rx="39" ry="8.6" fill="#2f7f8f"/>
+    <path d="M24 119.5Q31 116 38 119.5T52 119.5T66 119.5T80 119.5T94 119.5" stroke="#7fd4e0" stroke-width="1" fill="none" opacity=".55"/>
+    {% elif vs == 'lata' %}
     <rect class="vaso-corpo" x="36" y="120" width="48" height="27.5" rx="2.5"/>
     <rect class="vaso-rotulo" x="36" y="127" width="48" height="11"/>
     <path class="vaso-folhinha" d="M56 135.5C56 131 60 129.5 64 129.5C64 134 60 135.5 56 135.5Z"/>
@@ -73,7 +82,7 @@
     <path class="vaso-brilho" d="M41.5 132L43.5 145"/>
     <rect class="vaso-borda" x="31" y="115" width="58" height="11" rx="5"/>
     {% endif %}
-    <ellipse class="terra" cx="60" cy="116" rx="25" ry="3.6"/>
+    {% if not aquatica %}<ellipse class="terra" cx="60" cy="116" rx="25" ry="3.6"/>{% endif %}
   </g>
 
   <g class="semente">

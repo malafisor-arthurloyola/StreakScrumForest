@@ -1,5 +1,6 @@
-"""Gera as espécies desenhadas em SVG de templates/_especies.html (as 8 redesenhadas a partir de
-fotos de referência: girassol, cogumelo, carnívora, samambaia, cerejeira, jabuticabeira, ipê, baobá).
+"""Gera as espécies desenhadas em SVG de templates/_especies.html (as 10 redesenhadas a partir de
+fotos de referência: girassol, cogumelo, carnívora, samambaia, cerejeira, jabuticabeira, ipê, baobá,
+lírio-aranha e vitória-régia).
 
 Uso: python scripts/gerar_especies.py
 
@@ -472,6 +473,131 @@ def baoba_folhas(centros, seed):
     return pontos(lista)
 
 
+# ------------------------------------------------------------------ lirio-aranha (Lycoris radiata)
+# flor sem folhas: so talo fino e, no topo, um umbel de ate 5 flores com 6 tepalas finas
+# (3+3, como no original) e 6 estames bem mais longos que recurvam para fora - a "aranha".
+LIRIO_PETALA, LIRIO_PETALA2 = "#d92b2b", "#f0533f"
+LIRIO_ESTAME, LIRIO_ANTERA = "#9e1a2c", "#f6c23e"
+LIRIO_CAULE, LIRIO_CAULE_HI = "#4f8f52", "#86c073"
+LIRIO_BOTAO, LIRIO_BOTAO_HI = "#b23327", "#d85f4a"
+LIRIO_ANGULOS = (-96, -48, 0, 48, 96)
+LIRIO_FATOR_PEDICELO = (.85, 1, 1.15, 1, .85)
+LIRIO_FATOR_FLOR = (.92, 1, 1.05, 1, .92)
+
+
+def flor_aranha(cx, cy, ang, escala):
+    """Uma flor do umbel: 6 tepalas finas (3 de cada tom, como as 2 series do lirio-aranha)
+    e 6 estames bem mais longos que elas, recurvados para fora e com antera dourada na ponta."""
+    lp, wp, le = 7.5 * escala, 1.5 * escala, 12 * escala
+    o = '<g transform="translate(%s %s) rotate(%s)">' % (f(cx), f(cy), f(ang))
+    for i in range(6):
+        cor = LIRIO_PETALA if i % 2 == 0 else LIRIO_PETALA2
+        o += ('<path d="M0 0C%s %s %s %s 0 -%sC%s %s %s %s 0 0Z" fill="%s" transform="rotate(%d)"/>'
+              % (f(wp * 1.6), f(-lp * .3), f(wp * .5), f(-lp * .85), f(lp),
+                 f(-wp * .6), f(-lp * .8), f(-wp), f(-lp * .3), cor, i * 60))
+    for i in range(6):
+        rot = i * 60 + 30
+        o += ('<path d="M0 0Q%s -%s %s -%s" stroke="%s" stroke-width="%s" stroke-linecap="round" fill="none" transform="rotate(%d)"/>'
+              '<circle cx="%s" cy="-%s" r="%s" fill="%s" transform="rotate(%d)"/>'
+              % (f(wp * 1.3), f(le * .55), f(wp * .9), f(le), LIRIO_ESTAME, f(max(.5, wp * .4)), rot,
+                 f(wp * .9), f(le), f(max(.7, wp * .65)), LIRIO_ANTERA, rot))
+    return o + '</g>'
+
+
+def lirio(est):
+    t = est / 10
+    alt = lerp(10, 64, t ** .85)
+    topo = 117 - alt
+    h = ('<path d="M60 117Q59 %s 60 %s" stroke="%s" stroke-width="%s" stroke-linecap="round" fill="none"/>'
+         '<path d="M60.6 117Q59.6 %s 60.6 %s" stroke="%s" stroke-width=".7" stroke-linecap="round" fill="none" opacity=".7"/>'
+         % (f(117 - alt / 2), f(topo), LIRIO_CAULE, f(lerp(1.6, 2.4, t)),
+            f(117 - alt / 2), f(topo + 2), LIRIO_CAULE_HI))
+    if est < 6:
+        return h
+    h += '<circle cx="60" cy="%s" r="1.6" fill="%s"/>' % (f(topo), LIRIO_CAULE)
+    l_ped = lerp(3, 13, clamp((est - 5) / 5, 0, 1))
+    for i, ang in enumerate(LIRIO_ANGULOS):
+        rad = math.radians(ang)
+        lp = l_ped * LIRIO_FATOR_PEDICELO[i]
+        tx, ty = 60 + math.sin(rad) * lp, topo - math.cos(rad) * lp
+        h += '<path d="M60 %sQ%s %s %s %s" stroke="%s" stroke-width=".9" fill="none"/>' % (
+            f(topo), f(60 + math.sin(rad) * lp * .4), f(topo - math.cos(rad) * lp * .5), f(tx), f(ty), LIRIO_CAULE_HI)
+        if est == 6:
+            h += '<ellipse cx="%s" cy="%s" rx="1.5" ry="2.6" fill="%s" transform="rotate(%d %s %s)"/>' % (
+                f(tx), f(ty), LIRIO_BOTAO, ang, f(tx), f(ty))
+        elif est == 7:
+            h += ('<ellipse cx="%s" cy="%s" rx="2" ry="3.6" fill="%s" transform="rotate(%d %s %s)"/>'
+                  '<circle cx="%s" cy="%s" r=".8" fill="%s"/>'
+                  % (f(tx), f(ty), LIRIO_BOTAO_HI, ang, f(tx), f(ty), f(tx), f(ty - 3.2), LIRIO_PETALA))
+        else:
+            abre = clamp((est - 7) / 3, 0, 1)
+            escala = lerp(.55, 1, abre) * LIRIO_FATOR_FLOR[i]
+            h += flor_aranha(tx, ty, ang, escala)
+    if est == 10:
+        h += brilho(92, topo + 4, 3) + brilho(28, topo + 12, 2.6)
+    return h
+
+
+# ------------------------------------------------------------------ vitoria-regia
+# sem caule: a folha cresce deitada sobre a lagoa (desenhada por _planta.html quando o vaso vira "aquatica").
+# comeca como um brotinho enrolado (as folhas novas de verdade nascem assim, em ponta, antes de abrir), vira
+# um disco com borda levantada e nervuras, e no final a flor abre branca e - no estagio 10 - fica rosa
+# (a flor de verdade muda de cor na segunda noite: por isso essa especie nao ganha o brilho dourado padrao).
+VITORIA_FOLHA, VITORIA_FOLHA_CLARA = "#2f7a44", "#5cb86f"
+VITORIA_BORDA, VITORIA_NERVURA = "#1f5a34", "#3f9a5a"
+VITORIA_BROTO = "#3a6b3a"
+VITORIA_FLOR_BRANCA, VITORIA_FLOR_BRANCA2 = "#fbfaf0", "#f2ead0"
+VITORIA_FLOR_ROSA, VITORIA_FLOR_ROSA2 = "#f2a0c0", "#e85f95"
+VITORIA_CENTRO = "#f6c23e"
+
+
+def folha_vitoria(rx, ry):
+    """O disco deitado: corpo verde, nervuras saindo do centro e uma borda levantada (a 'bandeja')."""
+    o = '<ellipse cx="60" cy="116" rx="%s" ry="%s" fill="%s"/>' % (f(rx), f(ry), VITORIA_FOLHA)
+    o += '<ellipse cx="60" cy="%s" rx="%s" ry="%s" fill="%s" opacity=".6"/>' % (f(116 - ry * .15), f(rx * .82), f(ry * .78), VITORIA_FOLHA_CLARA)
+    for ang in range(0, 360, 60):
+        rad = math.radians(ang)
+        o += '<path d="M60 116L%s %s" stroke="%s" stroke-width=".7" opacity=".7"/>' % (
+            f(60 + math.cos(rad) * rx * .92), f(116 + math.sin(rad) * ry * .92), VITORIA_NERVURA)
+    o += '<ellipse cx="60" cy="116" rx="%s" ry="%s" fill="none" stroke="%s" stroke-width="%s"/>' % (f(rx), f(ry), VITORIA_BORDA, f(max(.8, rx * .07)))
+    return o
+
+
+def petala_vitoria(l, w, cor):
+    return '<path d="M0 0Q%s %s 0 -%sQ%s %s 0 0Z" fill="%s"/>' % (f(w), f(-l * .55), f(l), f(-w), f(-l * .55), cor)
+
+
+def flor_vitoria(cx, cy, escala, cor1, cor2):
+    n, o = 8, ""
+    for i in range(n):
+        o += '<g transform="translate(%s %s) rotate(%d)">%s</g>' % (
+            f(cx), f(cy), i * (360 // n), petala_vitoria(9 * escala, 3.6 * escala, cor1 if i % 2 == 0 else cor2))
+    return o + '<circle cx="%s" cy="%s" r="%s" fill="%s"/>' % (f(cx), f(cy), f(2.6 * escala), VITORIA_CENTRO)
+
+
+def vitoria(est):
+    if est == 1:
+        return ('<path d="M60 116C58.6 113 58.6 110.2 60 107.6C61.4 110.2 61.4 113 60 116Z" fill="%s"/>'
+                '<path d="M60 115Q59.3 112 60 109" stroke="%s" stroke-width=".4" fill="none" opacity=".6"/>'
+                % (VITORIA_BROTO, VITORIA_FOLHA_CLARA))
+    if est == 2:
+        return ('<path d="M60 116C58 111.6 58 107.4 60 103.2C62 107.4 62 111.6 60 116Z" fill="%s"/>'
+                '<path d="M60 114.6Q58.8 109.6 60 104.6" stroke="%s" stroke-width=".5" fill="none" opacity=".6"/>'
+                '<ellipse cx="60" cy="116" rx="3.6" ry="1.4" fill="%s" opacity=".7"/>'
+                % (VITORIA_BROTO, VITORIA_FOLHA_CLARA, VITORIA_FOLHA))
+    t = est / 10
+    rx, ry = lerp(9, 34, t), lerp(9, 34, t) * .34
+    h = folha_vitoria(rx, ry)
+    if est < 8:
+        return h
+    if est == 8:
+        bx, by = 60 + rx * .5, 116 - ry * .3
+        return h + ('<path d="M%s %sC%s %s %s %s %s %sZ" fill="%s"/>'
+                     % (f(bx - 1.6), f(by), f(bx - 2.2), f(by - 5.4), f(bx + 2.2), f(by - 5.4), f(bx + 1.6), f(by), VITORIA_BROTO))
+    cor1, cor2 = (VITORIA_FLOR_BRANCA, VITORIA_FLOR_BRANCA2) if est == 9 else (VITORIA_FLOR_ROSA, VITORIA_FLOR_ROSA2)
+    return h + flor_vitoria(60 + rx * .3, 116 - ry * .4, lerp(.8, 1, (est - 9)), cor1, cor2)
+
+
 # ------------------------------------------------------------------ montagem
 def macro(nome, camadas, extra=""):
     return "{%% macro esp_%s(s, fr) %%}\n%s%s{%% endmacro %%}" % (nome, "".join(camadas), extra)
@@ -504,6 +630,10 @@ def montar():
                        '<circle cx="86" cy="46" r="1.5" fill="#fff"/><circle cx="34" cy="46" r="1.5" fill="#fff"/>'))
     bao.append(acum(10, brilho(98, 36, 3.6) + brilho(20, 44, 3)))
     m["baoba"] = macro("baoba", bao, frutos([(48, 36), (72, 36), (36, 48), (84, 48), (60, 26)], 2))
+    m["lirio"] = macro("lirio", [snap(k, lirio(k)) for k in range(1, 11)],
+                        frutos([(48, 42), (72, 42), (60, 30), (40, 55), (80, 55)], 2.2))
+    m["vitoria"] = macro("vitoria", [snap(k, vitoria(k)) for k in range(1, 11)],
+                          frutos([(40, 116), (80, 116), (60, 92), (50, 100), (70, 100)], 2))
     return m
 
 

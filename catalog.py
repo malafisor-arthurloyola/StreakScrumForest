@@ -67,6 +67,11 @@ ITENS = [
      "desc": "Flores brancas e frutos escuros que nascem no tronco.", "folha": "p-folha-redonda"},
     {"id": "ipe", "tipo": "especie", "nome": "Ipê amarelo", "preco": 120,
      "desc": "A cara do Brasil: uma chuva de flores douradas."},
+    {"id": "lirio", "tipo": "especie", "nome": "Lírio-aranha vermelho", "preco": 85,
+     "desc": "Pétalas finas e vermelhas, recurvadas como pernas de aranha, num talo sem folhas."},
+    {"id": "vitoria", "tipo": "especie", "nome": "Vitória-régia", "preco": 95,
+     "desc": "Uma folha redonda flutuando na lagoa, com a borda virada pra cima. A flor abre branca e no "
+             "estágio final vira rosa."},
     {"id": "baoba", "tipo": "especie", "nome": "Baobá", "preco": 120,
      "desc": "Só quem já viu uma planta florescer pode plantar esta.",
      "req": {"floresceu": True}},
