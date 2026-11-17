@@ -2812,10 +2812,6 @@ def eu_page():
         "SELECT 1 FROM attendance WHERE member_id = ? AND event_date = ? AND status = 'presente' LIMIT 1",
         (membro["id"], hoje),
     ).fetchone() is not None
-    tem_encerramento = db.execute(
-        "SELECT 1 FROM attendance WHERE member_id = ? AND event_date = ? AND event_type = 'encerramento' "
-        "AND status = 'presente' LIMIT 1", (membro["id"], hoje),
-    ).fetchone() is not None
     # A Daily aparece em todo dia letivo, mesmo antes da presenca: e assim que da para deixar a
     # fala pronta antes da daily (minigame Fala pronta).
     letivo_hoje = _e_dia_letivo(hoje, db)
@@ -2830,10 +2826,8 @@ def eu_page():
                 (hoje, tipo, membro["id"]),
             ).fetchone()
             # o Day Closing so entra se ja ha encerramento marcado ou texto preenchido
-            if tipo == "fechamento":
-                tem_texto = bool(f and ((f["feito"] or "").strip() or (f["planejado"] or "").strip()))
-                if not (tem_encerramento or tem_texto):
-                    continue
+            if tipo == "fechamento" and not _fechamento_aberto(db, membro["id"], hoje):
+                continue
             sugestao = ""
             if tipo == "daily" and not (f and (f["planejado"] or "").strip()):
                 sugestao = _fica_para_amanha(db, membro["id"], hoje)
@@ -3585,6 +3579,19 @@ def _estado_minijogos(db, member_id, hoje=None):
     }
 
 
+def _fechamento_aberto(db, member_id, hoje):
+    """O bloco Day Closing do /eu aparece quando a pessoa ja marcou presenca no encerramento de
+    hoje ou ja escreveu algo nele. A tela Hoje usa a mesma regra para saber para onde levar."""
+    if db.execute(
+        "SELECT 1 FROM attendance WHERE member_id = ? AND event_date = ? AND event_type = 'encerramento' "
+        "AND status = 'presente' LIMIT 1", (member_id, hoje),
+    ).fetchone():
+        return True
+    f = db.execute("SELECT feito, planejado FROM ata_falas WHERE data = ? AND tipo = 'fechamento' AND member_id = ?",
+                   (hoje, member_id)).fetchone()
+    return bool(f and ((f["feito"] or "").strip() or (f["planejado"] or "").strip()))
+
+
 def _chamada_jardim(db, data_str):
     """Cartao da tela Hoje que leva cada pessoa ao proprio jardim, no passo do dia em que ela esta."""
     hoje = date.today().isoformat()
@@ -3603,7 +3610,10 @@ def _chamada_jardim(db, data_str):
     elif not e["cuidar"]:
         passo = ("cuidar", "Sua planta está esperando o cuidado de hoje.", "Cuidar da planta", "#cuidar", game.SEED_CUIDAR)
     elif not e["fechamento_pronto"] and e["tem_fechamento"]:
-        passo = ("fechamento", "No fim do dia, feche o dia no seu jardim.", "Fechar o dia", "#ritual", game.SEED_FECHAMENTO_PRONTO)
+        # leva direto ao bloco Day Closing; se ele ainda nao abriu (sem presenca no encerramento),
+        # leva ao passo 3 do ritual, que explica isso, e nao ao topo, onde fica a Daily
+        ancora = "#fala-fechamento" if _fechamento_aberto(db, membro["id"], hoje) else "#passo-fechamento"
+        passo = ("fechamento", "No fim do dia, feche o dia no seu jardim.", "Fechar o dia", ancora, game.SEED_FECHAMENTO_PRONTO)
     else:
         if _amanha_aberto(db, hoje):
             passo = ("pronto", "Tudo feito hoje. Já dá para preparar a fala de amanhã.", "Preparar amanhã",

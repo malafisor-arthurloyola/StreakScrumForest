@@ -53,7 +53,7 @@
       </a>
     </li>
     {% if mj.tem_fechamento or mj.fechamento_pronto %}
-    <li class="passo" data-passo="fechamento" data-estado="{{ 'feito' if mj.fechamento_pronto else ('aberto' if tem_fechamento else 'depois') }}">
+    <li class="passo" id="passo-fechamento" data-passo="fechamento" data-estado="{{ 'feito' if mj.fechamento_pronto else ('aberto' if tem_fechamento else 'depois') }}">
       <a href="{{ '#fala-fechamento' if tem_fechamento else '#ritual' }}">
         <span class="passo-n" aria-hidden="true">3</span>
         <span class="passo-txt"><b>Fechar o dia</b><small>{% if mj.fechamento_pronto %}Day Closing preenchido{% elif tem_fechamento %}preencha o Day Closing{% else %}abre no Day Closing{% endif %}</small></span>
