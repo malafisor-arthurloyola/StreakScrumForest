@@ -2326,7 +2326,8 @@ body.holofote-escuro .cena.holofote-ativo { position: relative; z-index: 901; }
 .eu-sementes-topo .eu-kpi-valor { font-size: var(--t-2xl); }
 .eu-sementes-topo .eu-kpi-valor svg { width: 20px; height: 20px; }
 .eu-numeros .eu-kpis { grid-template-columns: repeat(3, 1fr); }
-.eu-fala-bloco, .ritual, .cuidar, .album-estacao { scroll-margin-top: 16px; }
+/* a barra do topo e fixa (cerca de 62 px): a ancora vinda da tela Hoje para abaixo dela, com o titulo a vista */
+.eu-fala-bloco, .ritual, .ritual .passo, .cuidar, .album-estacao { scroll-margin-top: 78px; }
 
 /* ===== Minha fala: cabecalho com estado, salvo discreto, buscas recolhidas, acao fixa, aviso ===== */
 .fala-cab { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }

@@ -317,6 +317,31 @@ class TestCaminhoAteOJardim(MinijogosBase):
         self.assertIn("Cuidar da planta", h)
         self.assertNotIn("Preparar minha fala", h)
 
+    def _ate_o_fechamento(self):
+        self.fala("feito", "a")
+        self.fala("planejado", "b")
+        self.jogo("fala-pronta")
+        for c in game.CUIDADOS:
+            self.jogo("cuidar", acao=c)
+
+    def test_fechar_o_dia_leva_ao_day_closing_e_nao_a_daily(self):
+        self.presente(self.ana)                                  # leu o QR do encerramento
+        self._ate_o_fechamento()
+        h = self.cel.get(f"/dia/{HOJE}").get_data(as_text=True)
+        self.assertIn("Fechar o dia", h)
+        self.assertIn("/eu#fala-fechamento", h)
+        self.assertNotIn("/eu#ritual", h)
+        self.assertIn('id="fala-fechamento"', self.cel.get("/eu").get_data(as_text=True))
+
+    def test_fechar_o_dia_antes_do_encerramento_leva_ao_passo_do_ritual(self):
+        self.presente(self.ana, eventos=("daily",))
+        self._ate_o_fechamento()
+        h = self.cel.get(f"/dia/{HOJE}").get_data(as_text=True)
+        self.assertIn("/eu#passo-fechamento", h)
+        eu = self.cel.get("/eu").get_data(as_text=True)
+        self.assertIn('id="passo-fechamento"', eu)
+        self.assertNotIn('id="fala-fechamento"', eu)
+
     def test_outro_dia_nao_tem_chamada(self):
         h = self.cel.get(f"/dia/{ONTEM}").get_data(as_text=True)
         self.assertNotIn("chamada-jardim", h)
