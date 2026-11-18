@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+{% block title %}Gráficos · Jardim da Equipe{% endblock %}
+
+{% macro mostra_var(v, rotulo) %}
+{% if v is not none %}<span class="gd-var{{ ' gd-var-cai' if v < 0 }}">{{ '↗' if v >= 0 else '↘' }} {{ v|abs }}%</span> <span class="gd-var-rot">por dia letivo, vs {{ rotulo }} anterior</span>{% endif %}
+{% endmacro %}
+
+{% macro legenda(itens) %}
+<ul class="gd-legenda">
+  {% for g in itens %}<li><span class="gd-ponto" style="background: {{ g.cor }}"></span>{{ g.rotulo }}</li>{% endfor %}
+</ul>
+{% endmacro %}
+
+{% macro linha_pessoa(p, valor, pct, detalhe, cor) %}
+<li class="gd-pessoa">
+  <span class="gd-avatar" aria-hidden="true">{{ p.inicial }}</span>
+  <div class="gd-pessoa-corpo">
+    <div class="gd-pessoa-topo"><span class="gd-pessoa-nome">{{ p.name }}</span><b>{{ valor }}</b></div>
+    <span class="gd-trilho"><span class="gd-enchido" style="width: {{ pct }}%; background: {{ cor }}"></span></span>
+    <span class="gd-pessoa-det">{{ detalhe }}</span>
+  </div>
+</li>
+{% endmacro %}
+
+{% block content %}
+{% include "_painel_abas.html" %}
+<header class="gd-cab">
+  <div>
+    <h1>Gráficos do time</h1>
+    <p class="sub">A atividade do grupo em números. Pessoas sempre em ordem alfabética: os gráficos mostram de onde vem cada coisa, não quem está na frente.</p>
+  </div>
+  <nav class="gd-filtro" aria-label="Período">
+    <a class="gd-chip{{ ' ativo' if sprint is none }}" href="{{ url_for('graficos_page') }}"{% if sprint is none %} aria-current="page"{% endif %}>Projeto todo</a>
+    {% for sp in sprints if sp.inicio <= hoje %}
+    <a class="gd-chip{{ ' ativo' if sprint == sp.n }}" href="{{ url_for('graficos_page', sprint=sp.n) }}"{% if sprint == sp.n %} aria-current="page"{% endif %}>Sprint {{ sp.n }}</a>
+    {% endfor %}
+  </nav>
+</header>
+
+<div class="gd-grade">
+
+  <!-- Destaque: sementes do time ao longo do tempo -->
+  <section class="gd-bloco gd-destaque" aria-labelledby="gd-sem-tit">
+    <div class="gd-bloco-cab">
+      <div>
+        <p class="gd-numero" id="gd-sem-tit">{{ resumo.sementes }}</p>
+        <p class="gd-rotulo">Sementes ganhas pelo time {{ 'no projeto' if sprint is none else 'na sprint ' ~ sprint }}, por {{ rotulo_intervalo }}</p>
+      </div>
+      {{ legenda(grupos) }}
+    </div>
+    {% if baldes %}
+    <div class="gd-colunas" style="--n: {{ baldes|length }}">
+      <div class="gd-grelha" aria-hidden="true">
+        <span data-v="{{ topo_tend }}"></span><span data-v="{{ (topo_tend / 2)|round|int }}"></span><span data-v="0"></span>
+      </div>
+      {% for b in baldes %}
+      <div class="gd-col" tabindex="0" aria-label="{{ b.titulo or b.rotulo }}: {{ b.total }} sementes">
+        <span class="gd-col-area">
+          <span class="gd-col-pilha" style="height: {{ b.pct_total }}%">
+            {% for f in b.fatias|reverse %}<span class="gd-fatia" style="flex: {{ f.valor }}; background: {{ f.cor }}"></span>{% endfor %}
+          </span>
+          <span class="gd-dica{{ ' gd-dica-esq' if loop.index > (baldes|length) // 2 }}" role="tooltip">
+            <span class="gd-dica-tit">{{ b.titulo or b.rotulo }}</span>
+            {% for g in grupos %}<span class="gd-dica-lin"><span class="gd-ponto" style="background: {{ g.cor }}"></span>{{ g.rotulo }}<b>{{ b.grupos[g.id] }}</b></span>{% endfor %}
+            <span class="gd-dica-lin gd-dica-total">Total<b>{{ b.total }}</b></span>
+          </span>
+        </span>
+        <span class="gd-col-rot">{{ b.rotulo }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}<p class="gd-vazio">Ainda não há dias neste período.</p>{% endif %}
+  </section>
+
+  <!-- Numeros principais -->
+  <section class="gd-bloco gd-numeros" aria-label="Números do time">
+    <div class="gd-kpi">
+      <p class="gd-kpi-rot">Falas na ata da daily</p>
+      <p class="gd-kpi-num">{{ resumo.daily }}</p>
+      <p class="gd-kpi-sub">{{ mostra_var(variacao.daily, rotulo_intervalo) }}</p>
+    </div>
+    <div class="gd-kpi">
+      <p class="gd-kpi-rot">Falas na Day Closing</p>
+      <p class="gd-kpi-num">{{ resumo.fechamento }}</p>
+      <p class="gd-kpi-sub">{{ mostra_var(variacao.fechamento, rotulo_intervalo) }}</p>
+    </div>
+    <div class="gd-kpi">
+      <p class="gd-kpi-rot">Atas conduzidas pelo Scrum</p>
+      <p class="gd-kpi-num">{{ resumo.conduzidas }}</p>
+      <p class="gd-kpi-sub"><span class="gd-var-rot">{{ pessoas|sum(attribute='falas_colegas') }} falas de colegas registradas</span></p>
+    </div>
+  </section>
+
+  <!-- Barra de progresso: dailies registradas -->
+  <section class="gd-bloco gd-meio" aria-labelledby="gd-reg-tit">
+    <h2 id="gd-reg-tit">Falas da daily registradas</h2>
+    <p class="gd-rotulo">Todas as falas possíveis em {{ resumo.dias }} dia{{ 's' if resumo.dias != 1 }} letivo{{ 's' if resumo.dias != 1 }}, somando o time</p>
+    <span class="gd-trilho gd-trilho-grosso"><span class="gd-enchido gd-listras" style="width: {{ resumo.taxa_daily or 0 }}%; background-color: {{ cor_daily }}"></span></span>
+    <div class="gd-barra-pes"><b>{{ resumo.daily }}</b><span>{{ resumo.possiveis }}</span></div>
+  </section>
+
+  <!-- Dica: preparo -->
+  <section class="gd-bloco gd-meio gd-dica-bloco" aria-labelledby="gd-prep-tit">
+    <div>
+      <h2 id="gd-prep-tit">Preparo antes da reunião</h2>
+      <p class="gd-texto">O time chegou com a <b>Fala pronta</b> {{ resumo.fala_pronta }} vez{{ 'es' if resumo.fala_pronta != 1 }} e com o <b>Fechamento pronto</b> {{ pessoas|sum(attribute='fechamento_pronto') }} vez{{ 'es' if pessoas|sum(attribute='fechamento_pronto') != 1 }}. Preparar antes da vez deixa a daily mais curta.</p>
+      <a class="gd-link" href="{{ url_for('sementes_page') }}">Ver de onde vêm as sementes ›</a>
+    </div>
+    <div class="gd-pixels" aria-hidden="true">
+      {% for c in ['', '', '', '#c6f24e', '', '', '#ff9ec4', '#c6f24e', '', '#b59bff', '#c6f24e', '#c6f24e', '#6db9ff', '#b59bff', '#ff9ec4', '#c6f24e'] %}<span{% if c %} style="background: {{ c }}"{% endif %}></span>{% endfor %}
+    </div>
+  </section>
+
+  <!-- Composicao -->
+  <section class="gd-bloco gd-terco" aria-labelledby="gd-comp-tit">
+    <h2 id="gd-comp-tit">De onde vêm as sementes</h2>
+    <p class="gd-rotulo">Por atividade, somando o time</p>
+    <p class="gd-numero gd-numero-medio">{{ resumo.sementes }}</p>
+    <div class="gd-segmentos" role="img" aria-label="Composição das sementes do time">
+      {% for c in composicao if c.valor %}<span class="gd-listras" style="flex: {{ c.valor }}; background-color: {{ c.cor }}" title="{{ c.rotulo }}: {{ c.valor }}"></span>{% endfor %}
+    </div>
+    <ul class="gd-lista-pct">
+      {% for c in composicao %}<li><span class="gd-ponto" style="background: {{ c.cor }}"></span>{{ c.rotulo }}<b>{{ c.pct }}%</b></li>{% endfor %}
+    </ul>
+  </section>
+
+  <!-- Medidor -->
+  <section class="gd-bloco gd-terco" aria-labelledby="gd-med-tit">
+    <h2 id="gd-med-tit">Ritmo da daily</h2>
+    <p class="gd-rotulo">Falas registradas sobre as possíveis</p>
+    <div class="gd-medidor">
+      <svg viewBox="0 0 200 112" role="img" aria-label="{{ resumo.taxa_daily or 0 }}% das falas da daily registradas">
+        <path d="M 16 100 A 84 84 0 0 1 184 100" pathLength="100" class="gd-med-fundo"/>
+        <path d="M 16 100 A 84 84 0 0 1 184 100" pathLength="100" class="gd-med-valor"
+              stroke-dasharray="{{ resumo.taxa_daily or 0 }} 100" stroke="{{ cor_daily }}"/>
+      </svg>
+      <div class="gd-med-texto"><b>{{ resumo.taxa_daily or 0 }}%</b><span>das falas da daily</span></div>
+    </div>
+    <p class="gd-texto gd-texto-pe">Conta a fala escrita pela pessoa ou pelo Scrum do dia. É um número do time, nunca de uma pessoa.</p>
+  </section>
+
+  <!-- Por pessoa, em abas sem JS -->
+  <section class="gd-bloco gd-terco gd-por-pessoa" aria-labelledby="gd-pp-tit">
+    <h2 id="gd-pp-tit">Por pessoa</h2>
+    <p class="gd-rotulo">Em ordem alfabética</p>
+    <input type="radio" name="gd-aba" id="gd-aba-sem" checked>
+    <input type="radio" name="gd-aba" id="gd-aba-atas">
+    <input type="radio" name="gd-aba" id="gd-aba-scrum">
+    <input type="radio" name="gd-aba" id="gd-aba-prep">
+    <div class="gd-abas" role="tablist">
+      <label for="gd-aba-sem">Sementes</label><label for="gd-aba-atas">Atas</label><label for="gd-aba-scrum">Scrum</label><label for="gd-aba-prep">Preparo</label>
+    </div>
+    <ul class="gd-pessoas gd-p-sem">
+      {% for p in pessoas %}
+      <li class="gd-pessoa">
+        <span class="gd-avatar" aria-hidden="true">{{ p.inicial }}</span>
+        <div class="gd-pessoa-corpo">
+          <div class="gd-pessoa-topo"><a class="gd-pessoa-nome" href="{{ url_for('sementes_page', m=p.id) }}#progresso">{{ p.name }}</a><b>{{ p.sementes_total }}</b></div>
+          <span class="gd-trilho"><span class="gd-pilha" style="width: {{ p.pct_total }}%">{% for f in p.fatias %}<span style="flex: {{ f.valor }}; background: {{ f.cor }}" title="{{ f.rotulo }}: {{ f.valor }}"></span>{% endfor %}</span></span>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    <ul class="gd-pessoas gd-p-atas">
+      {% for p in pessoas %}{{ linha_pessoa(p, p.daily + p.fechamento, (100 * (p.daily + p.fechamento) / (2 * topo_atas))|round(2), p.daily ~ ' na daily · ' ~ p.fechamento ~ ' na Day Closing', cor_daily) }}{% endfor %}
+    </ul>
+    <ul class="gd-pessoas gd-p-scrum">
+      {% for p in pessoas %}{{ linha_pessoa(p, p.conduziu_daily + p.conduziu_fechamento, (100 * (p.conduziu_daily + p.conduziu_fechamento) / topo_scrum)|round(2), 'conduziu ' ~ p.conduziu_daily ~ ' daily e ' ~ p.conduziu_fechamento ~ ' Day Closing · ' ~ p.falas_colegas ~ ' falas de colegas', '#5fd6ff') }}{% endfor %}
+    </ul>
+    <ul class="gd-pessoas gd-p-prep">
+      {% for p in pessoas %}{{ linha_pessoa(p, p.fala_pronta + p.fechamento_pronto, (100 * (p.fala_pronta + p.fechamento_pronto) / (2 * topo_prontas))|round(2), p.fala_pronta ~ ' falas prontas · ' ~ p.fechamento_pronto ~ ' fechamentos prontos', '#ff9ec4') }}{% endfor %}
+    </ul>
+  </section>
+
+  <!-- Atas semana a semana -->
+  <section class="gd-bloco gd-dois-tercos" aria-labelledby="gd-atas-tit">
+    <div class="gd-bloco-cab">
+      <div>
+        <h2 id="gd-atas-tit">Atas do time, {{ 'semana a semana' if not por_dia else 'dia a dia' }}</h2>
+        <p class="gd-rotulo">Falas registradas na ata da daily e na da Day Closing</p>
+      </div>
+      {{ legenda([{'cor': cor_daily, 'rotulo': 'Daily'}, {'cor': cor_fechamento, 'rotulo': 'Day Closing'}]) }}
+    </div>
+    {% if baldes %}
+    <div class="gd-colunas gd-colunas-baixas" style="--n: {{ baldes|length }}">
+      <div class="gd-grelha" aria-hidden="true">
+        <span data-v="{{ topo_tend_atas }}"></span><span data-v="{{ (topo_tend_atas / 2)|round|int }}"></span><span data-v="0"></span>
+      </div>
+      {% for b in baldes %}
+      <div class="gd-col" tabindex="0" aria-label="{{ b.titulo or b.rotulo }}: {{ b.daily }} na daily, {{ b.fechamento }} na Day Closing">
+        <span class="gd-col-area gd-col-par">
+          <span class="gd-col-barra" style="height: {{ b.pct_daily }}%; background: {{ cor_daily }}"></span>
+          <span class="gd-col-barra" style="height: {{ b.pct_fechamento }}%; background: {{ cor_fechamento }}"></span>
+          <span class="gd-dica{{ ' gd-dica-esq' if loop.index > (baldes|length) // 2 }}" role="tooltip">
+            <span class="gd-dica-tit">{{ b.titulo or b.rotulo }}</span>
+            <span class="gd-dica-lin"><span class="gd-ponto" style="background: {{ cor_daily }}"></span>Daily<b>{{ b.daily }}</b></span>
+            <span class="gd-dica-lin"><span class="gd-ponto" style="background: {{ cor_fechamento }}"></span>Day Closing<b>{{ b.fechamento }}</b></span>
+          </span>
+        </span>
+        <span class="gd-col-rot">{{ b.rotulo }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </section>
+
+  <!-- Atividade recente -->
+  <section class="gd-bloco gd-terco" aria-labelledby="gd-rec-tit">
+    <h2 id="gd-rec-tit">Atividade recente</h2>
+    <p class="gd-rotulo">Últimas sementes ganhas pelo time</p>
+    <ul class="gd-feed">
+      {% for r in recentes %}
+      <li>
+        <span class="gd-avatar" style="--anel: {{ r.cor }}" aria-hidden="true">{{ r.inicial }}</span>
+        <span class="gd-feed-corpo"><span class="gd-feed-tit">{{ r.rotulo }}</span><span class="gd-feed-sub">{{ r.nome }} · {{ r.data_curta }}</span></span>
+        <b class="gd-feed-val">+{{ r.valor }}</b>
+      </li>
+      {% else %}<li class="gd-vazio">Nada ainda neste período.</li>{% endfor %}
+    </ul>
+  </section>
+
+  <details class="gd-bloco gd-inteiro gd-tabela">
+    <summary>Ver todos os números em tabela</summary>
+    <div class="gd-tabela-rolagem"><table>
+      <thead><tr><th>Pessoa</th>{% for g in grupos %}<th>{{ g.rotulo }}</th>{% endfor %}<th>Sementes</th><th>Daily</th><th>Day Closing</th><th>Conduziu daily</th><th>Conduziu Day Closing</th><th>Falas de colegas</th><th>Fala pronta</th><th>Fechamento pronto</th></tr></thead>
+      <tbody>{% for p in pessoas %}<tr><td>{{ p.name }}</td>{% for g in grupos %}<td>{{ p.sementes[g.id] }}</td>{% endfor %}<td><b>{{ p.sementes_total }}</b></td><td>{{ p.daily }}</td><td>{{ p.fechamento }}</td><td>{{ p.conduziu_daily }}</td><td>{{ p.conduziu_fechamento }}</td><td>{{ p.falas_colegas }}</td><td>{{ p.fala_pronta }}</td><td>{{ p.fechamento_pronto }}</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </details>
+</div>
+<p class="fonte-nota">Só a equipe entra nos gráficos (convidados ficam de fora, como no jardim coletivo). Sementes contam o que foi ganho; compras na loja não descontam aqui.</p>
+{% endblock %}
