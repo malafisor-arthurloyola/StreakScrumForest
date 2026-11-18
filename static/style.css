@@ -2383,3 +2383,47 @@ body.holofote-escuro .cena.holofote-ativo { position: relative; z-index: 901; }
 .registro.so-daily .status-toggle { max-width: 420px; }
 .celula-antiga { opacity: 0.7; }
 .celula-antiga small { font-weight: 400; }
+
+/* ---------- aba Graficos do Painel ---------- */
+.graf-filtro { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
+.graf-chip { padding: 7px 14px; border-radius: 999px; background: var(--s2); color: var(--ink2); text-decoration: none; font-size: var(--t-sm); }
+.graf-chip:hover { background: var(--s3); color: var(--ink); }
+.graf-chip.ativo { background: var(--acc); color: var(--acc-ink); font-weight: 700; }
+.graf-resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.graf-resumo .card + .card { margin-top: 0; }
+.graf-tile { display: flex; flex-direction: column; gap: 4px; }
+.graf-tile-rot { color: var(--ink2); font-size: var(--t-sm); }
+.graf-tile b { font-size: 2rem; line-height: 1.1; }
+.graf-tile-sub { color: var(--ink2); font-size: var(--t-xs); }
+.graf-card h2 { margin: 0 0 4px; }
+.graf-sub-tit { margin: 22px 0 8px; font-size: var(--t-md); color: var(--ink2); font-weight: 600; }
+.graf-legenda { margin: 10px 0 14px; }
+.graf-linhas { display: flex; flex-direction: column; gap: 10px; }
+.graf-linha { display: grid; grid-template-columns: minmax(70px, 120px) 1fr; gap: 12px; align-items: center; }
+.graf-nome { color: var(--ink); font-size: var(--t-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: none; }
+a.graf-nome:hover { text-decoration: underline; }
+.graf-trilho { display: flex; align-items: center; gap: 8px; min-height: 14px; }
+.graf-pilha { display: flex; gap: 2px; height: 16px; min-width: 2px; }
+.graf-fatia { display: block; min-width: 2px; }
+.graf-pilha .graf-fatia:last-child { border-radius: 0 4px 4px 0; }
+.graf-barra { display: block; height: 10px; min-width: 2px; border-radius: 0 4px 4px 0; }
+.graf-num { font-size: var(--t-sm); color: var(--ink); font-variant-numeric: tabular-nums; }
+.graf-par { display: flex; flex-direction: column; gap: 3px; }
+.graf-colunas { position: relative; display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 6px;
+  height: 200px; margin-top: 18px; border-top: 1px dashed var(--s3); }
+.graf-eixo-topo { position: absolute; top: -9px; left: 0; padding-right: 6px; background: var(--s1); color: var(--ink2); font-size: var(--t-xs); line-height: 18px; }
+.graf-col { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.graf-col-area { flex: 1; width: min(100%, 40px); display: flex; align-items: flex-end; }
+.graf-col-pilha { position: relative; display: flex; flex-direction: column; gap: 2px; width: 100%; min-height: 0; }
+.graf-col-pilha .graf-fatia:first-of-type { border-radius: 4px 4px 0 0; }
+.graf-col-num { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); padding-bottom: 3px; font-size: var(--t-xs); color: var(--ink2); }
+.graf-col-par { gap: 2px; }
+.graf-col-barra { flex: 1; min-height: 0; border-radius: 4px 4px 0 0; }
+.graf-col-rot { margin-top: 6px; font-size: var(--t-xs); color: var(--ink2); white-space: nowrap; }
+.graf-tabela { margin-top: 16px; }
+.graf-tabela summary { cursor: pointer; color: var(--ink2); font-size: var(--t-sm); }
+.graf-tabela-rolagem { overflow-x: auto; margin-top: 10px; }
+.graf-tabela table { border-collapse: collapse; font-size: var(--t-sm); min-width: 100%; }
+.graf-tabela th, .graf-tabela td { padding: 6px 10px; text-align: right; border-bottom: 1px solid var(--s3); white-space: nowrap; }
+.graf-tabela th:first-child, .graf-tabela td:first-child { text-align: left; }
+.graf-tabela th { color: var(--ink2); font-weight: 600; }

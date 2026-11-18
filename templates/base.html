@@ -71,7 +71,7 @@
       <a class="link-topo" href="{{ url_for('admin_entrar', next=request.full_path.rstrip('?')) }}">Sou o admin</a>
       {% endif %}
     </div>
-    {% set ep_painel = ('dashboard', 'sementes_page', 'historico', 'membros_page') %}
+    {% set ep_painel = ('dashboard', 'graficos_page', 'sementes_page', 'historico', 'membros_page') %}
     <nav class="nav" aria-label="Principal">
       <a href="{{ url_for('home') }}" class="nav-link{% if ep in ('home', 'dia') %} ativo{% endif %}">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.6l2.7 2.7L16 9.6"/></svg>

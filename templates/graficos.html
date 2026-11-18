@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}Gráficos · Jardim da Equipe{% endblock %}
+
+{% macro legenda(itens) %}
+<ul class="sem-legenda graf-legenda">
+  {% for g in itens %}<li><span class="sem-ponto" style="background: {{ g.cor }}"></span>{{ g.rotulo }}</li>{% endfor %}
+</ul>
+{% endmacro %}
+
+{% macro par(p, a, b, va, vb, topo, ra, rb) %}
+{# duas barras finas por pessoa (a em cima, b embaixo), mesma escala #}
+<div class="graf-par">
+  <div class="graf-trilho"><span class="graf-barra" style="width: {{ (100 * va / topo)|round(2) }}%; background: {{ a }}" title="{{ p.name }}: {{ va }} {{ ra }}"></span><b class="graf-num">{{ va }}</b></div>
+  <div class="graf-trilho"><span class="graf-barra" style="width: {{ (100 * vb / topo)|round(2) }}%; background: {{ b }}" title="{{ p.name }}: {{ vb }} {{ rb }}"></span><b class="graf-num">{{ vb }}</b></div>
+</div>
+{% endmacro %}
+
+{% block content %}
+{% include "_painel_abas.html" %}
+<header class="pagina-cab">
+  <div>
+    <h1>Gráficos do time</h1>
+    <p class="sub">A atividade do grupo em números. As pessoas aparecem sempre em ordem alfabética: os gráficos mostram de onde vem cada coisa, não quem está na frente.</p>
+  </div>
+</header>
+
+<nav class="graf-filtro" aria-label="Período">
+  <a class="graf-chip{{ ' ativo' if sprint is none }}" href="{{ url_for('graficos_page') }}"{% if sprint is none %} aria-current="page"{% endif %}>Projeto todo</a>
+  {% for sp in sprints if sp.inicio <= hoje %}
+  <a class="graf-chip{{ ' ativo' if sprint == sp.n }}" href="{{ url_for('graficos_page', sprint=sp.n) }}"{% if sprint == sp.n %} aria-current="page"{% endif %}>Sprint {{ sp.n }}</a>
+  {% endfor %}
+</nav>
+
+<section class="graf-resumo" aria-label="Resumo do time">
+  <div class="card graf-tile"><span class="graf-tile-rot">Sementes ganhas pelo time</span><b>{{ resumo.sementes }}</b></div>
+  <div class="card graf-tile"><span class="graf-tile-rot">Falas na ata da daily</span><b>{{ resumo.daily }}</b>
+    {% if resumo.taxa_daily is not none %}<span class="graf-tile-sub">{{ resumo.taxa_daily }}% do possível em {{ resumo.dias }} dia{{ 's' if resumo.dias != 1 }} letivo{{ 's' if resumo.dias != 1 }}</span>{% endif %}</div>
+  <div class="card graf-tile"><span class="graf-tile-rot">Falas na Day Closing</span><b>{{ resumo.fechamento }}</b></div>
+  <div class="card graf-tile"><span class="graf-tile-rot">Atas conduzidas pelo Scrum</span><b>{{ resumo.conduzidas }}</b></div>
+  <div class="card graf-tile"><span class="graf-tile-rot">Falas prontas antes da vez</span><b>{{ resumo.fala_pronta }}</b></div>
+</section>
+
+<!-- 1. Sementes ganhas por pessoa, por tipo de atividade -->
+<section class="card graf-card" aria-labelledby="g-sementes">
+  <h2 id="g-sementes">Sementes ganhas, por atividade</h2>
+  <p class="sub sub-secao">Quanto cada pessoa ganhou {{ 'no projeto' if sprint is none else 'na sprint ' ~ sprint }} e de onde veio. Conta o que foi ganho (compras na loja não descontam aqui).</p>
+  {{ legenda(grupos) }}
+  <div class="graf-linhas" role="list">
+    {% for p in pessoas %}
+    <div class="graf-linha" role="listitem">
+      <a class="graf-nome" href="{{ url_for('sementes_page', m=p.id) }}#progresso" title="Ver o extrato de {{ p.name }}">{{ p.name }}</a>
+      <div class="graf-trilho">
+        <span class="graf-pilha" style="width: {{ p.pct_total }}%">
+          {% for f in p.fatias %}<span class="graf-fatia" style="flex: {{ f.valor }}; background: {{ f.cor }}" title="{{ p.name }}, {{ f.rotulo }}: {{ f.valor }}"></span>{% endfor %}
+        </span>
+        <b class="graf-num">{{ p.sementes_total }}</b>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <details class="graf-tabela">
+    <summary>Ver em tabela</summary>
+    <div class="graf-tabela-rolagem"><table>
+      <thead><tr><th>Pessoa</th>{% for g in grupos %}<th>{{ g.rotulo }}</th>{% endfor %}<th>Total</th></tr></thead>
+      <tbody>{% for p in pessoas %}<tr><td>{{ p.name }}</td>{% for g in grupos %}<td>{{ p.sementes[g.id] }}</td>{% endfor %}<td><b>{{ p.sementes_total }}</b></td></tr>{% endfor %}</tbody>
+    </table></div>
+  </details>
+</section>
+
+<!-- 2. Tendencia do time -->
+<section class="card graf-card" aria-labelledby="g-tendencia">
+  <h2 id="g-tendencia">Sementes do time {{ 'por semana' if not por_dia else 'por dia' }}</h2>
+  <p class="sub sub-secao">A soma da equipe em cada {{ 'semana' if not por_dia else 'dia letivo' }}, por atividade. Mostra o ritmo do grupo, não de uma pessoa.</p>
+  {{ legenda(grupos) }}
+  {% if baldes %}
+  <div class="graf-colunas" style="--n: {{ baldes|length }}">
+    <span class="graf-eixo-topo">{{ topo_tend }}</span>
+    {% for b in baldes %}
+    <div class="graf-col" title="{{ b.titulo or b.rotulo }}: {{ b.total }} sementes">
+      <span class="graf-col-area">
+        <span class="graf-col-pilha" style="height: {{ b.pct_total }}%">
+          {% if b.total %}<span class="graf-col-num">{{ b.total }}</span>{% endif %}
+          {% for f in b.fatias|reverse %}<span class="graf-fatia" style="flex: {{ f.valor }}; background: {{ f.cor }}" title="{{ b.titulo or b.rotulo }}, {{ f.rotulo }}: {{ f.valor }}"></span>{% endfor %}
+        </span>
+      </span>
+      <span class="graf-col-rot">{{ b.rotulo }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}<p class="sub">Ainda não há dias neste período.</p>{% endif %}
+</section>
+
+<!-- 3. Atas preenchidas -->
+<section class="card graf-card" aria-labelledby="g-atas">
+  <h2 id="g-atas">Falas preenchidas nas atas</h2>
+  <p class="sub sub-secao">Quantas vezes cada pessoa ficou com a fala registrada na ata da daily e na da Day Closing (escrita por ela ou pelo Scrum do dia). Só dias letivos.</p>
+  {{ legenda([{'cor': cor_daily, 'rotulo': 'Daily'}, {'cor': cor_fechamento, 'rotulo': 'Day Closing'}]) }}
+  <div class="graf-linhas" role="list">
+    {% for p in pessoas %}
+    <div class="graf-linha" role="listitem">
+      <span class="graf-nome">{{ p.name }}</span>
+      {{ par(p, cor_daily, cor_fechamento, p.daily, p.fechamento, topo_atas, 'falas na daily', 'falas na Day Closing') }}
+    </div>
+    {% endfor %}
+  </div>
+  {% if baldes %}
+  <h3 class="graf-sub-tit">O time {{ 'semana a semana' if not por_dia else 'dia a dia' }}</h3>
+  <div class="graf-colunas graf-colunas-par" style="--n: {{ baldes|length }}">
+    <span class="graf-eixo-topo">{{ topo_tend_atas }}</span>
+    {% for b in baldes %}
+    <div class="graf-col" title="{{ b.titulo or b.rotulo }}: {{ b.daily }} na daily, {{ b.fechamento }} na Day Closing">
+      <span class="graf-col-area graf-col-par">
+        <span class="graf-col-barra" style="height: {{ b.pct_daily }}%; background: {{ cor_daily }}"></span>
+        <span class="graf-col-barra" style="height: {{ b.pct_fechamento }}%; background: {{ cor_fechamento }}"></span>
+      </span>
+      <span class="graf-col-rot">{{ b.rotulo }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</section>
+
+<!-- 4. Scrum do dia -->
+<section class="card graf-card" aria-labelledby="g-scrum">
+  <h2 id="g-scrum">Como Scrum do dia</h2>
+  <p class="sub sub-secao">Atas que cada pessoa conduziu (daily e Day Closing somadas) e falas de colegas que ela registrou nessas atas.</p>
+  {{ legenda([{'cor': '#5fd6ff', 'rotulo': 'Atas conduzidas'}, {'cor': '#b59bff', 'rotulo': 'Falas de colegas registradas'}]) }}
+  <div class="graf-linhas" role="list">
+    {% for p in pessoas %}
+    <div class="graf-linha" role="listitem">
+      <span class="graf-nome">{{ p.name }}</span>
+      {{ par(p, '#5fd6ff', '#b59bff', p.conduziu_daily + p.conduziu_fechamento, p.falas_colegas, topo_scrum, 'atas conduzidas (' ~ p.conduziu_daily ~ ' daily, ' ~ p.conduziu_fechamento ~ ' Day Closing)', 'falas de colegas registradas') }}
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- 5. Preparo -->
+<section class="card graf-card" aria-labelledby="g-preparo">
+  <h2 id="g-preparo">Preparo antes da reunião</h2>
+  <p class="sub sub-secao">Fala pronta antes da vez na daily e Fechamento pronto antes da Day Closing (minigames da aba Meu jardim).</p>
+  {{ legenda([{'cor': cor_daily, 'rotulo': 'Fala pronta'}, {'cor': cor_fechamento, 'rotulo': 'Fechamento pronto'}]) }}
+  <div class="graf-linhas" role="list">
+    {% for p in pessoas %}
+    <div class="graf-linha" role="listitem">
+      <span class="graf-nome">{{ p.name }}</span>
+      {{ par(p, cor_daily, cor_fechamento, p.fala_pronta, p.fechamento_pronto, topo_prontas, 'falas prontas', 'fechamentos prontos') }}
+    </div>
+    {% endfor %}
+  </div>
+  <details class="graf-tabela">
+    <summary>Ver atas, Scrum e preparo em tabela</summary>
+    <div class="graf-tabela-rolagem"><table>
+      <thead><tr><th>Pessoa</th><th>Daily</th><th>Day Closing</th><th>Conduziu daily</th><th>Conduziu Day Closing</th><th>Falas de colegas</th><th>Fala pronta</th><th>Fechamento pronto</th></tr></thead>
+      <tbody>{% for p in pessoas %}<tr><td>{{ p.name }}</td><td>{{ p.daily }}</td><td>{{ p.fechamento }}</td><td>{{ p.conduziu_daily }}</td><td>{{ p.conduziu_fechamento }}</td><td>{{ p.falas_colegas }}</td><td>{{ p.fala_pronta }}</td><td>{{ p.fechamento_pronto }}</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </details>
+</section>
+<p class="fonte-nota">Só a equipe entra nos gráficos (convidados ficam de fora, como no jardim coletivo). O extrato completo de cada pessoa continua na aba Sementes.</p>
+{% endblock %}

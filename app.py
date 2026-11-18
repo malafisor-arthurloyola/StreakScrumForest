@@ -1694,6 +1694,185 @@ def dashboard():
     )
 
 
+# ------------------------------------------------------------ aba Graficos do Painel
+# Numeros do time para olhar a atividade em grupo. Principios: pessoas sempre em ORDEM
+# ALFABETICA (nunca do maior para o menor), nenhum destaque de quem esta atras, e as taxas
+# so aparecem somadas para o time. Tudo e derivado das mesmas funcoes do extrato e da ata.
+GRUPOS_GRAFICO = [
+    # (id, rotulo, cor, fontes do extrato que entram no grupo)
+    ("presenca", "Presença e constância", "#c6f24e",
+     {"eventos", "semanas", "marcos", "dia_cheio", "floresceu", "boas_vindas"}),
+    ("ata", "Atas preenchidas", "#b59bff", {"ata"}),
+    ("relator", "Scrum: falas de colegas", "#5fd6ff", {"relator"}),
+    ("minijogo", "Minigames", "#ff9ec4", {"minijogo"}),
+    ("meta", "Metas cumpridas", "#ffb457", {"meta"}),
+]
+GRUPO_DA_FONTE = {f: g[0] for g in GRUPOS_GRAFICO for f in g[3]}
+COR_DAILY, COR_FECHAMENTO = "#c6f24e", "#6db9ff"
+
+
+def _baldes_graficos(semana1_inicio, num_semanas, dias_periodo, hoje, sprint=None):
+    """Intervalos do grafico de tendencia: semanas do projeto inteiro, ou dias letivos de uma
+    sprint. So entra o que ja comecou (inicio <= hoje). [{'rotulo', 'inicio', 'fim'}]"""
+    if sprint is not None:
+        return [{"rotulo": f"{d[8:10]}/{d[5:7]}", "inicio": d, "fim": d} for d in dias_periodo if d <= hoje]
+    s1 = date.fromisoformat(semana1_inicio)
+    baldes = []
+    for i in range(num_semanas):
+        ini = s1 + timedelta(weeks=i)
+        if ini.isoformat() > hoje:
+            break
+        fim = ini + timedelta(days=6)
+        baldes.append({"rotulo": f"S{i + 1}", "inicio": ini.isoformat(), "fim": fim.isoformat(),
+                       "titulo": f"Semana {i + 1} ({ini.day:02d}/{ini.month:02d})"})
+    return baldes
+
+
+def _balde_de(baldes, data):
+    for i, b in enumerate(baldes):
+        if b["inicio"] <= data <= b["fim"]:
+            return i
+    return None
+
+
+def _escala(maximo):
+    """Topo 'redondo' para o eixo (1, 2, 3, 4, 5, 6, 8, 10, 20, 30...), nunca zero."""
+    maximo = max(int(maximo or 0), 1)
+    base = 1
+    while True:
+        for m in (1, 2, 3, 4, 5, 6, 8):
+            if base * m >= maximo:
+                return base * m
+        base *= 10
+
+
+def _contexto_graficos(db, sprint=None):
+    ctx = _base_coletivo(db)
+    hoje = ctx["hoje"]
+    cfg = _get_config(db)
+    sprints = ctx["sprints"]
+    if sprint is not None and not 1 <= sprint <= len(sprints):
+        sprint = None
+    if sprint is None:
+        inicio, fim = "0000-00-00", hoje
+    else:
+        sp = sprints[sprint - 1]
+        inicio, fim = sp["inicio"], min(sp["fim"], hoje)
+    dentro = lambda d: inicio <= (d or "") <= fim  # noqa: E731
+    dias_periodo = [d for d in ctx["dias"] if dentro(d)]
+    baldes = _baldes_graficos(cfg.get("semana1_inicio", "2026-10-12"), int(cfg.get("num_semanas", "10")),
+                              [d for d in ctx["dias"] if sprint is None or sprints[sprint - 1]["inicio"] <= d
+                               <= sprints[sprint - 1]["fim"]], hoje, sprint)
+    equipe = sorted(ctx["ativos"], key=lambda m: m["name"].lower())
+    ids = [m["id"] for m in equipe]
+    semanas = _semanas_projeto(db)
+    marc = ",".join("?" * len(dias_periodo)) or "NULL"
+
+    # falas preenchidas por pessoa e por tipo de ata (so dia letivo do periodo)
+    falas = {mid: {"daily": [], "fechamento": []} for mid in ids}
+    for r in db.execute(
+        f"SELECT member_id, data, tipo FROM ata_falas WHERE data IN ({marc}) "
+        f"AND (TRIM(feito) <> '' OR TRIM(planejado) <> '')", tuple(dias_periodo)
+    ).fetchall():
+        if r["member_id"] in falas:
+            falas[r["member_id"]][r["tipo"]].append(r["data"])
+
+    # atas que cada pessoa conduziu como Scrum do dia
+    conduziu = {mid: {"daily": 0, "fechamento": 0} for mid in ids}
+    for r in db.execute(
+        f"SELECT relator_id, tipo, COUNT(*) AS n FROM atas WHERE relator_id IS NOT NULL AND data IN ({marc}) "
+        f"GROUP BY relator_id, tipo", tuple(dias_periodo)
+    ).fetchall():
+        if r["relator_id"] in conduziu:
+            conduziu[r["relator_id"]][r["tipo"]] = r["n"]
+    relatadas = _relatadas_por_ata(db, dias_periodo)
+
+    # minigames de preparo (Fala pronta e Fechamento pronto) no periodo
+    prontas = {mid: {"fala_pronta": 0, "fechamento_pronto": 0} for mid in ids}
+    for mid, lista in _jogadas_por_membro(db).items():
+        if mid in prontas:
+            for data, jogo in lista:
+                if jogo in prontas[mid] and dentro(data):
+                    prontas[mid][jogo] += 1
+
+    grupos = [{"id": g[0], "rotulo": g[1], "cor": g[2]} for g in GRUPOS_GRAFICO]
+    pessoas = []
+    time_baldes = [{**b, "grupos": {g[0]: 0 for g in GRUPOS_GRAFICO}, "daily": 0, "fechamento": 0}
+                   for b in baldes]
+    for m in equipe:
+        ext = _extrato_do_membro(db, m["id"], ctx["dias"], semanas, ctx["glob"], ctx["cheios"], ctx["meta"])
+        por_grupo = {g[0]: 0 for g in GRUPOS_GRAFICO}
+        for linha in ext["linhas"]:
+            if linha["valor"] <= 0 or not dentro(linha["data"]):
+                continue
+            g = GRUPO_DA_FONTE.get(linha["fonte"], "minijogo")
+            por_grupo[g] += linha["valor"]
+            i = _balde_de(baldes, linha["data"])
+            if i is not None:
+                time_baldes[i]["grupos"][g] += linha["valor"]
+        for tipo in ("daily", "fechamento"):
+            for d in falas[m["id"]][tipo]:
+                i = _balde_de(baldes, d)
+                if i is not None:
+                    time_baldes[i][tipo] += 1
+        pessoas.append({
+            "id": m["id"], "name": m["name"],
+            "sementes": por_grupo, "sementes_total": sum(por_grupo.values()),
+            "daily": len(falas[m["id"]]["daily"]), "fechamento": len(falas[m["id"]]["fechamento"]),
+            "conduziu_daily": conduziu[m["id"]]["daily"], "conduziu_fechamento": conduziu[m["id"]]["fechamento"],
+            "falas_colegas": sum(len(n) for (d, _t), n in relatadas.get(m["id"], {}).items()),
+            "fala_pronta": prontas[m["id"]]["fala_pronta"],
+            "fechamento_pronto": prontas[m["id"]]["fechamento_pronto"],
+        })
+
+    # geometria em % (barras em HTML/CSS: crescem com a tela, sem JS)
+    topo_sem = _escala(max((p["sementes_total"] for p in pessoas), default=0))
+    for p in pessoas:
+        p["fatias"] = [{**g, "valor": p["sementes"][g["id"]], "pct": round(100 * p["sementes"][g["id"]] / topo_sem, 2)}
+                       for g in grupos if p["sementes"][g["id"]]]
+        p["pct_total"] = round(100 * p["sementes_total"] / topo_sem, 2)
+    topo_atas = _escala(max([max(p["daily"], p["fechamento"]) for p in pessoas] + [0]))
+    topo_scrum = _escala(max([p["conduziu_daily"] + p["conduziu_fechamento"] for p in pessoas]
+                             + [p["falas_colegas"] for p in pessoas] + [0]))
+    topo_prontas = _escala(max([max(p["fala_pronta"], p["fechamento_pronto"]) for p in pessoas] + [0]))
+    for b in time_baldes:
+        b["total"] = sum(b["grupos"].values())
+    topo_tend = _escala(max((b["total"] for b in time_baldes), default=0))
+    topo_tend_atas = _escala(max([b["daily"] for b in time_baldes] + [b["fechamento"] for b in time_baldes] + [0]))
+    for b in time_baldes:
+        b["fatias"] = [{**g, "valor": b["grupos"][g["id"]], "pct": round(100 * b["grupos"][g["id"]] / topo_tend, 2)}
+                       for g in grupos if b["grupos"][g["id"]]]
+        b["pct_total"] = round(100 * b["total"] / topo_tend, 2)
+        b["pct_daily"] = round(100 * b["daily"] / topo_tend_atas, 2)
+        b["pct_fechamento"] = round(100 * b["fechamento"] / topo_tend_atas, 2)
+
+    # taxa do TIME (nunca individual): falas da daily sobre o possivel ate hoje
+    possiveis = len(dias_periodo) * len(equipe)
+    total_daily = sum(p["daily"] for p in pessoas)
+    return {
+        "sprints": sprints, "sprint": sprint, "inicio": inicio, "fim": fim, "hoje": hoje,
+        "pessoas": pessoas, "grupos": grupos, "baldes": time_baldes,
+        "por_dia": sprint is not None,
+        "topo_sem": topo_sem, "topo_atas": topo_atas, "topo_scrum": topo_scrum, "topo_prontas": topo_prontas,
+        "topo_tend": topo_tend, "topo_tend_atas": topo_tend_atas,
+        "cor_daily": COR_DAILY, "cor_fechamento": COR_FECHAMENTO,
+        "resumo": {
+            "sementes": sum(p["sementes_total"] for p in pessoas),
+            "daily": total_daily,
+            "taxa_daily": round(100 * total_daily / possiveis) if possiveis else None,
+            "dias": len(dias_periodo),
+            "fechamento": sum(p["fechamento"] for p in pessoas),
+            "conduzidas": sum(p["conduziu_daily"] + p["conduziu_fechamento"] for p in pessoas),
+            "fala_pronta": sum(p["fala_pronta"] for p in pessoas),
+        },
+    }
+
+
+@app.route("/graficos")
+def graficos_page():
+    db = get_db()
+    return render_template("graficos.html", **_contexto_graficos(db, request.args.get("sprint", type=int)))
+
 # Mapa do jardim (aba Painel): canteiros em perspectiva ao redor da fonte. Coordenadas no
 # viewBox 1600 x 1000 do mapa. Os canteiros ficam numa elipse e sempre sobra um vao embaixo,
 # onde entram o caminho de entrada e o canteiro dos convidados.

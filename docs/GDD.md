@@ -395,6 +395,10 @@ nunca vão para o repositório.
   `prefers-reduced-motion`.
 - **Navegação:** barra inferior no celular (Hoje, Painel, Loja, Sementes, Histórico, Membros) e menu no topo
   no computador; selo de administrador no topo.
+- **Gráficos (aba do Painel):** números do time por projeto ou por sprint: sementes ganhas por atividade, a soma
+  do time por semana (ou por dia na sprint), falas registradas na ata da daily e da Day Closing, atas conduzidas
+  como Scrum do dia e falas prontas. As pessoas aparecem sempre em ordem alfabética, nunca do maior para o menor,
+  e taxas (como "% do possível") só aparecem somadas para o time, para não virar ranking de quem está atrás.
 - **Plantas extras:** ficam agrupadas ao vaso principal para que todos os cartões do canteiro tenham a mesma
   largura (ter uma planta a mais não afasta a pessoa do time). No mapa do Painel não há vaso: tudo é plantado
   direto na terra do canteiro. A principal fica no meio, as extras ao lado, e cada outra espécie comprada
