@@ -1802,9 +1802,11 @@ def _contexto_graficos(db, sprint=None):
     for m in equipe:
         ext = _extrato_do_membro(db, m["id"], ctx["dias"], semanas, ctx["glob"], ctx["cheios"], ctx["meta"])
         por_grupo = {g[0]: 0 for g in GRUPOS_GRAFICO}
+        linhas_periodo = []
         for linha in ext["linhas"]:
             if linha["valor"] <= 0 or not dentro(linha["data"]):
                 continue
+            linhas_periodo.append(linha)
             g = GRUPO_DA_FONTE.get(linha["fonte"], "minijogo")
             por_grupo[g] += linha["valor"]
             i = _balde_de(baldes, linha["data"])
@@ -1816,7 +1818,7 @@ def _contexto_graficos(db, sprint=None):
                 if i is not None:
                     time_baldes[i][tipo] += 1
         pessoas.append({
-            "id": m["id"], "name": m["name"],
+            "id": m["id"], "name": m["name"], "inicial": m["name"][:1].upper(), "_linhas": linhas_periodo,
             "sementes": por_grupo, "sementes_total": sum(por_grupo.values()),
             "daily": len(falas[m["id"]]["daily"]), "fechamento": len(falas[m["id"]]["fechamento"]),
             "conduziu_daily": conduziu[m["id"]]["daily"], "conduziu_fechamento": conduziu[m["id"]]["fechamento"],
@@ -1837,6 +1839,7 @@ def _contexto_graficos(db, sprint=None):
     topo_prontas = _escala(max([max(p["fala_pronta"], p["fechamento_pronto"]) for p in pessoas] + [0]))
     for b in time_baldes:
         b["total"] = sum(b["grupos"].values())
+        b["dias"] = sum(1 for d in dias_periodo if b["inicio"] <= d <= b["fim"])
     topo_tend = _escala(max((b["total"] for b in time_baldes), default=0))
     topo_tend_atas = _escala(max([b["daily"] for b in time_baldes] + [b["fechamento"] for b in time_baldes] + [0]))
     for b in time_baldes:
@@ -1849,6 +1852,34 @@ def _contexto_graficos(db, sprint=None):
     # taxa do TIME (nunca individual): falas da daily sobre o possivel ate hoje
     possiveis = len(dias_periodo) * len(equipe)
     total_daily = sum(p["daily"] for p in pessoas)
+
+    # variacao do time: media por dia letivo do ultimo intervalo contra o anterior
+    com_dias = [b for b in time_baldes if b["dias"]]
+
+    def _variacao(chave):
+        if len(com_dias) < 2:
+            return None
+        ant, atual = (com_dias[-2][chave] / com_dias[-2]["dias"], com_dias[-1][chave] / com_dias[-1]["dias"])
+        if not ant:
+            return None
+        return round(100 * (atual - ant) / ant)
+
+    # atividade recente do time (um "extrato" do grupo, mais recente primeiro)
+    recentes = []
+    for p, m in zip(pessoas, equipe):
+        for linha in p.pop("_linhas"):
+            g = GRUPO_DA_FONTE.get(linha["fonte"], "minijogo")
+            recentes.append({"data": linha["data"], "nome": p["name"], "inicial": p["inicial"],
+                             "rotulo": linha["rotulo"], "valor": linha["valor"],
+                             "cor": next(x[2] for x in GRUPOS_GRAFICO if x[0] == g)})
+    recentes.sort(key=lambda x: (x["data"], x["nome"].lower()), reverse=True)
+    for r in recentes:
+        r["data_curta"] = f"{r['data'][8:10]}/{r['data'][5:7]}"
+    total_sem = sum(p["sementes_total"] for p in pessoas)
+    composicao = []
+    for g in grupos:
+        v = sum(p["sementes"][g["id"]] for p in pessoas)
+        composicao.append({**g, "valor": v, "pct": round(100 * v / total_sem) if total_sem else 0})
     return {
         "sprints": sprints, "sprint": sprint, "inicio": inicio, "fim": fim, "hoje": hoje,
         "pessoas": pessoas, "grupos": grupos, "baldes": time_baldes,
@@ -1856,8 +1887,13 @@ def _contexto_graficos(db, sprint=None):
         "topo_sem": topo_sem, "topo_atas": topo_atas, "topo_scrum": topo_scrum, "topo_prontas": topo_prontas,
         "topo_tend": topo_tend, "topo_tend_atas": topo_tend_atas,
         "cor_daily": COR_DAILY, "cor_fechamento": COR_FECHAMENTO,
+        "recentes": recentes[:8], "composicao": composicao,
+        "rotulo_intervalo": "dia" if sprint is not None else "semana",
+        "variacao": {"sementes": _variacao("total"), "daily": _variacao("daily"),
+                     "fechamento": _variacao("fechamento")},
         "resumo": {
-            "sementes": sum(p["sementes_total"] for p in pessoas),
+            "possiveis": possiveis,
+            "sementes": total_sem,
             "daily": total_daily,
             "taxa_daily": round(100 * total_daily / possiveis) if possiveis else None,
             "dias": len(dias_periodo),

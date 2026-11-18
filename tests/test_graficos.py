@@ -116,6 +116,15 @@ class TestGraficos(unittest.TestCase):
         rotulos = [b["rotulo"] for b in self.ctx()["baldes"]]
         self.assertEqual(rotulos, ["S1", "S2", "S3"])
 
+    def test_composicao_e_atividade_recente(self):
+        c = self.ctx()
+        self.assertEqual(sum(x["valor"] for x in c["composicao"]), c["resumo"]["sementes"])
+        datas = [r["data"] for r in c["recentes"]]
+        self.assertEqual(datas, sorted(datas, reverse=True))
+        self.assertLessEqual(len(c["recentes"]), 8)
+        self.assertTrue(all(r["valor"] > 0 for r in c["recentes"]))
+        self.assertNotIn("_linhas", c["pessoas"][0])
+
     def test_escala(self):
         self.assertEqual([appmod._escala(v) for v in (0, 1, 7, 9, 31, 304, 1000)], [1, 1, 8, 10, 40, 400, 1000])
 
