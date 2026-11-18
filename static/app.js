@@ -195,9 +195,6 @@ function aplicarEstagioPrincipal(jogo) {
       var max = g.dataset.max ? parseInt(g.dataset.max, 10) : 99;
       g.classList.toggle('on', jogo.estagio >= min && jogo.estagio <= max);
     });
-    svg.querySelectorAll('[data-prog]').forEach(function (g) {
-      g.classList.toggle('on', jogo.estagio >= 1 && jogo.progresso >= parseFloat(g.dataset.prog));
-    });
     svg.querySelectorAll('[data-fruto]').forEach(function (f) {
       f.classList.toggle('on', (jogo.frutos || 0) >= parseInt(f.dataset.fruto, 10));
     });
