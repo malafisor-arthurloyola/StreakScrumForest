@@ -3582,7 +3582,12 @@ def _estado_minijogos(db, member_id, hoje=None):
 
 def _fechamento_aberto(db, member_id, hoje):
     """O bloco Day Closing do /eu aparece quando a pessoa ja marcou presenca no encerramento de
-    hoje ou ja escreveu algo nele. A tela Hoje usa a mesma regra para saber para onde levar."""
+    hoje, ja escreveu algo nele, ou ja chegou no passo "Fechar o dia" do ritual (daily resolvida e
+    planta cuidada): e quando a tela Hoje oferece "Fechar o dia", entao o bloco tem de estar la para
+    preencher, mesmo antes do QR do encerramento. De manha, so com a daily, continua escondido."""
+    feitas = _jogadas_do_dia(db, member_id, hoje)
+    if "cuidar" in feitas and feitas & {"fala_pronta", "fala_avisada", "fala_daily", "vez_daily"}:
+        return True
     if db.execute(
         "SELECT 1 FROM attendance WHERE member_id = ? AND event_date = ? AND event_type = 'encerramento' "
         "AND status = 'presente' LIMIT 1", (member_id, hoje),

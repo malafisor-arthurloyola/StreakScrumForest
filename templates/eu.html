@@ -6,7 +6,7 @@
 {% set quando = 'amanhã' if vendo_amanha else 'hoje' %}
 {% if papel_admin == 'scrum' %}
 <p class="aviso-scrum">Você é o <b>Scrum de hoje</b>: pode marcar presença de todos e editar a ata do dia.
-  <a href="{{ url_for('ata_page', data_str=dia_real, tipo='daily') }}">Abrir a ata</a></p>
+  <a href="{{ url_for('ata_page', data_str=dia_real, tipo='daily') }}" data-ata-auto>Abrir a ata</a></p>
 {% endif %}
 <section class="eu-topo" aria-label="Meu jardim">
   <div class="eu-hero">

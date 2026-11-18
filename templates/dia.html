@@ -25,7 +25,7 @@
       <a class="btn btn-ghost" href="{{ url_for('dia', data_str=hoje) }}">Ir para hoje</a>
     {% endif %}
     <a class="btn btn-ghost" href="#panorama">Panorama do grupo</a>
-    <a class="btn btn-ghost" href="{{ url_for('ata_page', data_str=data_str, tipo='daily') }}">Ata do dia</a>
+    <a class="btn btn-ghost" href="{{ url_for('ata_page', data_str=data_str, tipo='daily') }}"{% if data_str == hoje %} data-ata-auto{% endif %}>Ata do dia</a>
     {% if admin %}<a class="btn btn-primary btn-qr-modal" href="{{ url_for('qr_page', evento='daily') }}">QR de presença</a>{% endif %}
   </div>
 </header>

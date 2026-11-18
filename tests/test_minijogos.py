@@ -333,14 +333,27 @@ class TestCaminhoAteOJardim(MinijogosBase):
         self.assertNotIn("/eu#ritual", h)
         self.assertIn('id="fala-fechamento"', self.cel.get("/eu").get_data(as_text=True))
 
-    def test_fechar_o_dia_antes_do_encerramento_leva_ao_passo_do_ritual(self):
+    def test_fechar_o_dia_antes_do_qr_do_encerramento_ja_abre_o_day_closing(self):
+        # o Arthur testou de manha: daily e cuidado feitos, sem QR do encerramento ainda
         self.presente(self.ana, eventos=("daily",))
         self._ate_o_fechamento()
         h = self.cel.get(f"/dia/{HOJE}").get_data(as_text=True)
-        self.assertIn("/eu#passo-fechamento", h)
+        self.assertIn("Fechar o dia", h)
+        self.assertIn("/eu#fala-fechamento", h)
         eu = self.cel.get("/eu").get_data(as_text=True)
-        self.assertIn('id="passo-fechamento"', eu)
+        self.assertIn('id="fala-fechamento"', eu)
+        self.assertIn('data-minijogo="fechamento"', eu)
+
+    def test_de_manha_sem_o_ritual_o_day_closing_fica_escondido(self):
+        self.presente(self.ana, eventos=("daily",))
+        eu = self.cel.get("/eu").get_data(as_text=True)
         self.assertNotIn('id="fala-fechamento"', eu)
+
+    def test_ata_do_dia_troca_de_aba_pelo_horario_so_no_dia_corrente(self):
+        h = self.cel.get(f"/dia/{HOJE}").get_data(as_text=True)
+        self.assertIn("data-ata-auto>Ata do dia", h)
+        h = self.cel.get(f"/dia/{ONTEM}").get_data(as_text=True)
+        self.assertNotIn("data-ata-auto", h)                    # dia passado: link fixo na Daily
 
     def test_outro_dia_nao_tem_chamada(self):
         h = self.cel.get(f"/dia/{ONTEM}").get_data(as_text=True)
