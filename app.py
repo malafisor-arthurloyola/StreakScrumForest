@@ -881,6 +881,7 @@ def _posses_e_equipados(db):
         "SELECT member_id, item_id FROM compras WHERE desfeita_em IS NULL"
     ).fetchall():
         posses.setdefault(r["member_id"], set()).add(r["item_id"])
+    posses = {mid: catalog.com_pares(p) for mid, p in posses.items()}
     for r in db.execute("SELECT member_id, slot, item_id FROM equipados").fetchall():
         equip.setdefault(r["member_id"], {})[r["slot"]] = r["item_id"]
     return posses, equip
@@ -2495,7 +2496,7 @@ def _posses_membro(db, member_id):
     rows = db.execute(
         "SELECT item_id FROM compras WHERE member_id = ? AND desfeita_em IS NULL", (member_id,)
     ).fetchall()
-    return {r["item_id"] for r in rows}
+    return catalog.com_pares(r["item_id"] for r in rows)
 
 
 def _e_fundador_membro(db, member_id):
@@ -4222,7 +4223,8 @@ def api_loja_desfazer():
         return _erro("Desfaça a terceira plantinha antes.")
 
     db.execute("UPDATE compras SET desfeita_em = datetime('now') WHERE id = ?", (compra_id,))
-    db.execute("DELETE FROM equipados WHERE member_id = ? AND item_id = ?", (member_id, item_id))
+    for desfeito in catalog.com_pares({item_id}):  # o brinde (PARES) sai junto
+        db.execute("DELETE FROM equipados WHERE member_id = ? AND item_id = ?", (member_id, desfeito))
     if item_id in ("slot_2", "slot_3"):
         db.execute(
             "DELETE FROM equipados WHERE member_id = ? AND slot = ?",

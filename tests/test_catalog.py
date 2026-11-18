@@ -31,7 +31,8 @@ class TestCatalogo(unittest.TestCase):
     def test_faixas_de_preco_do_plano(self):
         faixas = {"vaso": (12, 30), "companheiro": (20, 50), "acessorio": (16, 30), "especie": (40, 120)}
         for i in catalog.ITENS:
-            if i["tipo"] in faixas and i["preco"] > 0:
+            # itens em par (catalog.PARES) custam o preco da especie que vem junto
+            if i["tipo"] in faixas and i["preco"] > 0 and i["id"] not in catalog.PARES:
                 lo, hi = faixas[i["tipo"]]
                 self.assertTrue(lo <= i["preco"] <= hi, (i["id"], i["preco"]))
         self.assertEqual(catalog.item("slot_2")["preco"], 60)
@@ -124,6 +125,11 @@ class TestCatalogo(unittest.TestCase):
         it = catalog.item("vitoria_folha")
         self.assertEqual(it["tipo"], "vaso")
         self.assertEqual(it["raridade"], "epica")
+        self.assertEqual(it["preco"], catalog.item("vitoria")["preco"])  # vem em par com a especie
+
+    def test_com_pares_inclui_o_brinde(self):
+        self.assertEqual(catalog.com_pares({"vitoria"}), {"vitoria", "vitoria_folha"})
+        self.assertEqual(catalog.com_pares({"girassol"}), {"girassol"})
 
     def _planta_svg(self, especie, vaso, **kw):
         from jinja2 import Environment, FileSystemLoader
