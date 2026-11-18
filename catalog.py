@@ -89,6 +89,8 @@ ITENS = [
      "desc": "Um respiro de cor no meio do verde."},
     {"id": "dourado", "tipo": "vaso", "nome": "Vaso dourado", "preco": 30,
      "desc": "Para plantas que já se sentem estrelas."},
+    {"id": "vitoria_folha", "tipo": "vaso", "nome": "Folha de vitória-régia", "preco": 30,
+     "desc": "Uma folha larga boiando na água serve de base: a planta nasce do meio dela."},
 
     # companheiros do vaso
     {"id": "joaninha", "tipo": "companheiro", "nome": "Joaninha", "preco": 20,

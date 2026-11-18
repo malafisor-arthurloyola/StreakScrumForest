@@ -380,6 +380,10 @@ nunca vão para o repositório.
   bambu, bonsai, jabuticabeira, ipê, baobá, lírio-aranha e vitória-régia). Samambaia e planta-jarro são
   **vasos pendurados** por fios; vitória-régia ignora o vaso equipado e vira uma **lagoa** (folha deitada
   na água, sem terra).
+- **Vitória-régia como planta ou como vaso:** além da espécie, a loja tem o vaso **Folha de vitória-régia**
+  (30 sementes, épico): uma folha larga boiando na água serve de base e a planta de qualquer espécie nasce do
+  meio dela, sem terra. É o único vaso que aparece no mapa do Painel, no lugar da covinha de terra da planta
+  principal. Quem equipa a espécie vitória-régia continua com a lagoa, seja qual for o vaso.
 ![As 14 espécies em cinco estágios de crescimento](img/especies.png)
 
 *Espécies em cinco estágios (2, 4, 6, 8 e 10). Samambaia e planta-jarro são vasos pendurados.*

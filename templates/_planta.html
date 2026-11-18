@@ -4,6 +4,20 @@
   O JS (aplicarEstagio em app.js) so troca os atributos data-* e a classe "on",
   entao a planta cresce ao vivo sem recarregar a pagina.
 #}
+{# Vaso folha de vitoria-regia: folha larga boiando na agua; a planta nasce do meio dela, sem terra.
+   Tambem aparece no mapa do Painel (onde nao ha vaso) para a planta principal. #}
+{% macro folha_vitoria() %}
+    <ellipse cx="60" cy="129" rx="46" ry="12" fill="#153a42" opacity=".35"/>
+    <ellipse cx="60" cy="126" rx="47" ry="13" fill="#3a9bb0"/>
+    <ellipse cx="60" cy="126" rx="40" ry="10" fill="none" stroke="#9be3ee" stroke-width="1.1" opacity=".55"/>
+    <path d="M14 130q4-2.4 8 0M98 131q4-2.4 8 0M26 136q4-2 8 0M84 137q4-2 8 0" stroke="#d6f6fa" stroke-width="1.1" fill="none" opacity=".7"/>
+    <path d="M60 118L85.8 124.8A34 10.5 0 1 1 91.4 122.0Z" fill="#2f7d3c" transform="translate(0 3)"/>
+    <path d="M60 118L85.8 124.8A34 10.5 0 1 1 91.4 122.0Z" fill="#6cc04f"/>
+    <path d="M60 118L80.6 123.5A27.2 8.4 0 1 1 85.2 121.2Z" fill="#86d65e"/>
+    <path d="M60 118L69.0 126.8M60 118L54.7 127.1M60 118L41.6 125.3M60 118L32.7 121.8M60 118L30.1 117.5M60 118L34.4 113.2M60 118L44.5 110.1M60 118L58.1 108.8M60 118L72.2 109.6M60 118L83.5 112.3M60 118L89.4 116.3" stroke="#5aac44" stroke-width=".8" fill="none" opacity=".8"/>
+    <path d="M26.4 116.4A34 10.5 0 0 1 60.0 107.5" stroke="#c4f08f" stroke-width="1.4" fill="none" opacity=".8"/>
+{% endmacro %}
+
 {% macro planta(membro, tamanho=160, extra_de=None, sem_vaso=False) %}
 {% set s = membro.estagio %}
 {% set fr = membro.frutos or 0 %}
@@ -27,7 +41,9 @@
     <circle cx="60" cy="32" r="3.2" fill="none" stroke="#9aa0a6" stroke-width="1.5"/><path d="M60 29V-40" stroke="#9aa0a6" stroke-width="1.2" opacity=".55"/></g>
   {% endif %}
   {% if sem_vaso %}{# plantada direto no chao: covinha de terra fofa, ou uma lagoinha pra especies aquaticas #}
-  {% if esp == 'vitoria' %}
+  {% if esp != 'vitoria' and (v.vaso == 'vitoria_folha') and not extra_de %}
+  <g class="cova">{{ folha_vitoria() }}</g>
+  {% elif esp == 'vitoria' %}
   <g class="cova"><ellipse cx="60" cy="118" rx="18" ry="5" fill="#153a42" opacity=".45"/><ellipse cx="60" cy="116.5" rx="15" ry="3.6" fill="#2f7f8f"/></g>
   {% else %}
   <g class="cova"><ellipse cx="60" cy="117" rx="17" ry="4.6" fill="#3e281b"/><ellipse cx="60" cy="116" rx="11" ry="2.6" fill="#6b4630"/></g>
@@ -41,6 +57,7 @@
     <ellipse cx="60" cy="122.5" rx="37" ry="7.5" fill="#153a42" opacity=".45"/>
     <ellipse cx="60" cy="119.5" rx="39" ry="8.6" fill="#2f7f8f"/>
     <path d="M24 119.5Q31 116 38 119.5T52 119.5T66 119.5T80 119.5T94 119.5" stroke="#7fd4e0" stroke-width="1" fill="none" opacity=".55"/>
+    {% elif vs == 'vitoria_folha' %}{{ folha_vitoria() }}
     {% elif vs == 'lata' %}
     <rect class="vaso-corpo" x="36" y="120" width="48" height="27.5" rx="2.5"/>
     <rect class="vaso-rotulo" x="36" y="127" width="48" height="11"/>
@@ -82,7 +99,7 @@
     <path class="vaso-brilho" d="M41.5 132L43.5 145"/>
     <rect class="vaso-borda" x="31" y="115" width="58" height="11" rx="5"/>
     {% endif %}
-    {% if not aquatica %}<ellipse class="terra" cx="60" cy="116" rx="25" ry="3.6"/>{% endif %}
+    {% if not aquatica and vs != 'vitoria_folha' %}<ellipse class="terra" cx="60" cy="116" rx="25" ry="3.6"/>{% endif %}
   </g>
 
   <g class="semente">

@@ -120,6 +120,43 @@ class TestCatalogo(unittest.TestCase):
         self.assertIn("#3e281b", svg_girassol)
 
 
+    def test_vaso_folha_de_vitoria_e_vaso_epico_na_loja(self):
+        it = catalog.item("vitoria_folha")
+        self.assertEqual(it["tipo"], "vaso")
+        self.assertEqual(it["raridade"], "epica")
+
+    def _planta_svg(self, especie, vaso, **kw):
+        from jinja2 import Environment, FileSystemLoader
+        templates = os.path.join(os.path.dirname(__file__), "..", "templates")
+        tmpl = Environment(loader=FileSystemLoader(templates)).get_template("_planta.html")
+        m = {"id": 1, "name": "x", "estagio": 5, "vigor": 1, "floresceu": False, "frutos": 0,
+             "visual": {"especie": especie, "vaso": vaso, "companheiro": None, "acessorio": None, "extras": []}}
+        return str(tmpl.module.planta(m, 150, **kw))
+
+    def test_vaso_folha_de_vitoria_troca_vaso_e_terra_pela_folha(self):
+        svg = self._planta_svg("girassol", "vitoria_folha")
+        self.assertIn("#6cc04f", svg)  # a folha
+        self.assertNotIn('class="terra"', svg)
+        self.assertNotIn("vaso-corpo", svg)
+
+    def test_vaso_folha_de_vitoria_aparece_no_mapa_so_na_planta_principal(self):
+        """No mapa do Painel nao ha vaso, mas a folha de vitoria-regia fica no lugar da covinha de terra."""
+        import re
+
+        def cova(svg):  # o grupo .vaso fica escondido por CSS no mapa; o que aparece e a .cova
+            return re.search(r'<g class="cova">(.*?)</g>\s*\n', svg, re.S).group(1)
+
+        self.assertIn("#6cc04f", cova(self._planta_svg("girassol", "vitoria_folha", sem_vaso=True)))
+        self.assertNotIn("#6cc04f", cova(self._planta_svg("girassol", "vitoria_folha", sem_vaso=True, extra_de=1)))
+        self.assertNotIn("#6cc04f", cova(self._planta_svg("girassol", "terracota", sem_vaso=True)))
+
+    def test_especie_vitoria_continua_lagoa_mesmo_com_o_vaso_de_folha(self):
+        """As duas opcoes convivem: a especie ignora qualquer vaso, inclusive a folha."""
+        svg = self._planta_svg("vitoria", "vitoria_folha")
+        self.assertIn("#2f7f8f", svg)  # a lagoa da especie
+        self.assertNotIn("#6cc04f", svg)
+
+
 class TestCompra(unittest.TestCase):
     def test_compra_simples(self):
         ok, _ = catalog.pode_comprar("girassol", saldo=40, possui=set(), floresceu=False)
