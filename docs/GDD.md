@@ -242,8 +242,8 @@ Tudo na loja é **cosmético**: nada aqui muda o quanto a planta cresce.
 
 | Tipo | Itens (preço em sementes) |
 |---|---|
-| Espécies | Muda comum (0), Girassol (40), Samambaia (40), Cacto (50), Lavanda (50), Cerejeira (70), Bambu (70), Cogumelo (80), Bonsai (90), Jabuticabeira (90), Planta carnívora (110), Planta-jarro (110), Ipê amarelo (120), Baobá (120, só depois de **Floresceu**) |
-| Vasos | Terracota (0), Lata (12), Cerâmica azul (16), Xícara (20), Vaso roxo (24), Vaso dourado (30) |
+| Espécies | Muda comum (0), Girassol (40), Samambaia (40), Cacto (50), Lavanda (50), Vitória-régia (50, vem com o vaso de folha), Cerejeira (70), Bambu (70), Cogumelo (80), Lírio-aranha vermelho (85), Bonsai (90), Jabuticabeira (90), Planta carnívora (110), Planta-jarro (110), Ipê amarelo (120), Baobá (120, só depois de **Floresceu**) |
+| Vasos | Terracota (0), Lata (12), Cerâmica azul (16), Xícara (20), Vaso roxo (24), Vaso dourado (30), Folha de vitória-régia (50, vem com a espécie) |
 | Companheiros | Joaninha (20), Borboleta (24), Vagalume (30), Passarinho (40), Gato dorminhoco (50) |
 | Acessórios | Laço (16), Óculos (20), Chapéu de palha (24); Selo Fundador (exclusivo, fora da venda) |
 | Plantas extras | Segunda plantinha (60), Terceira plantinha (110, exige a segunda) |
@@ -376,8 +376,15 @@ nunca vão para o repositório.
   (`data-stage`, `data-vigor`), sem recarregar a página. As espécies principais foram redesenhadas a partir de
   fotos de referência, com poucas partes bem desenhadas, tons de luz e sombra e padrões da natureza (como a
   espiral de sementes do girassol).
-- **Espécies:** 14 (muda, girassol, cacto, cogumelo, carnívora, planta-jarro, samambaia, lavanda, cerejeira,
-  bambu, bonsai, jabuticabeira, ipê e baobá). Samambaia e planta-jarro são **vasos pendurados** por fios.
+- **Espécies:** 16 (muda, girassol, cacto, cogumelo, carnívora, planta-jarro, samambaia, lavanda, cerejeira,
+  bambu, bonsai, jabuticabeira, ipê, baobá, lírio-aranha e vitória-régia). Samambaia e planta-jarro são
+  **vasos pendurados** por fios; vitória-régia ignora o vaso equipado e vira uma **lagoa** (folha deitada
+  na água, sem terra).
+- **Vitória-régia como planta ou como vaso:** além da espécie, a loja tem o vaso **Folha de vitória-régia**
+  (épico): uma folha larga boiando na água serve de base e a planta de qualquer espécie nasce do meio dela,
+  sem terra. Espécie e vaso custam 50 sementes e vêm juntos: quem compra um ganha o outro (`catalog.PARES`), e
+  desfazer a compra tira os dois. É o único vaso que aparece no mapa do Painel, no lugar da covinha de terra da planta
+  principal. Quem equipa a espécie vitória-régia continua com a lagoa, seja qual for o vaso.
 ![As 14 espécies em cinco estágios de crescimento](img/especies.png)
 
 *Espécies em cinco estágios (2, 4, 6, 8 e 10). Samambaia e planta-jarro são vasos pendurados.*

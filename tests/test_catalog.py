@@ -31,7 +31,8 @@ class TestCatalogo(unittest.TestCase):
     def test_faixas_de_preco_do_plano(self):
         faixas = {"vaso": (12, 30), "companheiro": (20, 50), "acessorio": (16, 30), "especie": (40, 120)}
         for i in catalog.ITENS:
-            if i["tipo"] in faixas and i["preco"] > 0:
+            # itens em par (catalog.PARES) custam o preco da especie que vem junto
+            if i["tipo"] in faixas and i["preco"] > 0 and i["id"] not in catalog.PARES:
                 lo, hi = faixas[i["tipo"]]
                 self.assertTrue(lo <= i["preco"] <= hi, (i["id"], i["preco"]))
         self.assertEqual(catalog.item("slot_2")["preco"], 60)
@@ -66,6 +67,100 @@ class TestCatalogo(unittest.TestCase):
 
     def test_item_inexistente(self):
         self.assertIsNone(catalog.item("nao-existe"))
+
+    def test_lirio_renderiza_sem_erro_em_todos_os_estagios(self):
+        """Especie nova (lirio-aranha): o macro SVG precisa existir e rodar para s=1..10 sem lancar."""
+        from jinja2 import Environment, FileSystemLoader
+        templates = os.path.join(os.path.dirname(__file__), "..", "templates")
+        tmpl = Environment(loader=FileSystemLoader(templates)).get_template("_especies.html")
+        for s in range(1, 11):
+            svg = tmpl.module.esp_lirio(s, fr=0)
+            self.assertTrue(str(svg).strip())
+
+    def test_vitoria_renderiza_sem_erro_em_todos_os_estagios(self):
+        """Especie nova (vitoria-regia): folha deitada sem caule; so confere que o macro roda sem lancar."""
+        from jinja2 import Environment, FileSystemLoader
+        templates = os.path.join(os.path.dirname(__file__), "..", "templates")
+        tmpl = Environment(loader=FileSystemLoader(templates)).get_template("_especies.html")
+        for s in range(1, 11):
+            svg = tmpl.module.esp_vitoria(s, fr=0)
+            self.assertTrue(str(svg).strip())
+
+    def test_vitoria_vira_lagoa_e_ignora_o_vaso_equipado(self):
+        """_planta.html: especie 'vitoria' troca o vaso+terra por lagoa, nao importa o vaso equipado."""
+        from jinja2 import Environment, FileSystemLoader
+        templates = os.path.join(os.path.dirname(__file__), "..", "templates")
+        tmpl = Environment(loader=FileSystemLoader(templates)).get_template("_planta.html")
+
+        def membro(especie, vaso):
+            return {"id": 1, "name": "x", "estagio": 5, "vigor": 1, "floresceu": False, "frutos": 0,
+                    "visual": {"especie": especie, "vaso": vaso, "companheiro": None, "acessorio": None, "extras": []}}
+
+        svg_vitoria = str(tmpl.module.planta(membro("vitoria", "dourado"), 150))
+        self.assertNotIn('class="terra"', svg_vitoria)
+        self.assertNotIn("vaso-corpo", svg_vitoria)  # nao desenha o vaso dourado por baixo
+
+        svg_girassol = str(tmpl.module.planta(membro("girassol", "terracota"), 150))
+        self.assertIn('class="terra"', svg_girassol)
+
+    def test_vitoria_solta_no_mapa_ganha_lagoinha_em_vez_de_covinha_de_terra(self):
+        """_planta.html com sem_vaso=True (jardim coletivo): vitoria ganha uma covinha de agua, nao de terra."""
+        from jinja2 import Environment, FileSystemLoader
+        templates = os.path.join(os.path.dirname(__file__), "..", "templates")
+        tmpl = Environment(loader=FileSystemLoader(templates)).get_template("_planta.html")
+
+        def membro(especie):
+            return {"id": 1, "name": "x", "estagio": 5, "vigor": 1, "floresceu": False, "frutos": 0,
+                    "visual": {"especie": especie, "vaso": "terracota", "companheiro": None, "acessorio": None, "extras": []}}
+
+        svg_vitoria = str(tmpl.module.planta(membro("vitoria"), 150, sem_vaso=True))
+        self.assertIn("#2f7f8f", svg_vitoria)  # lagoinha, cor da agua
+        self.assertNotIn("#3e281b", svg_vitoria)  # nao a covinha de terra padrao
+
+        svg_girassol = str(tmpl.module.planta(membro("girassol"), 150, sem_vaso=True))
+        self.assertIn("#3e281b", svg_girassol)
+
+
+    def test_vaso_folha_de_vitoria_e_vaso_epico_na_loja(self):
+        it = catalog.item("vitoria_folha")
+        self.assertEqual(it["tipo"], "vaso")
+        self.assertEqual(it["raridade"], "epica")
+        self.assertEqual(it["preco"], catalog.item("vitoria")["preco"])  # vem em par com a especie
+
+    def test_com_pares_inclui_o_brinde(self):
+        self.assertEqual(catalog.com_pares({"vitoria"}), {"vitoria", "vitoria_folha"})
+        self.assertEqual(catalog.com_pares({"girassol"}), {"girassol"})
+
+    def _planta_svg(self, especie, vaso, **kw):
+        from jinja2 import Environment, FileSystemLoader
+        templates = os.path.join(os.path.dirname(__file__), "..", "templates")
+        tmpl = Environment(loader=FileSystemLoader(templates)).get_template("_planta.html")
+        m = {"id": 1, "name": "x", "estagio": 5, "vigor": 1, "floresceu": False, "frutos": 0,
+             "visual": {"especie": especie, "vaso": vaso, "companheiro": None, "acessorio": None, "extras": []}}
+        return str(tmpl.module.planta(m, 150, **kw))
+
+    def test_vaso_folha_de_vitoria_troca_vaso_e_terra_pela_folha(self):
+        svg = self._planta_svg("girassol", "vitoria_folha")
+        self.assertIn("#6cc04f", svg)  # a folha
+        self.assertNotIn('class="terra"', svg)
+        self.assertNotIn("vaso-corpo", svg)
+
+    def test_vaso_folha_de_vitoria_aparece_no_mapa_so_na_planta_principal(self):
+        """No mapa do Painel nao ha vaso, mas a folha de vitoria-regia fica no lugar da covinha de terra."""
+        import re
+
+        def cova(svg):  # o grupo .vaso fica escondido por CSS no mapa; o que aparece e a .cova
+            return re.search(r'<g class="cova">(.*?)</g>\s*\n', svg, re.S).group(1)
+
+        self.assertIn("#6cc04f", cova(self._planta_svg("girassol", "vitoria_folha", sem_vaso=True)))
+        self.assertNotIn("#6cc04f", cova(self._planta_svg("girassol", "vitoria_folha", sem_vaso=True, extra_de=1)))
+        self.assertNotIn("#6cc04f", cova(self._planta_svg("girassol", "terracota", sem_vaso=True)))
+
+    def test_especie_vitoria_continua_lagoa_mesmo_com_o_vaso_de_folha(self):
+        """As duas opcoes convivem: a especie ignora qualquer vaso, inclusive a folha."""
+        svg = self._planta_svg("vitoria", "vitoria_folha")
+        self.assertIn("#2f7f8f", svg)  # a lagoa da especie
+        self.assertNotIn("#6cc04f", svg)
 
 
 class TestCompra(unittest.TestCase):

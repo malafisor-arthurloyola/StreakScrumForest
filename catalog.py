@@ -67,6 +67,11 @@ ITENS = [
      "desc": "Flores brancas e frutos escuros que nascem no tronco.", "folha": "p-folha-redonda"},
     {"id": "ipe", "tipo": "especie", "nome": "Ipê amarelo", "preco": 120,
      "desc": "A cara do Brasil: uma chuva de flores douradas."},
+    {"id": "lirio", "tipo": "especie", "nome": "Lírio-aranha vermelho", "preco": 85,
+     "desc": "Pétalas finas e vermelhas, recurvadas como pernas de aranha, num talo sem folhas."},
+    {"id": "vitoria", "tipo": "especie", "nome": "Vitória-régia", "preco": 50,
+     "desc": "Uma folha redonda flutuando na lagoa, com a borda virada pra cima. A flor abre branca e no "
+             "estágio final vira rosa."},
     {"id": "baoba", "tipo": "especie", "nome": "Baobá", "preco": 120,
      "desc": "Só quem já viu uma planta florescer pode plantar esta.",
      "req": {"floresceu": True}},
@@ -84,6 +89,8 @@ ITENS = [
      "desc": "Um respiro de cor no meio do verde."},
     {"id": "dourado", "tipo": "vaso", "nome": "Vaso dourado", "preco": 30,
      "desc": "Para plantas que já se sentem estrelas."},
+    {"id": "vitoria_folha", "tipo": "vaso", "nome": "Folha de vitória-régia", "preco": 50,
+     "desc": "Uma folha larga boiando na água serve de base: a planta nasce do meio dela."},
 
     # companheiros do vaso
     {"id": "joaninha", "tipo": "companheiro", "nome": "Joaninha", "preco": 20,
@@ -124,6 +131,16 @@ for _i in ITENS:
     _i["raridade_nome"] = RARIDADE_NOME[_i["raridade"]]
 
 _POR_ID = {i["id"]: i for i in ITENS}
+
+# Itens que vem juntos: quem compra um ganha o outro (mesmo preco, uma compra so).
+# A vitoria-regia existe como especie (vira lagoa) e como vaso (folha boiando).
+PARES = {"vitoria": "vitoria_folha", "vitoria_folha": "vitoria"}
+
+
+def com_pares(possui):
+    """Conjunto de posses com os itens que vem de brinde junto de outro (PARES)."""
+    possui = set(possui)
+    return possui | {PARES[i] for i in possui if i in PARES}
 
 
 def item(item_id):

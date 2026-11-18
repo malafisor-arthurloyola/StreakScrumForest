@@ -285,3 +285,31 @@ class TestExcluirMembro(LojaBase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestVitoriaRegiaVemEmPar(LojaBase):
+    """A vitoria-regia existe como especie e como vaso: quem compra um ganha o outro."""
+
+    _compra_id = TestDesfazer._compra_id
+
+    def test_comprar_o_vaso_da_a_especie_e_cobra_uma_vez(self):
+        self.presencas(1, 20)
+        antes = self.stats(1)["sementes"]
+        self.assertEqual(self.comprar(1, "vitoria_folha").status_code, 200)
+        self.assertEqual(self.stats(1)["sementes"], antes - 50)
+        self.assertEqual(self.equipar(1, "especie", "vitoria").status_code, 200)
+        self.assertEqual(self.equipar(1, "vaso", "vitoria_folha").status_code, 200)
+
+    def test_comprar_a_especie_da_o_vaso_e_nao_deixa_comprar_de_novo(self):
+        self.presencas(1, 20)
+        self.comprar(1, "vitoria")
+        self.assertEqual(self.equipar(1, "vaso", "vitoria_folha").status_code, 200)
+        self.assertEqual(self.comprar(1, "vitoria_folha").status_code, 400)
+
+    def test_desfazer_tira_os_dois_e_desequipa(self):
+        self.presencas(1, 20)
+        self.comprar(1, "vitoria")
+        self.equipar(1, "vaso", "vitoria_folha")
+        self.post("/api/loja/desfazer", member_id=1, compra_id=self._compra_id(1, "vitoria"))
+        self.assertEqual(self.stats(1)["visual"]["vaso"], "terracota")
+        self.assertEqual(self.equipar(1, "vaso", "vitoria_folha").status_code, 400)

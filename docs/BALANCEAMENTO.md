@@ -191,11 +191,11 @@ dedicado: 25% antes, 19% agora), um pouco mais exigente para dar sensação de e
 | Tipo | Itens e preços |
 |---|---|
 | Plantinha extra | 2ª: **60**, 3ª: **110** |
-| Espécies | Girassol 40, Samambaia 40, Cacto 50, Lavanda 50, Cerejeira 70, Bambu 70, Cogumelo 80, Bonsai 90, Jabuticabeira 90, Carnívora 110, Planta-jarro 110, Ipê 120, Baobá 120 (só depois de florescer) |
-| Vasos | 12, 16, 20, 24, 30 |
+| Espécies | Girassol 40, Samambaia 40, Cacto 50, Lavanda 50, Vitória-régia 50 (com o vaso de folha), Cerejeira 70, Bambu 70, Cogumelo 80, Lírio-aranha 85, Bonsai 90, Jabuticabeira 90, Carnívora 110, Planta-jarro 110, Ipê 120, Baobá 120 (só depois de florescer) |
+| Vasos | 12, 16, 20, 24, 30 (a Folha de vitória-régia vem junto da espécie) |
 | Companheiros | 20, 24, 30, 40, 50 |
 | Acessórios | 16, 20, 24 |
-| **Total do catálogo** | **1.536** (1.426 antes da planta-jarro) |
+| **Total do catálogo** | **1.671**, com a vitória-régia contada uma vez só (1.536 antes do lírio-aranha e da vitória-régia; 1.426 antes da planta-jarro) |
 
 ### 5.1 Ritmo de compra (dia letivo em que o saldo alcança cada valor)
 

@@ -739,12 +739,6 @@ input.input-nome:hover, input.input-nome:focus { background: var(--s2); }
   40% { transform: scale(calc(var(--esc) * 1.09)); }
 }
 
-.dia-extra {
-  opacity: 0; transform: scale(0.3); transform-origin: 60px 113px;
-  transition: opacity 0.4s, transform 0.6s cubic-bezier(0.2, 1.4, 0.4, 1);
-}
-.dia-extra.on { opacity: 1; transform: none; }
-
 .balao { opacity: 0; transition: opacity 0.4s; }
 .balao rect, .balao path { fill: #f4fbf6; }
 .balao .balao-gota { fill: var(--aviso); }
