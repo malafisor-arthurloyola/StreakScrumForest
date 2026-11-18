@@ -532,3 +532,29 @@ document.querySelectorAll('.status-toggle').forEach(function (wrapper) {
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !modal.hidden) fecharModal(); });
 })();
 
+
+/* "Ata do dia" e "Abrir a ata": a aba segue o relogio de quem abre (o servidor roda em UTC).
+   Das 15h ate 2h da manha abre o Day Closing; das 2h as 15h, a Daily. Antes das 2h ainda e o
+   dia anterior, entao abre o Day Closing de ontem. Na sexta (sem Day Closing) o servidor
+   devolve para a Daily sozinho. Vale so no link do dia corrente (marcado com data-ata-auto). */
+function abaDaAtaPeloHorario(agora) {
+  var h = agora.getHours();
+  var d = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+  if (h < 2) d.setDate(d.getDate() - 1);
+  function dois(n) { return (n < 10 ? '0' : '') + n; }
+  return {
+    data: d.getFullYear() + '-' + dois(d.getMonth() + 1) + '-' + dois(d.getDate()),
+    tipo: (h >= 15 || h < 2) ? 'fechamento' : 'daily'
+  };
+}
+(function () {
+  var links = document.querySelectorAll('a[data-ata-auto]');
+  if (!links.length) return;
+  function ajustar() {
+    var alvo = abaDaAtaPeloHorario(new Date());
+    links.forEach(function (a) { a.href = '/ata/' + alvo.data + '/' + alvo.tipo; });
+  }
+  ajustar();
+  // a pagina pode ficar aberta o dia todo: confere de novo na hora do clique
+  links.forEach(function (a) { a.addEventListener('click', ajustar); });
+})();

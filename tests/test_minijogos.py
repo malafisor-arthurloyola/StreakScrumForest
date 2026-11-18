@@ -349,6 +349,12 @@ class TestCaminhoAteOJardim(MinijogosBase):
         eu = self.cel.get("/eu").get_data(as_text=True)
         self.assertNotIn('id="fala-fechamento"', eu)
 
+    def test_ata_do_dia_troca_de_aba_pelo_horario_so_no_dia_corrente(self):
+        h = self.cel.get(f"/dia/{HOJE}").get_data(as_text=True)
+        self.assertIn("data-ata-auto>Ata do dia", h)
+        h = self.cel.get(f"/dia/{ONTEM}").get_data(as_text=True)
+        self.assertNotIn("data-ata-auto", h)                    # dia passado: link fixo na Daily
+
     def test_outro_dia_nao_tem_chamada(self):
         h = self.cel.get(f"/dia/{ONTEM}").get_data(as_text=True)
         self.assertNotIn("chamada-jardim", h)
